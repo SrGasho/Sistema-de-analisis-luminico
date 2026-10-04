@@ -53,13 +53,13 @@ def cargar_hotel_data(data: dict) -> Hotel:
             for _ in range(tower_data["habitaciones_por_piso"]):
                 room_index += 1
                 zona_id = f"{torre.id}-H-{100 + room_index}"
-                zona = _zona_habitacion(zona_id, torre, piso_numero, room_index, tower_data)
+                zona = _zona_habitacion(zona_id, torre, piso_numero, room_index, tower_data, data.get("vidrios", {}), data.get("paredes", {}))
                 piso.zonas.append(zona)
             if piso_numero == 1:
                 for common in tower_data["zonas_comunes"]:
                     for index in range(1, common["cantidad"] + 1):
                         zona_id = f"{torre.id}-{common['codigo']}-{index:02d}"
-                        zona = _zona_comun(zona_id, torre, piso_numero, common, index)
+                        zona = _zona_comun(zona_id, torre, piso_numero, common, index, data.get("vidrios", {}), data.get("paredes", {}))
                         piso.zonas.append(zona)
             torre.pisos.append(piso)
         torres.append(torre)
@@ -70,6 +70,7 @@ def cargar_hotel_data(data: dict) -> Hotel:
         perfiles_iluminacion=perfiles,
         perfiles_climaticos=climas,
         perfil_climatico_activo=data["hotel"]["perfil_climatico"],
+        horarios=data.get("horarios", {}),
         fuentes=fuentes,
         huespedes={},
         asignaciones=[],
@@ -138,21 +139,25 @@ def cargar_hotel_data(data: dict) -> Hotel:
     return hotel
 
 
-def _zona_habitacion(zona_id: str, torre: Torre, piso: int, index: int, config: dict) -> HabitacionHotel:
+def _zona_habitacion(zona_id: str, torre: Torre, piso: int, index: int, config: dict, vidrios: dict, paredes: dict) -> HabitacionHotel:
     center = _room_center(torre.caja, piso, index, config["habitaciones_por_piso"])
     orientation = [Vector3(1, 0, 0), Vector3(0, 1, 0), Vector3(-1, 0, 0), Vector3(0, -1, 0)][(index - 1) % 4]
-    ventana = Ventana(f"{zona_id}-V1", center + orientation * 0.5, orientation, 2.0, Vidrio("VIDRIO_CLARO", 0.82, 1.5))
-    superficie = SuperficiePared(f"{zona_id}-P1", center, orientation * -1, 0.70, CajaEspacial(center.x - 0.5, center.x + 0.5, center.y - 0.5, center.y + 0.5, center.z - 0.5, center.z + 0.5))
+    glass = vidrios.get("VIDRIO_CLARO", {"transmitancia_visible": 0.82, "indice_refraccion": 1.5})
+    wall_reflectance = paredes.get("BLANCO", {"reflectancia": 0.80})["reflectancia"]
+    ventana = Ventana(f"{zona_id}-V1", center + orientation * 0.5, orientation, 2.0, Vidrio("VIDRIO_CLARO", glass["transmitancia_visible"], glass["indice_refraccion"]))
+    superficie = SuperficiePared(f"{zona_id}-P1", center, orientation * -1, wall_reflectance, CajaEspacial(center.x - 0.5, center.x + 0.5, center.y - 0.5, center.y + 0.5, center.z - 0.5, center.z + 0.5))
     return HabitacionHotel(zona_id, Actividad.HABITACION, 24.0, piso, torre.id, ventanas=[ventana], superficies=[superficie], fuente_id=f"L-{zona_id}")
 
 
-def _zona_comun(zona_id: str, torre: Torre, piso: int, config: dict, index: int) -> ZonaHotel:
+def _zona_comun(zona_id: str, torre: Torre, piso: int, config: dict, index: int, vidrios: dict, paredes: dict) -> ZonaHotel:
     center = torre.caja.center + Vector3((index - 1) * 2.0, 0, -torre.caja.center.z + 1.5)
+    glass = vidrios.get("VIDRIO_LOW_E", {"transmitancia_visible": 0.71, "indice_refraccion": 1.5})
+    wall_reflectance = paredes.get("BLANCO", {"reflectancia": 0.80})["reflectancia"]
     ventanas = []
     for window_index in range(config["ventanas"]):
         orientation = [Vector3(1, 0, 0), Vector3(0, 1, 0), Vector3(-1, 0, 0)][window_index % 3]
-        ventanas.append(Ventana(f"{zona_id}-V{window_index + 1}", center + orientation, orientation, config["area_ventana"], Vidrio("VIDRIO_LOW_E", 0.71, 1.5)))
-    superficie = SuperficiePared(f"{zona_id}-P1", center, Vector3(0, 1, 0), 0.70, CajaEspacial(center.x - 1, center.x + 1, center.y - 1, center.y + 1, center.z - 1, center.z + 1))
+        ventanas.append(Ventana(f"{zona_id}-V{window_index + 1}", center + orientation, orientation, config["area_ventana"], Vidrio("VIDRIO_LOW_E", glass["transmitancia_visible"], glass["indice_refraccion"])))
+    superficie = SuperficiePared(f"{zona_id}-P1", center, Vector3(0, 1, 0), wall_reflectance, CajaEspacial(center.x - 1, center.x + 1, center.y - 1, center.y + 1, center.z - 1, center.z + 1))
     return ZonaHotel(zona_id, Actividad(config["actividad"]), config["area"], piso, torre.id, ventanas=ventanas, superficies=[superficie], fuente_id=f"L-{zona_id}")
 
 

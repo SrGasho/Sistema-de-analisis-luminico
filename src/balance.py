@@ -15,21 +15,20 @@ class Demanda:
     potencia_objetivo: float
 
 
-def horario_modo(zona: ZonaHotel, hora: float) -> ModoOperacion:
+def horario_modo(hotel: Hotel, zona: ZonaHotel, hora: float) -> ModoOperacion:
+    horario = hotel.horarios.get(zona.actividad.value, {})
+    inicio = float(horario.get("inicio_activa", 0.0))
+    fin = float(horario.get("fin_activa", 24.0))
     if zona.actividad == Actividad.PARQUEADERO:
         return ModoOperacion.ACTIVA
-    if zona.actividad in {Actividad.HABITACION, Actividad.COCINA}:
-        return ModoOperacion.ACTIVA if 6.0 <= hora < 22.0 else ModoOperacion.REDUCIDA
-    if zona.actividad == Actividad.RECREACION:
-        return ModoOperacion.ACTIVA if 8.0 <= hora < 23.0 else ModoOperacion.REDUCIDA
-    return ModoOperacion.CERRADA
+    return ModoOperacion.ACTIVA if inicio <= hora < fin else ModoOperacion.REDUCIDA
 
 
 def balancear(hotel: Hotel, hora: float, natural: dict[str, float], reflejada: dict[str, float]) -> dict[str, float]:
     hotel.generador.iniciar_instante()
     demandas: list[Demanda] = []
     for zona in hotel.zonas.values():
-        zona.modo = horario_modo(zona, hora)
+        zona.modo = horario_modo(hotel, zona, hora)
         perfil = hotel.perfiles_iluminacion[zona.actividad]
         minimo, objetivo, _ = perfil.para_modo(zona.modo)
         fuente = hotel.fuentes[zona.fuente_id] if zona.fuente_id else None

@@ -50,6 +50,81 @@ def validar(data: dict) -> dict:
     return {"valido": True, "resumen": resumen_inicial(data), "zonas_generadas": len(hotel.zonas), "habitaciones_generadas": len(hotel.habitaciones)}
 
 
+def _punto_zona(zona):
+    if zona.superficies:
+        punto = zona.superficies[0].posicion
+    elif zona.ventanas:
+        punto = zona.ventanas[0].posicion
+    else:
+        from .geometria import Vector3
+        punto = Vector3(0, 0, 0)
+    dimensiones = {
+        "HABITACION": (4.0, 3.0),
+        "COCINA": (7.0, 5.0),
+        "RECREACION": (10.0, 7.0),
+        "PARQUEADERO": (15.0, 9.0),
+    }
+    ancho, alto = dimensiones[zona.actividad.value]
+    return {"x": punto.x, "y": punto.y, "z": punto.z, "ancho": ancho, "alto": alto}
+
+
+def _layout_hotel(hotel, resumen):
+    torres = []
+    for torre in hotel.torres:
+        pisos = []
+        for piso in torre.pisos:
+            zonas = []
+            for zona in piso.zonas:
+                resultados = zona.resultados
+                ultimo = resultados[-1] if resultados else None
+                zonas.append({
+                    "id": zona.id,
+                    "actividad": zona.actividad.value,
+                    "piso": piso.numero,
+                    "modo": zona.modo.value,
+                    "estado": ultimo.estado.value if ultimo else "DATOS_INSUFICIENTES",
+                    "promedio_lux": resumen.get(zona.id, {}).get("promedio_lux", 0.0),
+                    "posicion": _punto_zona(zona),
+                })
+            pisos.append({"numero": piso.numero, "zonas": zonas})
+        torres.append({
+            "id": torre.id,
+            "caja": {
+                "min_x": torre.caja.min_x,
+                "max_x": torre.caja.max_x,
+                "min_y": torre.caja.min_y,
+                "max_y": torre.caja.max_y,
+            },
+            "pisos": pisos,
+        })
+    return {"torres": torres}
+
+
+def _estado_generador(potencia_maxima: float, capacidad: float, deficit: int) -> str:
+    if deficit > 0 or potencia_maxima > capacidad:
+        return "CAPACIDAD_LIMITADA"
+    if potencia_maxima > capacidad * 0.8:
+        return "ALTA_DEMANDA"
+    return "OPERACION_NORMAL"
+
+
+def _generador_resultado(hotel, resultados, resumen):
+    capacidad = hotel.generador.capacidad_kw * 1000.0
+    por_hora = {}
+    for resultado in resultados:
+        por_hora[resultado.hora] = por_hora.get(resultado.hora, 0.0) + resultado.potencia_asignada
+    potencia_maxima = max(por_hora.values(), default=0.0)
+    deficit = sum(datos["pasos_deficit"] > 0 for datos in resumen.values())
+    return {
+        "capacidad_w": capacidad,
+        "demanda_maxima_w": potencia_maxima,
+        "reserva_w": max(0.0, capacidad - potencia_maxima),
+        "porcentaje_usado": 0.0 if capacidad == 0 else min(100.0, potencia_maxima / capacidad * 100.0),
+        "estado": _estado_generador(potencia_maxima, capacidad, deficit),
+        "por_hora": [{"hora": hora, "potencia_w": potencia} for hora, potencia in sorted(por_hora.items())],
+    }
+
+
 def ejecutar_balance(data: dict) -> dict:
     hotel = cargar_hotel_data(data)
     resultados, resumen, reasignaciones = SimuladorUnificado(hotel).ejecutar()
@@ -75,6 +150,8 @@ def ejecutar_balance(data: dict) -> dict:
             "zonas_con_exceso": sum(datos["pasos_exceso"] > 0 for datos in resumen.values()),
             "reasignaciones": len(reasignaciones),
         },
+        "generador": _generador_resultado(hotel, resultados, resumen),
+        "layout": _layout_hotel(hotel, resumen),
         "resultados": serializados,
         "resumen_zonas": resumen,
         "reasignaciones": reasignaciones,

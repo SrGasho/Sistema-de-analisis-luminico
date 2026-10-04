@@ -43,6 +43,24 @@
     "LLUVIOSO": {"radiacion": 4.454, "nubosidad": 0.8487, "precipitacion": 6.97, "factor_luz": 0.50},
     "CIELO_DESPEJADO": {"radiacion": 7.063, "nubosidad": 0.0, "precipitacion": 0.0, "factor_luz": 1.0}
   },
+  "vidrios": {
+    "VIDRIO_CLARO": {"transmitancia_visible": 0.82, "indice_refraccion": 1.5},
+    "VIDRIO_LOW_E": {"transmitancia_visible": 0.71, "indice_refraccion": 1.5},
+    "VIDRIO_CONTROL_SOLAR": {"transmitancia_visible": 0.52, "indice_refraccion": 1.5}
+  },
+  "paredes": {
+    "BLANCO": {"reflectancia": 0.80},
+    "CREMA": {"reflectancia": 0.70},
+    "GRIS_CLARO": {"reflectancia": 0.60},
+    "GRIS_MEDIO": {"reflectancia": 0.45},
+    "OSCURO": {"reflectancia": 0.25}
+  },
+  "horarios": {
+    "HABITACION": {"inicio_activa": 6, "fin_activa": 22},
+    "COCINA": {"inicio_activa": 6, "fin_activa": 22},
+    "RECREACION": {"inicio_activa": 8, "fin_activa": 23},
+    "PARQUEADERO": {"inicio_activa": 0, "fin_activa": 24}
+  },
   "luminarias": {
     "HABITACION": {"potencia_w": 72, "eficacia_lm_w": 100, "cu": 0.70, "mf": 0.80},
     "COCINA": {"potencia_w": 200, "eficacia_lm_w": 100, "cu": 0.70, "mf": 0.80},

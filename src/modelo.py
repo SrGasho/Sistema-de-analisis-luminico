@@ -187,6 +187,7 @@ class Hotel:
     perfiles_iluminacion: dict[Actividad, PerfilIluminacion]
     perfiles_climaticos: dict[str, PerfilClimatico]
     perfil_climatico_activo: str
+    horarios: dict[str, dict]
     fuentes: dict[str, FuenteIluminacion]
     huespedes: dict[str, Huesped]
     asignaciones: list[Asignacion]
