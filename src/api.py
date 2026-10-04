@@ -108,7 +108,7 @@ def _estado_generador(potencia_maxima: float, capacidad: float, deficit: int) ->
     return "OPERACION_NORMAL"
 
 
-def _generador_resultado(hotel, resultados, resumen):
+def _generador_resultado(hotel, resultados, resumen, balanceado: bool = True):
     capacidad = hotel.generador.capacidad_kw * 1000.0
     por_hora = {}
     for resultado in resultados:
@@ -120,14 +120,14 @@ def _generador_resultado(hotel, resultados, resumen):
         "demanda_maxima_w": potencia_maxima,
         "reserva_w": max(0.0, capacidad - potencia_maxima),
         "porcentaje_usado": 0.0 if capacidad == 0 else min(100.0, potencia_maxima / capacidad * 100.0),
-        "estado": _estado_generador(potencia_maxima, capacidad, deficit),
+        "estado": _estado_generador(potencia_maxima, capacidad, deficit) if balanceado else "SIN_BALANCEAR",
         "por_hora": [{"hora": hora, "potencia_w": potencia} for hora, potencia in sorted(por_hora.items())],
     }
 
 
-def ejecutar_balance(data: dict) -> dict:
+def ejecutar_balance(data: dict, balancear_energia: bool = True, incluir_resultados: bool = True) -> dict:
     hotel = cargar_hotel_data(data)
-    resultados, resumen, reasignaciones = SimuladorUnificado(hotel).ejecutar()
+    resultados, resumen, reasignaciones = SimuladorUnificado(hotel).ejecutar(balancear_energia=balancear_energia)
     serializados = []
     for resultado in resultados:
         item = asdict(resultado)
@@ -138,7 +138,7 @@ def ejecutar_balance(data: dict) -> dict:
     for resultado in resultados:
         estados[resultado.estado.value] = estados.get(resultado.estado.value, 0) + 1
     return {
-        "estado": "COMPLETADO",
+        "estado": "BALANCE_COMPLETADO" if balancear_energia else "ANALISIS_ACTUAL",
         "resumen": {
             **resumen_inicial(data),
             "resultados_generados": len(resultados),
@@ -150,9 +150,9 @@ def ejecutar_balance(data: dict) -> dict:
             "zonas_con_exceso": sum(datos["pasos_exceso"] > 0 for datos in resumen.values()),
             "reasignaciones": len(reasignaciones),
         },
-        "generador": _generador_resultado(hotel, resultados, resumen),
+        "generador": _generador_resultado(hotel, resultados, resumen, balancear_energia),
         "layout": _layout_hotel(hotel, resumen),
-        "resultados": serializados,
+        "resultados": serializados if incluir_resultados else [],
         "resumen_zonas": resumen,
         "reasignaciones": reasignaciones,
         "advertencias": ["Los resultados son aproximaciones educativas y usan lux de referencia."] if resultados else [],
@@ -168,7 +168,8 @@ class WebHandler(BaseHTTPRequestHandler):
         if path == "/api/escenario":
             try:
                 data = leer_escenario()
-                self._json({"config": data, "resumen_inicial": resumen_inicial(data)})
+                actual = ejecutar_balance(data, balancear_energia=False, incluir_resultados=False)
+                self._json({"config": data, "resumen_inicial": resumen_inicial(data), "analisis_actual": actual})
             except Exception as error:
                 self._error(error)
             return

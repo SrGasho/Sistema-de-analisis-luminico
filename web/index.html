@@ -12,7 +12,7 @@
       <div>
         <p class="eyebrow">Ciencias de la Computación 1</p>
         <h1>Análisis lumínico hotelero</h1>
-        <p>Configura las entradas, analiza 24 horas y balancea la energía del generador.</p>
+        <p>Configura las entradas, revisa el estado actual y balancea la energía del generador.</p>
       </div>
       <div class="hero-mark">24<span>h</span></div>
     </header>
@@ -26,8 +26,6 @@
         </div>
         <span class="status" id="validation-status">Cargando escenario...</span>
       </div>
-
-      <div class="cards" id="scenario-cards"></div>
 
       <div class="form-grid">
         <div class="form-card">
@@ -63,20 +61,20 @@
 
       <div class="actions initial-actions">
         <button class="secondary" id="download-config">Descargar configuración</button>
-        <button class="primary large-button" id="main-balance-button">Analizar iluminación y balancear energía</button>
+        <button class="primary large-button" id="main-balance-button" disabled>Analizar iluminación y balancear energía</button>
       </div>
     </section>
 
-    <section class="panel hidden" id="results-panel">
+    <section class="panel" id="current-analysis-panel">
       <div class="section-heading">
         <div>
-          <p class="eyebrow">Salidas</p>
-          <h2>Resultado del análisis</h2>
+          <p class="eyebrow">Condición actual</p>
+          <h2>Habitabilidad antes del balance</h2>
+          <p class="muted">Este plano muestra la iluminación natural y reflejada del escenario antes de asignar energía del generador.</p>
         </div>
-        <span class="status success" id="result-status">Balance completado</span>
+        <span class="status" id="current-status">Calculando condición actual...</span>
       </div>
-      <div class="cards" id="result-cards"></div>
-      <div class="generator-panel" id="generator-panel"></div>
+      <div class="cards" id="current-analysis-cards"></div>
       <div class="floor-panel">
         <div class="section-heading compact-heading">
           <div>
@@ -91,6 +89,18 @@
         <div id="floor-plan" class="floor-plan"></div>
         <div id="zone-detail" class="zone-detail muted">Selecciona una zona del plano.</div>
       </div>
+    </section>
+
+    <section class="panel hidden" id="results-panel">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Salidas</p>
+          <h2>Resultado del balance</h2>
+        </div>
+        <span class="status success" id="result-status">Balance completado</span>
+      </div>
+      <div class="cards" id="result-cards"></div>
+      <div class="generator-panel" id="generator-panel"></div>
       <div id="recommendations"></div>
       <div class="actions">
         <button class="secondary" id="download-json">Descargar resultados JSON</button>
