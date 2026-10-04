@@ -33,7 +33,7 @@ La ejecución genera `outputs/resultados.json`, `outputs/resumen.json` y `output
 
 ## Aplicación web
 
-La interfaz web muestra primero los datos del hotel y permite editar el JSON de entrada. El botón **Balancear y analizar** ejecuta la simulación, el balance energético y la búsqueda de reasignaciones.
+La interfaz web muestra primero los datos del hotel mediante formularios editables. JavaScript genera el objeto JSON internamente; el usuario no necesita modificar JSON directamente. El botón **Analizar iluminación y balancear energía** ejecuta la simulación, muestra el plano esquemático, actualiza el estado del generador y presenta recomendaciones de reasignación.
 
 Para iniciar el servidor:
 

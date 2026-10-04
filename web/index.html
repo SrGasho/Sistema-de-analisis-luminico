@@ -9,32 +9,61 @@
 <body>
   <main class="container">
     <header class="hero">
-      <p class="eyebrow">Ciencias de la Computación 1</p>
-      <h1>Análisis lumínico y balance energético</h1>
-      <p>Hotel de dos torres en Bogotá · simulación unificada de 24 horas</p>
+      <div>
+        <p class="eyebrow">Ciencias de la Computación 1</p>
+        <h1>Análisis lumínico hotelero</h1>
+        <p>Configura las entradas, analiza 24 horas y balancea la energía del generador.</p>
+      </div>
+      <div class="hero-mark">24<span>h</span></div>
     </header>
 
     <section class="panel" id="scenario-panel">
       <div class="section-heading">
         <div>
           <p class="eyebrow">Entradas</p>
-          <h2>Datos del hotel</h2>
+          <h2>Configura el hotel</h2>
+          <p class="muted">Los campos actualizan el JSON internamente. No necesitas editar código.</p>
         </div>
         <span class="status" id="validation-status">Cargando escenario...</span>
       </div>
+
       <div class="cards" id="scenario-cards"></div>
-      <div class="tables" id="scenario-tables"></div>
-      <details class="json-editor">
-        <summary>Editar JSON de entrada</summary>
-        <p class="muted">Puedes ajustar el escenario completo. El botón de balanceo usa exactamente este JSON.</p>
-        <textarea id="json-input" spellcheck="false"></textarea>
-        <div class="actions">
-          <button class="secondary" id="refresh-button">Actualizar datos</button>
-          <button class="primary" id="balance-button">Balancear y analizar</button>
+
+      <div class="form-grid">
+        <div class="form-card">
+          <h3>Escenario general</h3>
+          <label>Perfil climático
+            <select id="climate-select" data-path="hotel.perfil_climatico"></select>
+          </label>
+          <label>Capacidad del generador (kW)
+            <input id="generator-capacity" data-path="generador.capacidad_kw" type="number" min="1" step="0.5">
+          </label>
         </div>
-      </details>
+        <div class="form-card">
+          <h3>Torres</h3>
+          <div id="tower-forms"></div>
+        </div>
+      </div>
+
+      <div class="form-card wide-card">
+        <h3>Perfiles de actividad</h3>
+        <div id="activity-forms"></div>
+      </div>
+
+      <div class="form-grid">
+        <div class="form-card">
+          <h3>Horarios</h3>
+          <div id="schedule-forms"></div>
+        </div>
+        <div class="form-card">
+          <h3>Vidrios y paredes</h3>
+          <div id="material-forms"></div>
+        </div>
+      </div>
+
       <div class="actions initial-actions">
-        <button class="primary" id="main-balance-button">Balancear y analizar</button>
+        <button class="secondary" id="download-config">Descargar configuración</button>
+        <button class="primary large-button" id="main-balance-button">Analizar iluminación y balancear energía</button>
       </div>
     </section>
 
@@ -42,17 +71,32 @@
       <div class="section-heading">
         <div>
           <p class="eyebrow">Salidas</p>
-          <h2>Resultados del balance</h2>
+          <h2>Resultado del análisis</h2>
         </div>
         <span class="status success" id="result-status">Balance completado</span>
       </div>
       <div class="cards" id="result-cards"></div>
+      <div class="generator-panel" id="generator-panel"></div>
+      <div class="floor-panel">
+        <div class="section-heading compact-heading">
+          <div>
+            <p class="eyebrow">Visualización espacial</p>
+            <h2>Plano esquemático del piso</h2>
+          </div>
+          <div class="selectors">
+            <label>Torre<select id="floor-tower"></select></label>
+            <label>Piso<select id="floor-number"></select></label>
+          </div>
+        </div>
+        <div id="floor-plan" class="floor-plan"></div>
+        <div id="zone-detail" class="zone-detail muted">Selecciona una zona del plano.</div>
+      </div>
+      <div id="recommendations"></div>
       <div class="actions">
         <button class="secondary" id="download-json">Descargar resultados JSON</button>
         <button class="secondary" id="download-csv">Descargar reporte CSV</button>
       </div>
       <div id="state-table"></div>
-      <div id="recommendations"></div>
       <div id="zone-table"></div>
     </section>
   </main>
