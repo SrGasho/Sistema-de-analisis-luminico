@@ -13,7 +13,30 @@ function escapeHtml(value) {
 }
 
 function card(label, value) {
-  return `<div class="card"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`;
+  return `<div class="card"><span>${escapeHtml(label)}</span><strong class="num">${escapeHtml(value)}</strong></div>`;
+}
+
+const STATE_META = {
+  CONFORTABLE: { cls: "good", label: "Confortable" },
+  DEFICIT_LEVE: { cls: "deficit-leve", label: "Déficit leve" },
+  DEFICIT_SEVERO: { cls: "deficit-severo", label: "Déficit severo" },
+  EXCESO_LEVE: { cls: "exceso-leve", label: "Exceso leve" },
+  EXCESO_SEVERO: { cls: "exceso-severo", label: "Exceso severo" },
+  DATOS_INSUFICIENTES: { cls: "sin-datos", label: "Datos insuficientes" }
+};
+const STATE_ORDER = ["CONFORTABLE", "DEFICIT_LEVE", "DEFICIT_SEVERO", "EXCESO_LEVE", "EXCESO_SEVERO", "DATOS_INSUFICIENTES"];
+const ACTIVITY_LABELS = { HABITACION: "Habitación", COCINA: "Cocina", RECREACION: "Recreación", PARQUEADERO: "Parqueadero" };
+
+function stateInfo(estado) {
+  return STATE_META[estado] || STATE_META.DATOS_INSUFICIENTES;
+}
+
+function activityLabel(activity) {
+  return ACTIVITY_LABELS[activity] || activity;
+}
+
+function zoneLabel(zone, tower) {
+  return zone.id.replace(`${tower.id}-`, "");
 }
 
 function input(path, value, type = "number", step = "0.1") {
@@ -108,7 +131,7 @@ function renderGenerator(generator) {
   }
   const percent = Math.min(100, Number(generator.porcentaje_usado || 0));
   const statusClass = generator.estado === "OPERACION_NORMAL" ? "normal" : generator.estado === "ALTA_DEMANDA" ? "warning" : "critical";
-  $("#generator-panel").innerHTML = `<div class="generator-card"><div><p class="eyebrow">Balance energético</p><h3>Estado del generador</h3><p class="muted">La barra representa la demanda máxima asignada frente a la capacidad disponible.</p></div><div class="generator-value">${percent.toFixed(1)}<span>%</span></div><div class="energy-track"><div class="energy-fill ${statusClass}" style="width:${percent}%"></div></div><div class="energy-details"><span>Capacidad: <strong>${generator.capacidad_w.toFixed(0)} W</strong></span><span>Demanda máxima: <strong>${generator.demanda_maxima_w.toFixed(0)} W</strong></span><span>Reserva: <strong>${generator.reserva_w.toFixed(0)} W</strong></span><b class="energy-status ${statusClass}">${generator.estado.replaceAll("_", " ")}</b></div></div>`;
+  $("#generator-panel").innerHTML = `<div class="generator-card"><div class="generator-top"><div><p class="eyebrow">Balance energético</p><h3>Estado del generador</h3><p class="muted">La barra representa la demanda máxima asignada frente a la capacidad disponible.</p></div><div class="generator-value num">${percent.toFixed(1)}<span>%</span></div></div><div class="energy-track"><div class="energy-fill ${statusClass}" style="width:${percent}%"></div></div><div class="energy-details"><span>Capacidad: <strong class="num">${generator.capacidad_w.toFixed(0)} W</strong></span><span>Demanda máxima: <strong class="num">${generator.demanda_maxima_w.toFixed(0)} W</strong></span><span>Reserva: <strong class="num">${generator.reserva_w.toFixed(0)} W</strong></span><b class="energy-status ${statusClass}">${generator.estado.replaceAll("_", " ")}</b></div></div>`;
 }
 
 function renderFloorSelectors(layout) {
@@ -125,36 +148,49 @@ function updateFloorOptions() {
   renderFloorPlan();
 }
 
-function zoneColor(zone) {
-  const colors = { CONFORTABLE: "#54b981", DEFICIT_LEVE: "#ec9e43", DEFICIT_SEVERO: "#dc5965", EXCESO_LEVE: "#e3bd4e", EXCESO_SEVERO: "#965dc5", DATOS_INSUFICIENTES: "#98a6b8" };
-  return colors[zone.estado] || "#98a6b8";
-}
-
 function renderFloorPlan() {
   if (!state.result || !state.result.layout) return;
   const tower = state.result.layout.torres.find((item) => item.id === $("#floor-tower").value) || state.result.layout.torres[0];
   const floor = tower.pisos.find((item) => item.numero === Number($("#floor-number").value)) || tower.pisos[0];
+  const rooms = floor.zonas.filter((zone) => zone.actividad === "HABITACION");
+  const common = floor.zonas.filter((zone) => zone.actividad !== "HABITACION");
   const box = tower.caja;
   const width = Math.max(1, box.max_x - box.min_x);
   const height = Math.max(1, box.max_y - box.min_y);
   const scaleX = 900 / width;
   const scaleY = 500 / height;
-  const shapes = floor.zonas.map((zone) => {
+  const shapes = rooms.map((zone) => {
     const p = zone.posicion;
     const x = 50 + (p.x - box.min_x) * scaleX - p.ancho * scaleX / 2;
     const y = 40 + (p.y - box.min_y) * scaleY - p.alto * scaleY / 2;
     const w = Math.max(34, p.ancho * scaleX);
     const h = Math.max(26, p.alto * scaleY);
-    return `<g class="zone-shape" data-zone-id="${zone.id}"><rect x="${x}" y="${y}" width="${w}" height="${h}" rx="7" fill="${zoneColor(zone)}" fill-opacity=".82"></rect><text x="${x + w / 2}" y="${y + h / 2}" text-anchor="middle" dominant-baseline="middle">${zone.id.replace(`${tower.id}-`, "")}</text></g>`;
+    const info = stateInfo(zone.estado);
+    return `<g class="zone-shape" data-zone-id="${zone.id}"><rect class="${info.cls}" x="${x}" y="${y}" width="${w}" height="${h}" rx="7"></rect><text x="${x + w / 2}" y="${y + h / 2}" text-anchor="middle" dominant-baseline="middle">${escapeHtml(zoneLabel(zone, tower))}</text></g>`;
   }).join("");
-  $("#floor-plan").innerHTML = `<svg viewBox="0 0 1000 580" role="img" aria-label="Plano esquemático de ${tower.id}, piso ${floor.numero}"><rect class="building-outline" x="35" y="25" width="930" height="530" rx="14"></rect>${shapes}<text class="floor-label" x="50" y="570">${tower.id} · Piso ${floor.numero}</text></svg><div class="legend"><span><i class="legend-dot comfortable"></i>Confortable</span><span><i class="legend-dot deficit"></i>Déficit</span><span><i class="legend-dot excess"></i>Exceso</span></div>`;
+  const defs = `<defs><pattern id="hatch-sin-datos" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="7" height="7" class="hatch-bg"></rect><line x1="0" y1="0" x2="0" y2="7" class="hatch-line"></line></pattern></defs>`;
+  $("#floor-plan").innerHTML = `<svg viewBox="0 0 1000 580" role="img" aria-label="Plano esquemático de ${tower.id}, piso ${floor.numero}">${defs}<rect class="building-outline" x="35" y="25" width="930" height="530" rx="14"></rect>${shapes}<text class="floor-label" x="50" y="570">${tower.id} · Piso ${floor.numero}</text></svg>`;
+
+  const presentStates = new Set(floor.zonas.map((zone) => zone.estado));
+  $("#floor-legend").innerHTML = STATE_ORDER.filter((estado) => presentStates.has(estado)).map((estado) => {
+    const info = stateInfo(estado);
+    return `<span><i class="legend-dot ${info.cls}"></i>${info.label}</span>`;
+  }).join("");
+
+  $("#common-zones").innerHTML = common.length ? common.map((zone) => {
+    const info = stateInfo(zone.estado);
+    return `<button type="button" class="common-zone-card ${info.cls}" data-zone-id="${zone.id}"><span class="common-zone-top"><span class="common-zone-name">${escapeHtml(activityLabel(zone.actividad))}</span><i class="legend-dot ${info.cls}"></i></span><span class="common-zone-id">${escapeHtml(zoneLabel(zone, tower))}</span><span class="common-zone-state">${info.label}</span></button>`;
+  }).join("") : `<p class="muted">Este piso no tiene zonas comunes registradas.</p>`;
+
   document.querySelectorAll(".zone-shape").forEach((shape) => shape.addEventListener("click", () => showZoneDetail(shape.dataset.zoneId)));
+  document.querySelectorAll(".common-zone-card").forEach((btn) => btn.addEventListener("click", () => showZoneDetail(btn.dataset.zoneId)));
 }
 
 function showZoneDetail(zoneId) {
   const zone = state.result.layout.torres.flatMap((tower) => tower.pisos.flatMap((floor) => floor.zonas)).find((item) => item.id === zoneId);
   if (!zone) return;
-  $("#zone-detail").innerHTML = `<strong>${escapeHtml(zone.id)}</strong><span>${escapeHtml(zone.actividad)} · Piso ${zone.piso}</span><span>Estado: <b class="inline-state">${escapeHtml(zone.estado)}</b></span><span>Promedio: ${zone.promedio_lux.toFixed(1)} lux</span>`;
+  const info = stateInfo(zone.estado);
+  $("#zone-detail").innerHTML = `<strong>${escapeHtml(zone.id)}</strong><span>${escapeHtml(activityLabel(zone.actividad))} · Piso ${zone.piso}</span><span>Estado: <b class="inline-state ${info.cls}">${info.label}</b></span><span>Promedio: <span class="num">${zone.promedio_lux.toFixed(1)}</span> lux</span>`;
 }
 
 function renderResult(result) {
