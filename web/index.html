@@ -4,6 +4,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Análisis lumínico hotelero</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap">
   <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
@@ -86,8 +89,17 @@
             <label>Piso<select id="floor-number"></select></label>
           </div>
         </div>
-        <div id="floor-plan" class="floor-plan"></div>
-        <div id="zone-detail" class="zone-detail muted">Selecciona una zona del plano.</div>
+        <div class="floor-layout">
+          <div class="floor-plan-col">
+            <div id="floor-plan" class="floor-plan"></div>
+            <div id="floor-legend" class="legend"></div>
+          </div>
+          <div class="common-zones-col">
+            <h3>Zonas comunes</h3>
+            <div id="common-zones" class="common-zones"></div>
+          </div>
+        </div>
+        <div id="zone-detail" class="zone-detail muted">Selecciona una habitación del plano o una zona común de la lista.</div>
       </div>
     </section>
 
