@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Análisis lumínico hotelero</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <main class="container">
+    <header class="hero">
+      <p class="eyebrow">Ciencias de la Computación 1</p>
+      <h1>Análisis lumínico y balance energético</h1>
+      <p>Hotel de dos torres en Bogotá · simulación unificada de 24 horas</p>
+    </header>
+
+    <section class="panel" id="scenario-panel">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Entradas</p>
+          <h2>Datos del hotel</h2>
+        </div>
+        <span class="status" id="validation-status">Cargando escenario...</span>
+      </div>
+      <div class="cards" id="scenario-cards"></div>
+      <div class="tables" id="scenario-tables"></div>
+      <details class="json-editor">
+        <summary>Editar JSON de entrada</summary>
+        <p class="muted">Puedes ajustar el escenario completo. El botón de balanceo usa exactamente este JSON.</p>
+        <textarea id="json-input" spellcheck="false"></textarea>
+        <div class="actions">
+          <button class="secondary" id="refresh-button">Actualizar datos</button>
+          <button class="primary" id="balance-button">Balancear y analizar</button>
+        </div>
+      </details>
+      <div class="actions initial-actions">
+        <button class="primary" id="main-balance-button">Balancear y analizar</button>
+      </div>
+    </section>
+
+    <section class="panel hidden" id="results-panel">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Salidas</p>
+          <h2>Resultados del balance</h2>
+        </div>
+        <span class="status success" id="result-status">Balance completado</span>
+      </div>
+      <div class="cards" id="result-cards"></div>
+      <div class="actions">
+        <button class="secondary" id="download-json">Descargar resultados JSON</button>
+        <button class="secondary" id="download-csv">Descargar reporte CSV</button>
+      </div>
+      <div id="state-table"></div>
+      <div id="recommendations"></div>
+      <div id="zone-table"></div>
+    </section>
+  </main>
+  <script src="/app.js"></script>
+</body>
+</html>

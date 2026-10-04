@@ -31,6 +31,31 @@ python3 -m src.main --entrada data/datos_hotel.json --salida outputs
 
 La ejecución genera `outputs/resultados.json`, `outputs/resumen.json` y `outputs/reporte.csv`.
 
+## Aplicación web
+
+La interfaz web muestra primero los datos del hotel y permite editar el JSON de entrada. El botón **Balancear y analizar** ejecuta la simulación, el balance energético y la búsqueda de reasignaciones.
+
+Para iniciar el servidor:
+
+```bash
+python3 -m src.api
+```
+
+Después abre `http://127.0.0.1:8000` en el navegador. También se puede validar la entrada sin iniciar el servidor:
+
+```bash
+python3 -m src.api --check
+```
+
+La aplicación usa únicamente la biblioteca estándar de Python y expone:
+
+```text
+GET  /api/escenario
+POST /api/validar
+POST /api/balancear
+GET  /api/health
+```
+
 ## Estructura
 
 ```text
@@ -46,6 +71,10 @@ src/evaluacion.py       Estados y métricas
 src/reasignacion.py     Propuestas de habitaciones alternativas
 src/io_datos.py         Carga y validación del JSON
 src/main.py             Ejecución y reportes
+src/api.py              Servidor web y endpoints JSON
+web/index.html          Interfaz de entradas y resultados
+web/app.js              Balanceo, resultados y descargas
+web/styles.css          Estilos de la interfaz
 ```
 
 Los datos son sintéticos y el resultado no sustituye un diseño fotométrico, eléctrico o arquitectónico profesional.
