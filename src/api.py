@@ -183,6 +183,9 @@ class WebHandler(BaseHTTPRequestHandler):
             if path == "/api/validar":
                 self._json(validar(data))
                 return
+            if path == "/api/condicion_actual":
+                self._json(ejecutar_balance(data, balancear_energia=False, incluir_resultados=False))
+                return
             if path == "/api/balancear":
                 self._json(ejecutar_balance(data))
                 return
