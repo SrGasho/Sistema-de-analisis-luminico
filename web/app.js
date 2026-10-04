@@ -43,9 +43,7 @@ function input(path, value, type = "number", step = "0.1") {
   return `<input data-path="${path}" type="${type}" value="${escapeHtml(value)}" ${type === "number" ? `step="${step}"` : ""}>`;
 }
 
-function renderScenario(payload) {
-  state.config = payload.config;
-  state.current = payload.analisis_actual;
+function buildForms() {
   const climateOptions = Object.keys(state.config.perfiles_climaticos).map((name) => `<option value="${name}" ${name === state.config.hotel.perfil_climatico ? "selected" : ""}>${name}</option>`).join("");
   $("#climate-select").innerHTML = climateOptions;
   $("#generator-capacity").value = state.config.generador.capacidad_kw;
@@ -54,6 +52,12 @@ function renderScenario(payload) {
   renderScheduleForms();
   renderMaterialForms();
   bindInputs();
+}
+
+function renderScenario(payload) {
+  state.config = payload.config;
+  state.current = payload.analisis_actual;
+  buildForms();
   $("#validation-status").textContent = "Escenario cargado";
   renderCurrentAnalysis(state.current);
   $("#main-balance-button").disabled = false;
@@ -208,6 +212,24 @@ function renderResult(result) {
   $("#zone-table").innerHTML = `<div class="output-block"><h3>Resumen de zonas</h3><p class="muted">Se muestran las primeras 40 zonas; el JSON contiene el detalle completo.</p><table><thead><tr><th>Zona</th><th>Promedio lux</th><th>Máximo lux</th><th>Déficit</th><th>Confort</th><th>Wh</th></tr></thead><tbody>${rows}</tbody></table></div>`;
 }
 
+async function loadCurrentCondition() {
+  const button = $("#load-scenario-button");
+  button.disabled = true;
+  button.textContent = "Cargando escenario...";
+  $("#validation-status").textContent = "Calculando condición actual...";
+  try {
+    const current = await request("/api/condicion_actual", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(state.config) });
+    $("#validation-status").textContent = "Escenario cargado";
+    renderCurrentAnalysis(current);
+    $("#main-balance-button").disabled = false;
+  } catch (error) {
+    $("#validation-status").textContent = error.message;
+  } finally {
+    button.disabled = false;
+    button.textContent = "Cargar escenario";
+  }
+}
+
 async function balance() {
   const button = $("#main-balance-button");
   button.disabled = true;
@@ -221,8 +243,25 @@ async function balance() {
     $("#validation-status").textContent = error.message;
   } finally {
     button.disabled = false;
-    button.textContent = "Analizar iluminación y balancear energía";
+    button.textContent = "Balancear energía";
   }
+}
+
+function handleUploadConfig(file) {
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      state.config = JSON.parse(reader.result);
+    } catch (error) {
+      $("#validation-status").textContent = "El archivo no es un JSON válido";
+      return;
+    }
+    buildForms();
+    $("#results-panel").classList.add("hidden");
+    $("#validation-status").textContent = "Configuración cargada desde archivo";
+    loadCurrentCondition();
+  };
+  reader.readAsText(file);
 }
 
 function download(name, content, type) {
@@ -240,10 +279,16 @@ function downloadCsv() {
   download("reporte.csv", csv, "text/csv;charset=utf-8");
 }
 
+$("#load-scenario-button").addEventListener("click", loadCurrentCondition);
 $("#main-balance-button").addEventListener("click", balance);
 $("#download-config").addEventListener("click", () => download("datos_hotel.json", JSON.stringify(state.config, null, 2), "application/json"));
 $("#download-json").addEventListener("click", () => download("resultados.json", JSON.stringify(state.result, null, 2), "application/json"));
 $("#download-csv").addEventListener("click", downloadCsv);
+$("#upload-config").addEventListener("change", (event) => {
+  const file = event.target.files[0];
+  if (file) handleUploadConfig(file);
+  event.target.value = "";
+});
 
 async function loadScenario() {
   try {

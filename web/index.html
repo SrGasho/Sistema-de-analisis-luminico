@@ -64,7 +64,10 @@
 
       <div class="actions initial-actions">
         <button class="secondary" id="download-config">Descargar configuración</button>
-        <button class="primary large-button" id="main-balance-button" disabled>Analizar iluminación y balancear energía</button>
+        <input type="file" id="upload-config" accept="application/json" hidden>
+        <label for="upload-config" class="secondary file-button">Cargar configuración JSON</label>
+        <button class="secondary large-button" id="load-scenario-button">Cargar escenario</button>
+        <button class="primary large-button" id="main-balance-button" disabled>Balancear energía</button>
       </div>
     </section>
 

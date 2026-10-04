@@ -1,0 +1,227 @@
+{
+  "hotel": {
+    "id": "HOTEL-PRUEBA-DEFICIT-LEVE",
+    "perfil_climatico": "NUBES_PARCIALES"
+  },
+  "torres": [
+    {
+      "id": "TorreA",
+      "area_referencia": 500,
+      "pisos": 1,
+      "habitaciones_por_piso": 2,
+      "habitaciones_ocupadas": 1,
+      "caja": {
+        "min_x": 0,
+        "max_x": 16,
+        "min_y": 0,
+        "max_y": 15,
+        "min_z": 0,
+        "max_z": 4
+      },
+      "zonas_comunes": [
+        {
+          "codigo": "COC",
+          "actividad": "COCINA",
+          "cantidad": 1,
+          "area": 35,
+          "ventanas": 2,
+          "area_ventana": 1.5
+        },
+        {
+          "codigo": "REC",
+          "actividad": "RECREACION",
+          "cantidad": 1,
+          "area": 80,
+          "ventanas": 3,
+          "area_ventana": 2.0
+        },
+        {
+          "codigo": "PAR",
+          "actividad": "PARQUEADERO",
+          "cantidad": 1,
+          "area": 450,
+          "ventanas": 0,
+          "area_ventana": 0
+        }
+      ]
+    },
+    {
+      "id": "TorreB",
+      "area_referencia": 500,
+      "pisos": 1,
+      "habitaciones_por_piso": 2,
+      "habitaciones_ocupadas": 1,
+      "caja": {
+        "min_x": 25,
+        "max_x": 41,
+        "min_y": 0,
+        "max_y": 15,
+        "min_z": 0,
+        "max_z": 4
+      },
+      "zonas_comunes": [
+        {
+          "codigo": "COC",
+          "actividad": "COCINA",
+          "cantidad": 1,
+          "area": 35,
+          "ventanas": 2,
+          "area_ventana": 1.5
+        },
+        {
+          "codigo": "REC",
+          "actividad": "RECREACION",
+          "cantidad": 1,
+          "area": 80,
+          "ventanas": 3,
+          "area_ventana": 2.0
+        },
+        {
+          "codigo": "PAR",
+          "actividad": "PARQUEADERO",
+          "cantidad": 1,
+          "area": 450,
+          "ventanas": 0,
+          "area_ventana": 0
+        }
+      ]
+    }
+  ],
+  "perfiles_iluminacion": {
+    "HABITACION": {
+      "minimo": 100,
+      "objetivo": 200,
+      "maximo": 300,
+      "prioridad": 3
+    },
+    "COCINA": {
+      "minimo": 300,
+      "objetivo": 400,
+      "maximo": 500,
+      "prioridad": 3
+    },
+    "RECREACION": {
+      "minimo": 200,
+      "objetivo": 300,
+      "maximo": 500,
+      "prioridad": 2
+    },
+    "PARQUEADERO": {
+      "minimo": 50,
+      "objetivo": 100,
+      "maximo": 150,
+      "prioridad": 1
+    }
+  },
+  "perfiles_climaticos": {
+    "NUBES_PARCIALES": {
+      "radiacion": 4.863,
+      "nubosidad": 0.7089,
+      "precipitacion": 2.51,
+      "factor_luz": 0.85
+    },
+    "NUBLADO": {
+      "radiacion": 4.477,
+      "nubosidad": 0.8582,
+      "precipitacion": 6.68,
+      "factor_luz": 0.6
+    },
+    "LLUVIOSO": {
+      "radiacion": 4.454,
+      "nubosidad": 0.8487,
+      "precipitacion": 6.97,
+      "factor_luz": 0.5
+    },
+    "CIELO_DESPEJADO": {
+      "radiacion": 7.063,
+      "nubosidad": 0.0,
+      "precipitacion": 0.0,
+      "factor_luz": 1.0
+    }
+  },
+  "vidrios": {
+    "VIDRIO_CLARO": {
+      "transmitancia_visible": 0.82,
+      "indice_refraccion": 1.5
+    },
+    "VIDRIO_LOW_E": {
+      "transmitancia_visible": 0.71,
+      "indice_refraccion": 1.5
+    },
+    "VIDRIO_CONTROL_SOLAR": {
+      "transmitancia_visible": 0.52,
+      "indice_refraccion": 1.5
+    }
+  },
+  "paredes": {
+    "BLANCO": {
+      "reflectancia": 0.8
+    },
+    "CREMA": {
+      "reflectancia": 0.7
+    },
+    "GRIS_CLARO": {
+      "reflectancia": 0.6
+    },
+    "GRIS_MEDIO": {
+      "reflectancia": 0.45
+    },
+    "OSCURO": {
+      "reflectancia": 0.25
+    }
+  },
+  "horarios": {
+    "HABITACION": {
+      "inicio_activa": 6,
+      "fin_activa": 22
+    },
+    "COCINA": {
+      "inicio_activa": 6,
+      "fin_activa": 22
+    },
+    "RECREACION": {
+      "inicio_activa": 8,
+      "fin_activa": 23
+    },
+    "PARQUEADERO": {
+      "inicio_activa": 0,
+      "fin_activa": 24
+    }
+  },
+  "luminarias": {
+    "HABITACION": {
+      "potencia_w": 72,
+      "eficacia_lm_w": 100,
+      "cu": 0.7,
+      "mf": 0.8
+    },
+    "COCINA": {
+      "potencia_w": 200,
+      "eficacia_lm_w": 100,
+      "cu": 0.7,
+      "mf": 0.8
+    },
+    "RECREACION": {
+      "potencia_w": 450,
+      "eficacia_lm_w": 100,
+      "cu": 0.7,
+      "mf": 0.8
+    },
+    "PARQUEADERO": {
+      "potencia_w": 720,
+      "eficacia_lm_w": 100,
+      "cu": 0.7,
+      "mf": 0.8
+    }
+  },
+  "generador": {
+    "capacidad_kw": 1.8,
+    "reserva": 0.2
+  },
+  "huespedes": {
+    "total": 2,
+    "actividad": "HABITACION",
+    "prioridad": 1.0
+  },
+  "asignaciones": []
+}

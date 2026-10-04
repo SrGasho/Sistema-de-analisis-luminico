@@ -133,12 +133,12 @@ input:focus, select:focus { outline: none; border-color: var(--accent); box-shad
 
 .actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; align-items: center; }
 .initial-actions { justify-content: flex-end; }
-button {
+button, .file-button {
   border: 0; border-radius: 9px; padding: 11px 16px; cursor: pointer; font-weight: 600;
-  font-family: var(--font-display);
+  font-family: var(--font-display); display: inline-flex; align-items: center;
   transition: transform .16s ease, box-shadow .16s ease, background .16s ease;
 }
-button:hover { transform: translateY(-1px); }
+button:hover, .file-button:hover { transform: translateY(-1px); }
 button:disabled { cursor: wait; opacity: .6; transform: none; box-shadow: none; }
 .primary { background: var(--accent); color: #042531; }
 .primary:hover { background: var(--accent-strong); box-shadow: var(--shadow-lift); }
