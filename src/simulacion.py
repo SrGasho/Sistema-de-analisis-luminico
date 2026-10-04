@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from .balance import balancear
+from .balance import balancear, horario_modo
 from .clima import direccion_solar, luz_base, periodo
 from .evaluacion import clasificar, resumen_zonas
 from .geometria import CajaEspacial, Rayo, Vector3
@@ -18,13 +18,18 @@ class SimuladorUnificado:
         self.grafo = GrafoInfluencia()
         self.grafo.construir(hotel, self.octree)
 
-    def ejecutar(self) -> tuple[list[ResultadoIluminacion], dict, list[dict]]:
+    def ejecutar(self, balancear_energia: bool = True) -> tuple[list[ResultadoIluminacion], dict, list[dict]]:
         resultados: list[ResultadoIluminacion] = []
         hora = 0.0
         while hora < 24.0:
             naturales = self._calcular_naturales(hora)
             reflejadas = self._calcular_reflejadas(hora)
-            asignadas = balancear(self.hotel, hora, naturales, reflejadas)
+            if balancear_energia:
+                asignadas = balancear(self.hotel, hora, naturales, reflejadas)
+            else:
+                for zona in self.hotel.zonas.values():
+                    zona.modo = horario_modo(self.hotel, zona, hora)
+                asignadas = {zona.id: 0.0 for zona in self.hotel.zonas.values()}
             for zona in self.hotel.zonas.values():
                 fuente = self.hotel.fuentes.get(zona.fuente_id) if zona.fuente_id else None
                 artificial = self._luz_artificial(zona.id, asignadas.get(zona.id, 0.0))
@@ -36,7 +41,7 @@ class SimuladorUnificado:
                 resultados.append(resultado)
             hora += self.paso_horas
         resumen = resumen_zonas(resultados)
-        propuestas = proponer_reasignaciones(self.hotel, resumen)
+        propuestas = proponer_reasignaciones(self.hotel, resumen) if balancear_energia else []
         return resultados, resumen, propuestas
 
     def _crear_octree(self) -> Octree:
