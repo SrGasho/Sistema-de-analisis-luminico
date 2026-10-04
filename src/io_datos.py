@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import json
 from pathlib import Path
 
@@ -25,6 +26,11 @@ from .modelo import (
 
 def cargar_hotel(ruta: str | Path) -> Hotel:
     data = json.loads(Path(ruta).read_text(encoding="utf-8"))
+    return cargar_hotel_data(data)
+
+
+def cargar_hotel_data(data: dict) -> Hotel:
+    data = copy.deepcopy(data)
     perfiles = {
         Actividad(nombre): PerfilIluminacion(Actividad(nombre), **valores)
         for nombre, valores in data["perfiles_iluminacion"].items()
