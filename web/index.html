@@ -33,10 +33,12 @@
       <div class="form-grid">
         <div class="form-card">
           <h3>Escenario general</h3>
-          <label>Perfil climático
+          <label>
+            <span>Perfil climático <span class="info-icon" tabindex="0">!<span class="tooltip-box">Perfil meteorológico de Bogotá (NASA POWER 2001-2020): define la radiación diaria, nubosidad y factor solar en el ciclo de 24 horas.</span></span></span>
             <select id="climate-select" data-path="hotel.perfil_climatico"></select>
           </label>
-          <label>Capacidad del generador (kW)
+          <label>
+            <span>Capacidad del generador (kW) <span class="info-icon" tabindex="0">!<span class="tooltip-box">Potencia eléctrica nominal del generador de respaldo (22.0 kW con 20% de reserva didáctica). Alimenta exclusivamente la iluminación del hotel.</span></span></span>
             <input id="generator-capacity" data-path="generador.capacidad_kw" type="number" min="1" step="0.5">
           </label>
         </div>
@@ -71,6 +73,66 @@
       </div>
     </section>
 
+    <section class="panel" id="comfort-ranges-panel">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Criterios Fotométricos y Habitabilidad</p>
+          <h2>Rangos de luminosidad y niveles de confort / inhabitabilidad</h2>
+          <p class="muted">Reglas de clasificación instantánea según el modelo del hotel (Bogotá) y rangos sintéticos de iluminancia (lux) por tipo de actividad.</p>
+        </div>
+        <span class="status">Referencia Bogotá</span>
+      </div>
+      <div class="comfort-rules-grid">
+        <div class="rule-card good">
+          <div class="rule-header">
+            <span class="rule-title"><i class="legend-dot good"></i><strong>CONFORTABLE</strong></span>
+            <span class="rule-formula">E<sub>mín</sub> ≤ E ≤ E<sub>máx</sub></span>
+          </div>
+          <p><strong>Habitabilidad plena.</strong> Nivel adecuado para realizar las actividades visuales con comodidad, sin esfuerzo ni deslumbramiento.</p>
+        </div>
+        <div class="rule-card deficit-leve">
+          <div class="rule-header">
+            <span class="rule-title"><i class="legend-dot deficit-leve"></i><strong>DÉFICIT LEVE</strong></span>
+            <span class="rule-formula">0.50 E<sub>mín</sub> ≤ E &lt; E<sub>mín</sub></span>
+          </div>
+          <p><strong>Sub-óptimo.</strong> Iluminación insuficiente que provoca fatiga visual. Requiere encendido de luminarias o reasignación.</p>
+        </div>
+        <div class="rule-card deficit-severo">
+          <div class="rule-header">
+            <span class="rule-title"><i class="legend-dot deficit-severo"></i><strong>DÉFICIT SEVERO</strong></span>
+            <span class="rule-formula">E &lt; 0.50 E<sub>mín</sub></span>
+          </div>
+          <p><strong>Inhabitable por penumbra.</strong> Iluminancia crítica inferior a la mitad del mínimo aceptable. Activa protocolo de reubicación prioritaria.</p>
+        </div>
+        <div class="rule-card exceso-leve">
+          <div class="rule-header">
+            <span class="rule-title"><i class="legend-dot exceso-leve"></i><strong>EXCESO LEVE</strong></span>
+            <span class="rule-formula">E<sub>máx</sub> &lt; E ≤ 1.25 E<sub>máx</sub></span>
+          </div>
+          <p><strong>Sobreiluminación tolerable.</strong> Hasta 25% superior al límite. Aceptable pero puede causar leve disconfort o derroche energético.</p>
+        </div>
+        <div class="rule-card exceso-severo">
+          <div class="rule-header">
+            <span class="rule-title"><i class="legend-dot exceso-severo"></i><strong>EXCESO SEVERO</strong></span>
+            <span class="rule-formula">E &gt; 1.25 E<sub>máx</sub></span>
+          </div>
+          <p><strong>Inhabitable por deslumbramiento.</strong> Supera en más del 25% el límite máximo. Causa fatiga ocular y riesgo de disconfort térmico.</p>
+        </div>
+        <div class="rule-card sin-datos">
+          <div class="rule-header">
+            <span class="rule-title"><i class="legend-dot sin-datos"></i><strong>DATOS INSUFICIENTES</strong></span>
+            <span class="rule-formula">Modo CERRADA</span>
+          </div>
+          <p><strong>Zona no operativa.</strong> Zona fuera de horario de servicio, cerrada o con datos geométricos incompletos.</p>
+        </div>
+      </div>
+      <div class="comfort-table-box">
+        <h3>Matriz de valores de confort fotométrico en lux</h3>
+        <p class="muted">Valores dinámicos calculados a partir de los perfiles de actividad configurados:</p>
+        <div id="comfort-table-container"></div>
+      </div>
+    </section>
+
     <section class="panel" id="current-analysis-panel">
       <div class="section-heading">
         <div>
@@ -81,15 +143,23 @@
         <span class="status" id="current-status">Calculando condición actual...</span>
       </div>
       <div class="cards" id="current-analysis-cards"></div>
+      <div id="current-suggestions" class="suggestions-panel"></div>
       <div class="floor-panel">
         <div class="section-heading compact-heading">
           <div>
-            <p class="eyebrow">Visualización espacial</p>
+            <p class="eyebrow">Visualización espacial arquitectónica</p>
             <h2>Plano esquemático del piso</h2>
+            <p class="muted">Representación estilo plano técnico CAD con distribución de habitaciones, muros estructurales, puertas, ventanas y núcleo de circulación.</p>
           </div>
           <div class="selectors">
-            <label>Torre<select id="floor-tower"></select></label>
-            <label>Piso<select id="floor-number"></select></label>
+            <label><span>Torre <span class="info-icon" tabindex="0">!<span class="tooltip-box">Selecciona la torre a visualizar (Torre Pequeña: 4 pisos, Torre Grande: 6 pisos).</span></span></span><select id="floor-tower"></select></label>
+            <label><span>Piso <span class="info-icon" tabindex="0">!<span class="tooltip-box">Nivel arquitectónico seleccionado. El peso de prioridad aumenta con la altura: 1 + 0.10·(p-1).</span></span></span><select id="floor-number"></select></label>
+            <label><span>Capa de color <span class="info-icon" tabindex="0">!<span class="tooltip-box">Alterna entre la zonificación por colores de espacios (habitaciones azul, cocina naranja, recreación verde, parqueadero gris) y el mapa térmico de confort lumínico.</span></span></span>
+              <select id="plan-color-mode">
+                <option value="synergy" selected>Separacion de Espacios</option>
+                <option value="confort">Confort lumínico</option>
+              </select>
+            </label>
           </div>
         </div>
         <div class="floor-layout">
@@ -98,7 +168,7 @@
             <div id="floor-legend" class="legend"></div>
           </div>
           <div class="common-zones-col">
-            <h3>Zonas comunes</h3>
+            <h3>Zonas comunes <span class="info-icon" tabindex="0">!<span class="tooltip-box">Áreas compartidas (Cocinas, Recreación y Parqueaderos). Haz clic para ver detalles.</span></span></h3>
             <div id="common-zones" class="common-zones"></div>
           </div>
         </div>
@@ -111,11 +181,13 @@
         <div>
           <p class="eyebrow">Salidas</p>
           <h2>Resultado del balance</h2>
+          <p class="muted">Distribución de potencia eléctrica del generador y diagnóstico final de habitabilidad.</p>
         </div>
         <span class="status success" id="result-status">Balance completado</span>
       </div>
       <div class="cards" id="result-cards"></div>
       <div class="generator-panel" id="generator-panel"></div>
+      <div id="results-suggestions" class="suggestions-panel"></div>
       <div id="recommendations"></div>
       <div class="actions">
         <button class="secondary" id="download-json">Descargar resultados JSON</button>

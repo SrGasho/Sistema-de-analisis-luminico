@@ -10,6 +10,7 @@ from urllib.parse import urlparse
 from .evaluacion import resumen_zonas
 from .io_datos import cargar_hotel, cargar_hotel_data
 from .simulacion import SimuladorUnificado
+from .sugerencias import generar_sugerencias_habitabilidad
 
 ROOT = Path(__file__).resolve().parent.parent
 WEB = ROOT / "web"
@@ -137,6 +138,8 @@ def ejecutar_balance(data: dict, balancear_energia: bool = True, incluir_resulta
     estados = {}
     for resultado in resultados:
         estados[resultado.estado.value] = estados.get(resultado.estado.value, 0) + 1
+    generador_resultado = _generador_resultado(hotel, resultados, resumen, balancear_energia)
+    sugerencias = generar_sugerencias_habitabilidad(hotel, resumen, resultados, generador_resultado, reasignaciones)
     return {
         "estado": "BALANCE_COMPLETADO" if balancear_energia else "ANALISIS_ACTUAL",
         "resumen": {
@@ -149,12 +152,14 @@ def ejecutar_balance(data: dict, balancear_energia: bool = True, incluir_resulta
             "zonas_con_deficit": sum(datos["pasos_deficit"] > 0 for datos in resumen.values()),
             "zonas_con_exceso": sum(datos["pasos_exceso"] > 0 for datos in resumen.values()),
             "reasignaciones": len(reasignaciones),
+            "sugerencias": len(sugerencias),
         },
-        "generador": _generador_resultado(hotel, resultados, resumen, balancear_energia),
+        "generador": generador_resultado,
         "layout": _layout_hotel(hotel, resumen),
         "resultados": serializados if incluir_resultados else [],
         "resumen_zonas": resumen,
         "reasignaciones": reasignaciones,
+        "sugerencias_habitabilidad": sugerencias,
         "advertencias": ["Los resultados son aproximaciones educativas y usan lux de referencia."] if resultados else [],
     }
 

@@ -236,6 +236,573 @@ th { color: var(--text-muted); font-family: var(--font-mono); font-size: .7rem; 
 .recommendation strong { color: var(--light); }
 @keyframes appear { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
 
+/* Tooltips de Casillas con Ícono de Exclamación */
+.info-icon {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 17px;
+  height: 17px;
+  border-radius: 50%;
+  background: rgba(53, 199, 224, 0.15);
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: help;
+  margin-left: 6px;
+  vertical-align: middle;
+  line-height: 1;
+  user-select: none;
+  transition: background .15s ease, transform .15s ease, color .15s ease;
+}
+.info-icon:hover, .info-icon:focus-within {
+  background: var(--accent);
+  color: #042531;
+  transform: scale(1.12);
+}
+.info-icon .tooltip-box {
+  display: none;
+  position: absolute;
+  bottom: calc(100% + 9px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: 290px;
+  background: #0d1a2c;
+  border: 1px solid var(--border-strong);
+  color: var(--text);
+  padding: 9px 12px;
+  border-radius: 9px;
+  font-family: var(--font-body);
+  font-size: .76rem;
+  font-weight: 400;
+  line-height: 1.35;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.65);
+  pointer-events: none;
+  z-index: 9999;
+  white-space: normal;
+  text-align: left;
+}
+.info-icon .tooltip-box::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  margin-left: -5px;
+  border-width: 5px;
+  border-style: solid;
+  border-color: #0d1a2c transparent transparent transparent;
+}
+.info-icon:hover .tooltip-box,
+.info-icon:focus-within .tooltip-box {
+  display: block;
+  animation: tooltipFade .18s ease both;
+}
+@keyframes tooltipFade {
+  from { opacity: 0; transform: translateX(-50%) translateY(4px); }
+  to { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+/* Reglas de Confort y Rangos de Habitabilidad */
+.comfort-rules-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+.rule-card {
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--c-sin-datos);
+  border-radius: 12px;
+  padding: 14px;
+}
+.rule-card.good { border-left-color: var(--c-good); }
+.rule-card.deficit-leve { border-left-color: #60a5fa; }
+.rule-card.deficit-severo { border-left-color: var(--c-deficit); }
+.rule-card.exceso-leve { border-left-color: #f87171; }
+.rule-card.exceso-severo { border-left-color: var(--c-exceso); }
+.rule-card.sin-datos { border-left-color: var(--c-sin-datos); }
+.rule-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 7px;
+}
+.rule-title {
+  display: flex;
+  align-items: center;
+  font-size: .88rem;
+}
+.rule-formula {
+  font-family: var(--font-mono);
+  font-size: .75rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  padding: 2px 7px;
+  border-radius: 5px;
+  color: #7fd8e8;
+}
+.rule-card p {
+  margin: 0;
+  font-size: .82rem;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+.rule-card p strong {
+  color: var(--text);
+}
+.comfort-table-box {
+  margin-top: 22px;
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  border-radius: 13px;
+  padding: 16px 18px;
+}
+.comfort-table-box h3 { margin-bottom: 4px; }
+.comfort-table-box table { margin-top: 12px; }
+.comfort-pill {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-size: .74rem;
+  font-weight: 600;
+}
+.comfort-pill.good { background: rgba(5, 150, 105, 0.2); color: #4fd1a5; border: 1px solid rgba(5, 150, 105, 0.4); }
+.comfort-pill.deficit { background: rgba(59, 130, 246, 0.2); color: #93c5fd; border: 1px solid rgba(59, 130, 246, 0.4); }
+.comfort-pill.exceso { background: rgba(239, 68, 68, 0.2); color: #fca5a5; border: 1px solid rgba(239, 68, 68, 0.4); }
+
+/* Panel y Tarjetas de Sugerencias para Mejorar Habitabilidad */
+.suggestions-panel {
+  margin-top: 20px;
+}
+.suggestions-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 12px;
+}
+.suggestion-card {
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 16px 18px;
+  position: relative;
+  transition: transform .18s ease, border-color .18s ease;
+}
+.suggestion-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--border-strong);
+}
+.suggestion-card.prioridad-alta, .suggestion-card.prioridad-critica {
+  border-left: 5px solid #f59e0b;
+}
+.suggestion-card.prioridad-critica {
+  border-left-color: #ef4444;
+}
+.suggestion-card.prioridad-media {
+  border-left: 5px solid var(--accent);
+}
+.suggestion-card.prioridad-informativa {
+  border-left: 5px solid #64748b;
+}
+.suggestion-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+.suggestion-header-left {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+.suggestion-icon {
+  font-size: 1.35rem;
+  line-height: 1;
+}
+.suggestion-title {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: .98rem;
+  color: var(--text);
+  margin: 0;
+}
+.suggestion-priority-tag {
+  font-family: var(--font-mono);
+  font-size: .68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  padding: 3px 8px;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+.prioridad-alta .suggestion-priority-tag { background: rgba(245, 158, 11, 0.18); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.4); }
+.prioridad-critica .suggestion-priority-tag { background: rgba(239, 68, 68, 0.18); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.4); }
+.prioridad-media .suggestion-priority-tag { background: rgba(53, 199, 224, 0.16); color: #7fd8e8; border: 1px solid rgba(53, 199, 224, 0.35); }
+.prioridad-informativa .suggestion-priority-tag { background: rgba(100, 116, 139, 0.2); color: #94a3b8; border: 1px solid rgba(100, 116, 139, 0.35); }
+.suggestion-body {
+  color: var(--text-muted);
+  font-size: .83rem;
+  line-height: 1.45;
+}
+.suggestion-body p { margin: 4px 0; }
+.suggestion-action {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  padding: 8px 12px;
+  border-radius: 8px;
+  color: var(--text);
+  margin-top: 8px;
+  font-size: .81rem;
+}
+.suggestion-action strong { color: var(--accent); }
+.suggestion-impact {
+  font-size: .78rem;
+  color: #4fd1a5;
+  margin-top: 6px;
+  display: block;
+}
+.suggestion-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+.suggestion-item-chip {
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  padding: 2px 7px;
+  border-radius: 5px;
+  font-family: var(--font-mono);
+  font-size: .72rem;
+  color: var(--text-muted);
+}
+
+/* Estilos de Plano Arquitectónico Real CAD */
+.floor-plan {
+  position: relative;
+  background: #091322;
+  border: 1px solid var(--border-strong);
+  box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.7);
+}
+.floor-plan svg {
+  user-select: none;
+}
+.blueprint-border {
+  fill: none;
+  stroke: var(--border-strong);
+  stroke-width: 2.5;
+}
+.blueprint-inner-border {
+  fill: none;
+  stroke: rgba(53, 199, 224, 0.2);
+  stroke-width: 1;
+  stroke-dasharray: 4 4;
+}
+.blueprint-axis {
+  stroke: rgba(53, 199, 224, 0.25);
+  stroke-width: 1;
+  stroke-dasharray: 6 3;
+}
+.axis-bubble {
+  fill: #0c1c33;
+  stroke: var(--accent);
+  stroke-width: 1.2;
+}
+.axis-text {
+  fill: var(--accent);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  text-anchor: middle;
+  dominant-baseline: central;
+}
+.dim-line {
+  stroke: rgba(142, 160, 196, 0.4);
+  stroke-width: 1;
+}
+.dim-text {
+  fill: var(--text-faint);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-anchor: middle;
+}
+.wall-perimeter {
+  fill: #0c1729;
+  stroke: #486581;
+  stroke-width: 5;
+  stroke-linejoin: round;
+}
+.corridor-area {
+  fill: rgba(16, 28, 48, 0.85);
+  stroke: #253757;
+  stroke-width: 1.5;
+}
+.corridor-label {
+  fill: rgba(142, 160, 196, 0.5);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: .08em;
+  text-anchor: middle;
+}
+.room-border {
+  stroke: #334e68;
+  stroke-width: 2;
+  transition: stroke .15s ease, stroke-width .15s ease, filter .15s ease;
+}
+.zone-shape:hover .room-border {
+  stroke: var(--accent);
+  stroke-width: 3;
+  filter: drop-shadow(0 0 8px rgba(53, 199, 224, 0.7));
+}
+.zone-shape.selected .room-border {
+  stroke: #f5c451;
+  stroke-width: 3.5;
+  filter: drop-shadow(0 0 10px rgba(245, 196, 81, 0.8));
+}
+.door-leaf {
+  stroke: #7fd8e8;
+  stroke-width: 1.8;
+}
+.door-arc {
+  fill: none;
+  stroke: rgba(127, 216, 232, 0.45);
+  stroke-width: 1.2;
+  stroke-dasharray: 2 2;
+}
+.window-cad {
+  stroke: #38bdf8;
+  stroke-width: 3;
+  stroke-linecap: square;
+}
+.window-glass {
+  stroke: #bae6fd;
+  stroke-width: 1;
+}
+.bed-outline {
+  fill: rgba(22, 36, 60, 0.6);
+  stroke: rgba(142, 160, 196, 0.5);
+  stroke-width: 1.2;
+  rx: 3px;
+}
+.bed-pillow {
+  fill: rgba(142, 160, 196, 0.2);
+  stroke: rgba(142, 160, 196, 0.4);
+  stroke-width: 1;
+  rx: 2px;
+}
+.furniture-element {
+  fill: rgba(15, 26, 45, 0.5);
+  stroke: rgba(142, 160, 196, 0.35);
+  stroke-width: 1;
+}
+.room-title-text {
+  fill: #ffffff;
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 700;
+  text-anchor: middle;
+}
+.room-sub-text {
+  fill: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 8.5px;
+  text-anchor: middle;
+}
+.room-lux-badge {
+  rx: 4px;
+}
+.room-lux-text {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 600;
+  text-anchor: middle;
+  dominant-baseline: central;
+}
+.cad-stairs {
+  fill: #101c30;
+  stroke: #35507a;
+  stroke-width: 1.2;
+}
+.stair-step {
+  stroke: #35507a;
+  stroke-width: 1;
+}
+.cad-elevator {
+  fill: #132238;
+  stroke: #35507a;
+  stroke-width: 1.5;
+}
+.elevator-cross {
+  stroke: rgba(53, 199, 224, 0.35);
+  stroke-width: 1;
+}
+
+/* Sinergia cromática por tipo de espacio */
+:root {
+  --theme-habitacion: #2563eb;
+  --theme-cocina: #ea580c;
+  --theme-recreacion: #059669;
+  --theme-parqueadero: #64748b;
+  --theme-circulacion: #1e293b;
+}
+
+/* Bordes y rellenos temáticos */
+.zone-shape.act-habitacion .room-border {
+  stroke: rgba(59, 130, 246, 0.85);
+}
+.zone-shape.act-cocina .room-border {
+  stroke: rgba(249, 115, 22, 0.85);
+}
+.zone-shape.act-recreacion .room-border {
+  stroke: rgba(16, 185, 129, 0.85);
+}
+.zone-shape.act-parqueadero .room-border {
+  stroke: rgba(148, 163, 184, 0.85);
+}
+
+.zone-shape:hover.act-habitacion .room-border {
+  stroke: #60a5fa;
+  filter: drop-shadow(0 0 10px rgba(96, 165, 250, 0.7));
+}
+.zone-shape:hover.act-cocina .room-border {
+  stroke: #fb923c;
+  filter: drop-shadow(0 0 10px rgba(251, 146, 60, 0.7));
+}
+.zone-shape:hover.act-recreacion .room-border {
+  stroke: #34d399;
+  filter: drop-shadow(0 0 10px rgba(52, 211, 153, 0.7));
+}
+.zone-shape:hover.act-parqueadero .room-border {
+  stroke: #cbd5e1;
+  filter: drop-shadow(0 0 10px rgba(203, 213, 225, 0.7));
+}
+
+/* Mobiliario temático para Cocina, Recreación y Parqueadero */
+.stove-top {
+  fill: rgba(234, 88, 12, 0.25);
+  stroke: rgba(249, 115, 22, 0.75);
+  stroke-width: 1;
+}
+.burner {
+  fill: rgba(249, 115, 22, 0.4);
+  stroke: rgba(251, 146, 60, 0.8);
+  stroke-width: 1;
+}
+.sink-basin {
+  fill: rgba(15, 26, 45, 0.7);
+  stroke: rgba(148, 163, 184, 0.6);
+  stroke-width: 1;
+}
+.lounge-table {
+  fill: rgba(5, 150, 105, 0.3);
+  stroke: rgba(16, 185, 129, 0.8);
+  stroke-width: 1.2;
+}
+.lounge-chair {
+  fill: rgba(16, 185, 129, 0.25);
+  stroke: rgba(52, 211, 153, 0.65);
+  stroke-width: 1;
+}
+.parking-stripe {
+  stroke: rgba(255, 255, 255, 0.6);
+  stroke-width: 1.2;
+  stroke-dasharray: 4 3;
+}
+.car-body {
+  fill: rgba(148, 163, 184, 0.35);
+  stroke: rgba(203, 213, 225, 0.6);
+  stroke-width: 1;
+  rx: 3px;
+}
+.car-windshield {
+  fill: rgba(56, 189, 248, 0.25);
+  stroke: rgba(56, 189, 248, 0.5);
+  stroke-width: 0.8;
+}
+
+/* Indicador de píldora de confort lumínico */
+.status-indicator-pill {
+  rx: 3.5px;
+  stroke-width: 0.8;
+}
+.status-indicator-pill.good {
+  fill: rgba(5, 150, 105, 0.85);
+  stroke: #34d399;
+}
+.status-indicator-pill.deficit-leve, .status-indicator-pill.deficit-severo {
+  fill: rgba(37, 99, 235, 0.85);
+  stroke: #60a5fa;
+}
+.status-indicator-pill.exceso-leve, .status-indicator-pill.exceso-severo {
+  fill: rgba(220, 38, 38, 0.85);
+  stroke: #f87171;
+}
+.status-indicator-pill.sin-datos {
+  fill: rgba(100, 116, 139, 0.85);
+  stroke: #cbd5e1;
+}
+
+/* Leyenda estructurada en dos grupos: Espacios y Confort */
+.legend-group {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 4px 0;
+}
+.legend-group-title {
+  font-family: var(--font-mono);
+  font-size: .72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--accent);
+  letter-spacing: .06em;
+  margin-right: 4px;
+}
+.legend-swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  display: inline-block;
+  margin-right: 6px;
+  vertical-align: -1px;
+}
+.legend-swatch.swatch-habitacion { background: #2563eb; }
+.legend-swatch.swatch-cocina { background: #ea580c; }
+.legend-swatch.swatch-recreacion { background: #059669; }
+.legend-swatch.swatch-parqueadero { background: #64748b; }
+.legend-swatch.swatch-circulacion { background: #1e293b; }
+.title-block-box {
+  fill: #0c1a2e;
+  stroke: var(--border-strong);
+  stroke-width: 1.5;
+}
+.title-block-text {
+  fill: var(--text);
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+}
+.north-arrow-north {
+  fill: #ef4444;
+}
+.north-arrow-south {
+  fill: #3b82f6;
+}
+.card-header-with-tooltip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
 @media (max-width: 900px) {
   .floor-layout { grid-template-columns: 1fr; }
   .common-zones { max-height: none; }
