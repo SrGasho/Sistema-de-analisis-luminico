@@ -8,7 +8,6 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 from .evaluacion import estado_predominante, resumen_zonas
-from .habitabilidad import evaluar_hotel
 from .io_datos import cargar_hotel, cargar_hotel_data
 from .simulacion import SimuladorUnificado
 from .sugerencias import generar_sugerencias_habitabilidad
@@ -129,8 +128,9 @@ def _generador_resultado(hotel, resultados, resumen, balanceado: bool = True):
 
 def ejecutar_balance(data: dict, balancear_energia: bool = True, incluir_resultados: bool = True) -> dict:
     hotel = cargar_hotel_data(data)
-    resultados, resumen, reasignaciones = SimuladorUnificado(hotel).ejecutar(balancear_energia=balancear_energia)
-    habitabilidad = evaluar_hotel(hotel)
+    simulador = SimuladorUnificado(hotel)
+    resultados, resumen, reasignaciones = simulador.ejecutar(balancear_energia=balancear_energia)
+    habitabilidad = simulador.habitabilidad
     serializados = []
     for resultado in resultados:
         item = asdict(resultado)

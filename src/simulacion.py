@@ -4,6 +4,7 @@ from .balance import balancear, horario_modo
 from .clima import direccion_solar, luz_base, periodo
 from .evaluacion import clasificar, resumen_zonas
 from .geometria import CajaEspacial, Rayo, Vector3
+from .habitabilidad import evaluar_hotel
 from .influencia import GrafoInfluencia
 from .modelo import EstadoIluminacion, Hotel, ModoOperacion, ResultadoIluminacion
 from .octree import EntradaEspacial, Octree
@@ -43,7 +44,9 @@ class SimuladorUnificado:
                 resultados.append(resultado)
             hora += self.paso_horas
         resumen = resumen_zonas(resultados)
-        propuestas = proponer_reasignaciones(self.hotel, resumen) if balancear_energia else []
+        self.habitabilidad = evaluar_hotel(self.hotel)
+        veredictos = {e["zona_id"]: e for e in self.habitabilidad["zonas"]}
+        propuestas = proponer_reasignaciones(self.hotel, resumen, veredictos) if balancear_energia else []
         return resultados, resumen, propuestas
 
     def _estado(self, zona, total: float, perfil, periodo_actual: str, balanceado: bool) -> EstadoIluminacion:
