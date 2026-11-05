@@ -1,4 +1,4 @@
-const state = { config: null, result: null, current: null, selectedZoneId: null };
+const state = { config: null, result: null, current: null, post: null, selectedZoneId: null };
 const $ = (selector) => document.querySelector(selector);
 
 async function request(url, options = {}) {
@@ -79,8 +79,58 @@ function claveVisual(zone) {
   return modo === "habitabilidad" ? (zone.veredicto || "DATOS_INSUFICIENTES") : zone.estado;
 }
 
+function vistaActiva() {
+  const vista = $("#plan-view");
+  return vista && vista.value === "despues" && state.post ? state.post : state.current;
+}
+
+function animarPlano() {
+  const plan = $("#floor-plan");
+  if (!plan) return;
+  plan.classList.remove("plan-revealed");
+  void plan.offsetWidth;
+  plan.classList.add("plan-revealed");
+}
+
+function filaComparativa(info, antes, despues) {
+  const delta = despues - antes;
+  const clase = delta > 0 ? "delta-up" : delta < 0 ? "delta-down" : "delta-flat";
+  return `<tr><td>${info.dot} ${info.label}</td><td>${antes}</td><td>${despues}</td><td class="${clase}">${delta > 0 ? "+" : ""}${delta}</td></tr>`;
+}
+
+function renderComparativa(pre, post) {
+  const container = $("#comparativa-balance");
+  if (!container || !pre || !post) return;
+  const conteo = (datos, clave) => (datos.habitabilidad && datos.habitabilidad.conteo[clave]) || 0;
+  const porcentaje = (valor) => (valor === null || valor === undefined ? "—" : `${(valor * 100).toFixed(1)} %`);
+  const filasVeredicto = ["HABITABLE", "CASI_HABITABLE", "NO_HABITABLE", "DATOS_INSUFICIENTES"]
+    .map((clave) => filaComparativa(stateInfo(clave), conteo(pre, clave), conteo(post, clave))).join("");
+  const filasEstados = STATE_ORDER
+    .map((clave) => filaComparativa(stateInfo(clave), (pre.resumen.estados || {})[clave] || 0, (post.resumen.estados || {})[clave] || 0)).join("");
+  container.innerHTML = `
+    <div class="output-block comparativa">
+      <p class="eyebrow">Antes y después del balance</p>
+      <div class="cards">
+        ${card("Puntaje antes (provisional)", porcentaje(pre.habitabilidad.puntaje_hotel.ponderado))}
+        ${card("Puntaje después del balance", porcentaje(post.habitabilidad.puntaje_hotel.ponderado))}
+      </div>
+      <div class="comparativa-grid">
+        <div>
+          <h3>Veredictos por zona</h3>
+          <table><thead><tr><th>Veredicto</th><th>Antes</th><th>Después</th><th>Cambio</th></tr></thead><tbody>${filasVeredicto}</tbody></table>
+        </div>
+        <div>
+          <h3>Estados lumínicos (pasos de 30 min)</h3>
+          <table><thead><tr><th>Estado</th><th>Antes</th><th>Después</th><th>Cambio</th></tr></thead><tbody>${filasEstados}</tbody></table>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
 function evaluacionZona(zoneId) {
-  const zonas = (state.result && state.result.habitabilidad && state.result.habitabilidad.zonas) || [];
+  const datos = vistaActiva();
+  const zonas = (datos && datos.habitabilidad && datos.habitabilidad.zonas) || [];
   return zonas.find((z) => z.zona_id === zoneId) || {};
 }
 
@@ -328,8 +378,9 @@ function renderCurrentAnalysis(result) {
     card("Excesos actuales", result.resumen.zonas_con_exceso, "Zonas con sobreexposición a radiación solar directa sin atenuación."),
     card("Luz artificial", "No asignada", "Potencia eléctrica apagada para diagnosticar el comportamiento pasivo.")
   ].join("");
-  $("#current-status").textContent = "Condición actual cargada";
-  state.result = result;
+  $("#current-status").textContent = "Condición provisional: sin balance energético, la noche no se evalúa";
+  state.current = result;
+  state.post = null;
   renderFloorSelectors(result.layout);
   renderSuggestions("#current-suggestions", result.sugerencias_habitabilidad, true);
   renderVeredictos("#current-verdicts", result.habitabilidad);
@@ -373,7 +424,7 @@ function renderFloorSelectors(layout) {
 }
 
 function updateFloorOptions() {
-  const tower = state.result.layout.torres.find((item) => item.id === $("#floor-tower").value) || state.result.layout.torres[0];
+  const tower = vistaActiva().layout.torres.find((item) => item.id === $("#floor-tower").value) || vistaActiva().layout.torres[0];
   $("#floor-number").innerHTML = tower.pisos.map((floor) => `<option value="${floor.numero}">Piso ${floor.numero}</option>`).join("");
   renderFloorPlan();
 }
@@ -437,8 +488,8 @@ function renderSuggestions(containerId, suggestions, isCurrent = false) {
 }
 
 function renderFloorPlan() {
-  if (!state.result || !state.result.layout) return;
-  const tower = state.result.layout.torres.find((item) => item.id === $("#floor-tower").value) || state.result.layout.torres[0];
+  if (!vistaActiva() || !vistaActiva().layout) return;
+  const tower = vistaActiva().layout.torres.find((item) => item.id === $("#floor-tower").value) || vistaActiva().layout.torres[0];
   const floor = tower.pisos.find((item) => item.numero === Number($("#floor-number").value)) || tower.pisos[0];
   const colorMode = $("#plan-color-mode") ? $("#plan-color-mode").value : "synergy";
 
@@ -925,8 +976,8 @@ function renderFloorPlan() {
 }
 
 function showZoneDetail(zoneId) {
-  const tower = state.result.layout.torres.find((t) => t.pisos.some((p) => p.zonas.some((z) => z.id === zoneId)));
-  const zone = state.result.layout.torres.flatMap((t) => t.pisos.flatMap((p) => p.zonas)).find((item) => item.id === zoneId);
+  const tower = vistaActiva().layout.torres.find((t) => t.pisos.some((p) => p.zonas.some((z) => z.id === zoneId)));
+  const zone = vistaActiva().layout.torres.flatMap((t) => t.pisos.flatMap((p) => p.zonas)).find((item) => item.id === zoneId);
   if (!zone) return;
   const info = stateInfo(claveVisual(zone));
   const theme = ACTIVITY_THEMES[zone.actividad] || ACTIVITY_THEMES.HABITACION;
@@ -938,6 +989,7 @@ function showZoneDetail(zoneId) {
     <span>Estado: <b class="inline-state ${info.cls}">${info.dot} ${info.label}</b></span>
     <span>Iluminancia Promedio: <strong class="num">${zone.promedio_lux.toFixed(1)} lux</strong></span>
     <span>Modo Operativo: <b>${escapeHtml(zone.modo)}</b></span>
+    <span>Estado lumínico: <b class="inline-state ${stateInfo(zone.estado).cls}">${stateInfo(zone.estado).dot} ${stateInfo(zone.estado).label}</b></span>
     <span>Veredicto: <b class="inline-state ${stateInfo(zone.veredicto).cls}">${stateInfo(zone.veredicto).dot} ${stateInfo(zone.veredicto).label}</b></span>
     ${evaluacionZona(zone.id).puntaje !== undefined && evaluacionZona(zone.id).puntaje !== null ? `<span>Puntaje: <strong class="num">${(evaluacionZona(zone.id).puntaje * 100).toFixed(1)} %</strong></span>` : ""}
     ${evaluacionZona(zone.id).recomendacion ? `<span>Recomendación: ${escapeHtml(evaluacionZona(zone.id).recomendacion)}</span>` : ""}
@@ -946,11 +998,15 @@ function showZoneDetail(zoneId) {
 
 function renderResult(result) {
   state.result = result;
+  state.post = result;
+  if ($("#plan-view")) $("#plan-view").value = "despues";
   $("#results-panel").classList.remove("hidden");
   $("#result-cards").innerHTML = summaryCards(result);
   renderGenerator(result.generador);
   renderFloorSelectors(result.layout);
   $("#current-status").textContent = "Balance aplicado sobre la condición actual";
+  renderComparativa(state.current, result);
+  animarPlano();
   const states = Object.entries(result.resumen.estados).map(([name, count]) => `<tr><td>${escapeHtml(name)}</td><td>${count}</td></tr>`).join("");
   $("#state-table").innerHTML = `<div class="output-block"><h3>Estados calculados</h3><table><thead><tr><th>Estado</th><th>Resultados</th></tr></thead><tbody>${states}</tbody></table></div>`;
 
@@ -1039,6 +1095,10 @@ function downloadCsv() {
   download("reporte.csv", csv, "text/csv;charset=utf-8");
 }
 
+$("#plan-view").addEventListener("change", () => {
+  const datos = vistaActiva();
+  if (datos) renderFloorSelectors(datos.layout);
+});
 $("#load-scenario-button").addEventListener("click", loadCurrentCondition);
 $("#main-balance-button").addEventListener("click", balance);
 $("#download-config").addEventListener("click", () => download("datos_hotel.json", JSON.stringify(state.config, null, 2), "application/json"));

@@ -155,6 +155,12 @@
           <div class="selectors">
             <label><span>Torre <span class="info-icon" tabindex="0">!<span class="tooltip-box">Selecciona la torre a visualizar (Torre Pequeña: 4 pisos, Torre Grande: 6 pisos).</span></span></span><select id="floor-tower"></select></label>
             <label><span>Piso <span class="info-icon" tabindex="0">!<span class="tooltip-box">Nivel arquitectónico seleccionado. El peso de prioridad aumenta con la altura: 1 + 0.10·(p-1).</span></span></span><select id="floor-number"></select></label>
+            <label><span>Vista</span>
+              <select id="plan-view">
+                <option value="antes" selected>Antes del balance (provisional)</option>
+                <option value="despues">Después del balance</option>
+              </select>
+            </label>
             <label><span>Capa de color <span class="info-icon" tabindex="0">!<span class="tooltip-box">Alterna entre la zonificación por colores de espacios (habitaciones azul, cocina naranja, recreación verde, parqueadero gris) y el mapa térmico de confort lumínico.</span></span></span>
               <select id="plan-color-mode">
                 <option value="habitabilidad" selected>Habitabilidad</option>
@@ -189,6 +195,7 @@
       </div>
       <div class="cards" id="result-cards"></div>
       <div class="generator-panel" id="generator-panel"></div>
+      <div id="comparativa-balance"></div>
       <div id="results-verdicts"></div>
       <div id="results-suggestions" class="suggestions-panel"></div>
       <div id="recommendations"></div>
