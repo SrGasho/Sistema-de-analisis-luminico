@@ -5,7 +5,7 @@ from .clima import direccion_solar, luz_base, periodo
 from .evaluacion import clasificar, resumen_zonas
 from .geometria import CajaEspacial, Rayo, Vector3
 from .influencia import GrafoInfluencia
-from .modelo import Hotel, ModoOperacion, ResultadoIluminacion
+from .modelo import EstadoIluminacion, Hotel, ModoOperacion, ResultadoIluminacion
 from .octree import EntradaEspacial, Octree
 from .reasignacion import proponer_reasignaciones
 
@@ -34,8 +34,8 @@ class SimuladorUnificado:
                 fuente = self.hotel.fuentes.get(zona.fuente_id) if zona.fuente_id else None
                 artificial = self._luz_artificial(zona.id, asignadas.get(zona.id, 0.0))
                 total = naturales.get(zona.id, 0.0) + reflejadas.get(zona.id, 0.0) + artificial
-                perfil = self.hotel.perfiles_iluminacion[zona.actividad]
-                estado = clasificar(total, perfil, zona.modo)
+                perfil = self.hotel.perfiles_iluminacion.get(zona.actividad)
+                estado = self._estado(zona, total, perfil, periodo(hora), balancear_energia)
                 resultado = ResultadoIluminacion(zona.id, hora, periodo(hora), zona.modo, naturales.get(zona.id, 0.0), reflejadas.get(zona.id, 0.0), artificial, total, asignadas.get(zona.id, 0.0), estado)
                 zona.resultados.append(resultado)
                 resultados.append(resultado)
@@ -43,6 +43,13 @@ class SimuladorUnificado:
         resumen = resumen_zonas(resultados)
         propuestas = proponer_reasignaciones(self.hotel, resumen) if balancear_energia else []
         return resultados, resumen, propuestas
+
+    def _estado(self, zona, total: float, perfil, periodo_actual: str, balanceado: bool) -> EstadoIluminacion:
+        if perfil is None or zona.area <= 0:
+            return EstadoIluminacion.DATOS_INSUFICIENTES
+        if not balanceado and periodo_actual == "NOCHE":
+            return EstadoIluminacion.DATOS_INSUFICIENTES
+        return clasificar(total, perfil, zona.modo)
 
     def _crear_octree(self) -> Octree:
         cajas = [torre.caja for torre in self.hotel.torres]

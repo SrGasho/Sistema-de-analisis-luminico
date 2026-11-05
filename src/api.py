@@ -7,7 +7,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlparse
 
-from .evaluacion import resumen_zonas
+from .evaluacion import estado_predominante, resumen_zonas
 from .io_datos import cargar_hotel, cargar_hotel_data
 from .simulacion import SimuladorUnificado
 from .sugerencias import generar_sugerencias_habitabilidad
@@ -76,14 +76,12 @@ def _layout_hotel(hotel, resumen):
         for piso in torre.pisos:
             zonas = []
             for zona in piso.zonas:
-                resultados = zona.resultados
-                ultimo = resultados[-1] if resultados else None
                 zonas.append({
                     "id": zona.id,
                     "actividad": zona.actividad.value,
                     "piso": piso.numero,
                     "modo": zona.modo.value,
-                    "estado": ultimo.estado.value if ultimo else "DATOS_INSUFICIENTES",
+                    "estado": estado_predominante(zona.resultados).value,
                     "promedio_lux": resumen.get(zona.id, {}).get("promedio_lux", 0.0),
                     "posicion": _punto_zona(zona),
                 })

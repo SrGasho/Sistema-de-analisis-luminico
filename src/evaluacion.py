@@ -1,13 +1,18 @@
 from __future__ import annotations
 
-from collections import defaultdict
+from collections import Counter, defaultdict
 
 from .modelo import EstadoIluminacion, ModoOperacion, PerfilIluminacion, ResultadoIluminacion
 
 
-def clasificar(nivel: float, perfil: PerfilIluminacion, modo: ModoOperacion) -> EstadoIluminacion:
-    if modo == ModoOperacion.CERRADA:
+def estado_predominante(resultados: list[ResultadoIluminacion]) -> EstadoIluminacion:
+    conteo = Counter(r.estado for r in resultados if r.estado != EstadoIluminacion.DATOS_INSUFICIENTES)
+    if not conteo:
         return EstadoIluminacion.DATOS_INSUFICIENTES
+    return conteo.most_common(1)[0][0]
+
+
+def clasificar(nivel: float, perfil: PerfilIluminacion, modo: ModoOperacion) -> EstadoIluminacion:
     minimo, _, maximo = perfil.para_modo(modo)
     if nivel < 0.5 * minimo:
         return EstadoIluminacion.DEFICIT_SEVERO
