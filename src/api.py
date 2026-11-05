@@ -7,7 +7,9 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlparse
 
+from .balance import agregar_energia_postorden
 from .evaluacion import estado_predominante, resumen_zonas
+from .mejoras import medir_mejoras
 from .io_datos import cargar_hotel, cargar_hotel_data
 from .simulacion import SimuladorUnificado
 from .sugerencias import generar_sugerencias_habitabilidad
@@ -162,6 +164,7 @@ def ejecutar_balance(data: dict, balancear_energia: bool = True, incluir_resulta
         "generador": generador_resultado,
         "layout": _layout_hotel(hotel, resumen, {e["zona_id"]: e for e in habitabilidad["zonas"]}),
         "habitabilidad": habitabilidad,
+        "energia_arbol": agregar_energia_postorden(hotel),
         "resultados": serializados if incluir_resultados else [],
         "resumen_zonas": resumen,
         "reasignaciones": reasignaciones,
@@ -196,6 +199,9 @@ class WebHandler(BaseHTTPRequestHandler):
                 return
             if path == "/api/condicion_actual":
                 self._json(ejecutar_balance(data, balancear_energia=False, incluir_resultados=False))
+                return
+            if path == "/api/mejoras":
+                self._json({"mejoras": medir_mejoras(data, lambda config: ejecutar_balance(config, incluir_resultados=False))})
                 return
             if path == "/api/balancear":
                 self._json(ejecutar_balance(data))

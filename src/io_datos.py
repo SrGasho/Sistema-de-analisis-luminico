@@ -23,6 +23,44 @@ from .modelo import (
     ZonaHotel,
 )
 
+VECTORES_ORIENTACION = {
+    "ESTE": Vector3(1, 0, 0),
+    "NORTE": Vector3(0, 1, 0),
+    "OESTE": Vector3(-1, 0, 0),
+    "SUR": Vector3(0, -1, 0),
+}
+
+
+ACABADOS_POR_DEFECTO = {
+    "HABITACION": {"pared": "BLANCO", "vidrio": "VIDRIO_CLARO", "orientaciones": ["ESTE", "NORTE", "OESTE", "SUR"]},
+    "COCINA": {"pared": "BLANCO", "vidrio": "VIDRIO_LOW_E", "orientaciones": ["ESTE", "NORTE", "OESTE"]},
+    "RECREACION": {"pared": "BLANCO", "vidrio": "VIDRIO_LOW_E", "orientaciones": ["ESTE", "NORTE", "OESTE"]},
+    "PARQUEADERO": {"pared": "BLANCO", "vidrio": None, "orientaciones": []},
+}
+VIDRIOS_POR_DEFECTO = {
+    "VIDRIO_CLARO": {"transmitancia_visible": 0.82, "indice_refraccion": 1.5},
+    "VIDRIO_LOW_E": {"transmitancia_visible": 0.71, "indice_refraccion": 1.5},
+    "VIDRIO_CONTROL_SOLAR": {"transmitancia_visible": 0.52, "indice_refraccion": 1.5},
+}
+PAREDES_POR_DEFECTO = {
+    "BLANCO": {"reflectancia": 0.80},
+    "CREMA": {"reflectancia": 0.70},
+    "GRIS_CLARO": {"reflectancia": 0.60},
+    "GRIS_MEDIO": {"reflectancia": 0.45},
+    "OSCURO": {"reflectancia": 0.25},
+}
+
+
+def _completar_defaults(data: dict) -> dict:
+    data["vidrios"] = {**VIDRIOS_POR_DEFECTO, **data.get("vidrios", {})}
+    data["paredes"] = {**PAREDES_POR_DEFECTO, **data.get("paredes", {})}
+    acabados = {}
+    for actividad, base in ACABADOS_POR_DEFECTO.items():
+        acabados[actividad] = {**base, **data.get("acabados", {}).get(actividad, {})}
+    data["acabados"] = acabados
+    data.setdefault("zonas_personalizadas", {})
+    return data
+
 
 def cargar_hotel(ruta: str | Path) -> Hotel:
     data = json.loads(Path(ruta).read_text(encoding="utf-8"))
@@ -30,7 +68,8 @@ def cargar_hotel(ruta: str | Path) -> Hotel:
 
 
 def cargar_hotel_data(data: dict) -> Hotel:
-    data = copy.deepcopy(data)
+    data = _completar_defaults(copy.deepcopy(data))
+    _validar_acabados(data)
     perfiles = {
         Actividad(nombre): PerfilIluminacion(Actividad(nombre), **valores)
         for nombre, valores in data["perfiles_iluminacion"].items()
@@ -39,7 +78,6 @@ def cargar_hotel_data(data: dict) -> Hotel:
         nombre: PerfilClimatico(nombre, **valores)
         for nombre, valores in data["perfiles_climaticos"].items()
     }
-    fuentes: dict[str, FuenteIluminacion] = {}
     torres: list[Torre] = []
     for tower_data in data["torres"]:
         torre = Torre(
@@ -53,14 +91,12 @@ def cargar_hotel_data(data: dict) -> Hotel:
             for _ in range(tower_data["habitaciones_por_piso"]):
                 room_index += 1
                 zona_id = f"{torre.id}-H-{100 + room_index}"
-                zona = _zona_habitacion(zona_id, torre, piso_numero, room_index, tower_data, data.get("vidrios", {}), data.get("paredes", {}))
-                piso.zonas.append(zona)
+                piso.zonas.append(_zona_habitacion(zona_id, torre, piso_numero, room_index, tower_data, data))
             if piso_numero == 1:
                 for common in tower_data["zonas_comunes"]:
                     for index in range(1, common["cantidad"] + 1):
                         zona_id = f"{torre.id}-{common['codigo']}-{index:02d}"
-                        zona = _zona_comun(zona_id, torre, piso_numero, common, index, data.get("vidrios", {}), data.get("paredes", {}))
-                        piso.zonas.append(zona)
+                        piso.zonas.append(_zona_comun(zona_id, torre, piso_numero, common, index, data))
             torre.pisos.append(piso)
         torres.append(torre)
 
@@ -72,12 +108,14 @@ def cargar_hotel_data(data: dict) -> Hotel:
         perfil_climatico_activo=data["hotel"]["perfil_climatico"],
         horarios=data.get("horarios", {}),
         parametros=data.get("parametros_evaluacion", {}),
-        fuentes=fuentes,
+        fuentes={},
         huespedes={},
         asignaciones=[],
         generador=GeneradorEnergia(**data["generador"]),
     )
     hotel.indexar()
+
+    fuentes: dict[str, FuenteIluminacion] = {}
     for zona in hotel.zonas.values():
         if zona.fuente_id:
             config = data["luminarias"][zona.actividad.value]
@@ -94,16 +132,16 @@ def cargar_hotel_data(data: dict) -> Hotel:
             )
             fuentes[fuente.id] = fuente
     hotel.fuentes = fuentes
+
     guest_config = data["huespedes"]
     if isinstance(guest_config, dict):
         total_huespedes = guest_config["total"]
-        guest_template = guest_config
         guest_data_list = [
             {
                 "id": f"H-{index:03d}",
-                "actividad": guest_template["actividad"],
-                "prioridad": guest_template.get("prioridad", 1.0),
-                "restricciones": guest_template.get("restricciones", []),
+                "actividad": guest_config["actividad"],
+                "prioridad": guest_config.get("prioridad", 1.0),
+                "restricciones": guest_config.get("restricciones", []),
             }
             for index in range(1, total_huespedes + 1)
         ]
@@ -140,26 +178,64 @@ def cargar_hotel_data(data: dict) -> Hotel:
     return hotel
 
 
-def _zona_habitacion(zona_id: str, torre: Torre, piso: int, index: int, config: dict, vidrios: dict, paredes: dict) -> HabitacionHotel:
+def _acabado(data: dict, zona_id: str, actividad: str) -> dict:
+    base = data["acabados"].get(actividad, {})
+    personal = data.get("zonas_personalizadas", {}).get(zona_id, {})
+    return {
+        "pared": personal.get("pared", base.get("pared", "BLANCO")),
+        "vidrio": personal.get("vidrio", base.get("vidrio")),
+        "orientaciones": personal.get("orientaciones", base.get("orientaciones", ["NORTE"])),
+    }
+
+
+def _vidrio(data: dict, nombre: str) -> Vidrio:
+    valores = data["vidrios"][nombre]
+    return Vidrio(nombre, valores["transmitancia_visible"], valores["indice_refraccion"])
+
+
+def _reflectancia(data: dict, pared: str) -> float:
+    return data["paredes"][pared]["reflectancia"]
+
+
+def _zona_habitacion(zona_id: str, torre: Torre, piso: int, index: int, config: dict, data: dict) -> HabitacionHotel:
+    acabado = _acabado(data, zona_id, "HABITACION")
     center = _room_center(torre.caja, piso, index, config["habitaciones_por_piso"])
-    orientation = [Vector3(1, 0, 0), Vector3(0, 1, 0), Vector3(-1, 0, 0), Vector3(0, -1, 0)][(index - 1) % 4]
-    glass = vidrios.get("VIDRIO_CLARO", {"transmitancia_visible": 0.82, "indice_refraccion": 1.5})
-    wall_reflectance = paredes.get("BLANCO", {"reflectancia": 0.80})["reflectancia"]
-    ventana = Ventana(f"{zona_id}-V1", center + orientation * 0.5, orientation, 2.0, Vidrio("VIDRIO_CLARO", glass["transmitancia_visible"], glass["indice_refraccion"]))
-    superficie = SuperficiePared(f"{zona_id}-P1", center, orientation * -1, wall_reflectance, CajaEspacial(center.x - 0.5, center.x + 0.5, center.y - 0.5, center.y + 0.5, center.z - 0.5, center.z + 0.5))
+    orientaciones = acabado["orientaciones"]
+    orientation = VECTORES_ORIENTACION[orientaciones[(index - 1) % len(orientaciones)]]
+    ventana = Ventana(f"{zona_id}-V1", center + orientation * 0.5, orientation, 2.0, _vidrio(data, acabado["vidrio"]))
+    superficie = SuperficiePared(
+        f"{zona_id}-P1",
+        center,
+        orientation * -1,
+        _reflectancia(data, acabado["pared"]),
+        CajaEspacial(center.x - 0.5, center.x + 0.5, center.y - 0.5, center.y + 0.5, center.z - 0.5, center.z + 0.5),
+    )
     return HabitacionHotel(zona_id, Actividad.HABITACION, 24.0, piso, torre.id, ventanas=[ventana], superficies=[superficie], fuente_id=f"L-{zona_id}")
 
 
-def _zona_comun(zona_id: str, torre: Torre, piso: int, config: dict, index: int, vidrios: dict, paredes: dict) -> ZonaHotel:
+def _zona_comun(zona_id: str, torre: Torre, piso: int, config: dict, index: int, data: dict) -> ZonaHotel:
+    actividad = config["actividad"]
+    acabado = _acabado(data, zona_id, actividad)
     center = torre.caja.center + Vector3((index - 1) * 2.0, 0, -torre.caja.center.z + 1.5)
-    glass = vidrios.get("VIDRIO_LOW_E", {"transmitancia_visible": 0.71, "indice_refraccion": 1.5})
-    wall_reflectance = paredes.get("BLANCO", {"reflectancia": 0.80})["reflectancia"]
+    orientaciones = acabado["orientaciones"]
     ventanas = []
     for window_index in range(config["ventanas"]):
-        orientation = [Vector3(1, 0, 0), Vector3(0, 1, 0), Vector3(-1, 0, 0)][window_index % 3]
-        ventanas.append(Ventana(f"{zona_id}-V{window_index + 1}", center + orientation, orientation, config["area_ventana"], Vidrio("VIDRIO_LOW_E", glass["transmitancia_visible"], glass["indice_refraccion"])))
-    superficie = SuperficiePared(f"{zona_id}-P1", center, Vector3(0, 1, 0), wall_reflectance, CajaEspacial(center.x - 1, center.x + 1, center.y - 1, center.y + 1, center.z - 1, center.z + 1))
-    return ZonaHotel(zona_id, Actividad(config["actividad"]), config["area"], piso, torre.id, ventanas=ventanas, superficies=[superficie], fuente_id=f"L-{zona_id}")
+        orientation = VECTORES_ORIENTACION[orientaciones[window_index % len(orientaciones)]]
+        ventanas.append(Ventana(
+            f"{zona_id}-V{window_index + 1}",
+            center + orientation,
+            orientation,
+            config["area_ventana"],
+            _vidrio(data, acabado["vidrio"]),
+        ))
+    superficie = SuperficiePared(
+        f"{zona_id}-P1",
+        center,
+        Vector3(0, 1, 0),
+        _reflectancia(data, acabado["pared"]),
+        CajaEspacial(center.x - 1, center.x + 1, center.y - 1, center.y + 1, center.z - 1, center.z + 1),
+    )
+    return ZonaHotel(zona_id, Actividad(actividad), config["area"], piso, torre.id, ventanas=ventanas, superficies=[superficie], fuente_id=f"L-{zona_id}")
 
 
 def _room_center(box: CajaEspacial, piso: int, index: int, rooms_per_floor: int) -> Vector3:
@@ -181,6 +257,19 @@ def _zona_center(zona: ZonaHotel) -> Vector3:
 
 def _box(values: dict) -> CajaEspacial:
     return CajaEspacial(values["min_x"], values["max_x"], values["min_y"], values["max_y"], values["min_z"], values["max_z"])
+
+
+def _validar_acabados(data: dict) -> None:
+    paredes = data.get("paredes", {})
+    vidrios = data.get("vidrios", {})
+    for actividad, acabado in data.get("acabados", {}).items():
+        if acabado.get("pared") not in paredes:
+            raise ValueError(f"Pared no definida para {actividad}: {acabado.get('pared')}")
+        if acabado.get("vidrio") is not None and acabado["vidrio"] not in vidrios:
+            raise ValueError(f"Vidrio no definido para {actividad}: {acabado.get('vidrio')}")
+        for orientacion in acabado.get("orientaciones", []):
+            if orientacion not in VECTORES_ORIENTACION:
+                raise ValueError(f"Orientación no válida: {orientacion}")
 
 
 def _validar(hotel: Hotel) -> None:

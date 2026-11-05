@@ -15,6 +15,7 @@ class SimuladorUnificado:
     def __init__(self, hotel: Hotel, paso_horas: float = 0.5):
         self.hotel = hotel
         self.paso_horas = paso_horas
+        self.hotel.generador.demanda_objetivo_maxima = 0.0
         self._lux_por_irradiancia = float(hotel.parametros.get("luz", {}).get("lux_por_irradiancia", 900.0))
         self.habitabilidad: dict = {}
         self.octree = self._crear_octree()

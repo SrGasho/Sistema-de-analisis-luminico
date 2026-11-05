@@ -175,6 +175,7 @@ class GeneradorEnergia:
     capacidad_kw: float
     reserva: float
     potencia_disponible: float = 0.0
+    demanda_objetivo_maxima: float = 0.0
 
     def iniciar_instante(self) -> None:
         self.potencia_disponible = self.capacidad_kw * 1000.0
