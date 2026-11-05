@@ -197,8 +197,16 @@ def _reflectancia(data: dict, pared: str) -> float:
     return data["paredes"][pared]["reflectancia"]
 
 
+def _validar_ventanas(zona_id: str, acabado: dict, cantidad: int) -> None:
+    if cantidad and acabado["vidrio"] is None:
+        raise ValueError(f"La zona {zona_id} tiene ventanas y necesita un vidrio")
+    if cantidad and not acabado["orientaciones"]:
+        raise ValueError(f"La zona {zona_id} tiene ventanas y necesita al menos una orientación")
+
+
 def _zona_habitacion(zona_id: str, torre: Torre, piso: int, index: int, config: dict, data: dict) -> HabitacionHotel:
     acabado = _acabado(data, zona_id, "HABITACION")
+    _validar_ventanas(zona_id, acabado, 1)
     center = _room_center(torre.caja, piso, index, config["habitaciones_por_piso"])
     orientaciones = acabado["orientaciones"]
     orientation = VECTORES_ORIENTACION[orientaciones[(index - 1) % len(orientaciones)]]
@@ -216,6 +224,7 @@ def _zona_habitacion(zona_id: str, torre: Torre, piso: int, index: int, config: 
 def _zona_comun(zona_id: str, torre: Torre, piso: int, config: dict, index: int, data: dict) -> ZonaHotel:
     actividad = config["actividad"]
     acabado = _acabado(data, zona_id, actividad)
+    _validar_ventanas(zona_id, acabado, config["ventanas"])
     center = torre.caja.center + Vector3((index - 1) * 2.0, 0, -torre.caja.center.z + 1.5)
     orientaciones = acabado["orientaciones"]
     ventanas = []
@@ -270,6 +279,14 @@ def _validar_acabados(data: dict) -> None:
         for orientacion in acabado.get("orientaciones", []):
             if orientacion not in VECTORES_ORIENTACION:
                 raise ValueError(f"Orientación no válida: {orientacion}")
+    for zona_id, personal in data.get("zonas_personalizadas", {}).items():
+        if "pared" in personal and personal["pared"] not in paredes:
+            raise ValueError(f"Pared no definida para {zona_id}: {personal['pared']}")
+        if personal.get("vidrio") is not None and personal["vidrio"] not in vidrios:
+            raise ValueError(f"Vidrio no definido para {zona_id}: {personal['vidrio']}")
+        for orientacion in personal.get("orientaciones", []):
+            if orientacion not in VECTORES_ORIENTACION:
+                raise ValueError(f"Orientación no válida en {zona_id}: {orientacion}")
 
 
 def _validar(hotel: Hotel) -> None:
