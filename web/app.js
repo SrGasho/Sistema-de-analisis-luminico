@@ -1,4 +1,6 @@
-const state = { config: null, result: null, current: null, post: null, selectedZoneId: null };
+const state = { config: null, result: null, current: null, post: null, selectedZoneId: null, reestructuracion: null };
+const ORIENTACIONES = ["ESTE", "NORTE", "OESTE", "SUR"];
+const CAMPO_LABELS = { pared: "Pared", vidrio: "Vidrio", orientaciones: "Orientación", objetivo: "Objetivo (lux)", inicio_activa: "Inicio activo (h)", fin_activa: "Fin activo (h)" };
 const $ = (selector) => document.querySelector(selector);
 
 async function request(url, options = {}) {
@@ -284,8 +286,20 @@ function renderAcabadosForms() {
       <strong>${escapeHtml(activityLabel(actividad))}</strong>
       <label><span>Pared</span><select data-path="acabados.${actividad}.pared">${opciones(paredes, acabado.pared)}</select></label>
       ${acabado.vidrio !== null && acabado.vidrio !== undefined ? `<label><span>Vidrio</span><select data-path="acabados.${actividad}.vidrio">${opciones(vidrios, acabado.vidrio)}</select></label>` : ""}
+      ${acabado.vidrio !== null && acabado.vidrio !== undefined ? `<div class="orientation-group"><span>Orientación de ventanas</span>${checkboxesOrientacion(`data-array-path="acabados.${actividad}.orientaciones"`, acabado.orientaciones || [])}</div>` : ""}
     </div>
   `).join("");
+}
+
+function checkboxesOrientacion(atributo, seleccionadas) {
+  return ORIENTACIONES.map((orientacion) => `
+    <label class="check-chip"><input type="checkbox" ${atributo} value="${orientacion}" ${seleccionadas.includes(orientacion) ? "checked" : ""}> ${orientacion}</label>
+  `).join("");
+}
+
+function marcarCambiosPendientes() {
+  $("#validation-status").textContent = "Cambios pendientes de analizar";
+  $("#current-status").textContent = "La condición actual corresponde a la configuración anterior";
 }
 
 function renderMaterialForms() {
@@ -368,12 +382,21 @@ function bindInputs() {
   document.querySelectorAll("[data-path]").forEach((element) => {
     const actualizar = () => {
       setPath(element.dataset.path, element.type === "number" ? Number(element.value) : element.value);
-      $("#validation-status").textContent = "Cambios pendientes de analizar";
-      $("#current-status").textContent = "La condición actual corresponde a la configuración anterior";
+      marcarCambiosPendientes();
       renderComfortTable();
     };
     element.addEventListener("input", actualizar);
     element.addEventListener("change", actualizar);
+  });
+  document.querySelectorAll("[data-array-path]").forEach((element) => {
+    element.addEventListener("change", () => {
+      const path = element.dataset.arrayPath;
+      const valores = [...document.querySelectorAll(`[data-array-path="${path}"]`)]
+        .filter((item) => item.checked)
+        .map((item) => item.value);
+      setPath(path, valores);
+      marcarCambiosPendientes();
+    });
   });
 }
 
@@ -476,7 +499,7 @@ function renderSuggestions(containerId, suggestions, isCurrent = false) {
         <div class="section-heading compact-heading">
           <div>
             <p class="eyebrow">Diagnóstico de Habitabilidad</p>
-            <h3>Sugerencias para mejorar la habitabilidad ${infoIcon("Acciones basadas en los parámetros del PDF: reasignación, vidrios VLT, reflectancia de paredes, generador y distribución por pisos.")}</h3>
+            <h3>Sugerencias para mejorar la habitabilidad ${infoIcon("Acciones basadas en los parámetros de diseño del hotel: reasignación, vidrios VLT, reflectancia de paredes, generador y distribución por pisos.")}</h3>
           </div>
         </div>
         <p class="muted">No se detectaron problemas de habitabilidad que requieran intervención inmediata. El edificio cumple satisfactoriamente con los niveles de confort.</p>
@@ -1031,12 +1054,68 @@ function showZoneDetail(zoneId) {
     <span>Veredicto: <b class="inline-state ${stateInfo(zone.veredicto).cls}">${stateInfo(zone.veredicto).dot} ${stateInfo(zone.veredicto).label}</b></span>
     ${evaluacionZona(zone.id).puntaje !== undefined && evaluacionZona(zone.id).puntaje !== null ? `<span>Puntaje: <strong class="num">${(evaluacionZona(zone.id).puntaje * 100).toFixed(1)} %</strong></span>` : ""}
     ${evaluacionZona(zone.id).recomendacion ? `<span>Recomendación: ${escapeHtml(evaluacionZona(zone.id).recomendacion)}</span>` : ""}
+    ${formularioRecinto(zone)}
   `;
+  enlazarFormularioRecinto(zone.id);
+}
+
+function formularioRecinto(zone) {
+  if (!state.config) return "";
+  const acabadoBase = state.config.acabados[zone.actividad] || {};
+  const personal = (state.config.zonas_personalizadas || {})[zone.id];
+  const pared = personal && personal.pared !== undefined ? personal.pared : acabadoBase.pared;
+  const vidrio = personal && personal.vidrio !== undefined ? personal.vidrio : acabadoBase.vidrio;
+  const orientaciones = personal && personal.orientaciones !== undefined ? personal.orientaciones : acabadoBase.orientaciones || [];
+  const conVentanas = vidrio !== null && vidrio !== undefined;
+  const opciones = (lista, valor) => lista.map((nombre) => `<option value="${nombre}" ${nombre === valor ? "selected" : ""}>${nombre}</option>`).join("");
+  const orientacion = zone.actividad === "HABITACION"
+    ? `<label><span>Orientación de la ventana</span><select name="zona-orientacion">${ORIENTACIONES.map((o) => `<option value="${o}" ${orientaciones[0] === o ? "selected" : ""}>${o}</option>`).join("")}</select></label>`
+    : `<div class="orientation-group"><span>Orientación de las ventanas</span>${checkboxesOrientacion('name="zona-orientacion"', orientaciones)}</div>`;
+  return `
+    <div class="zone-edit">
+      <strong>Acabados de este recinto ${personal ? "(personalizados)" : "(heredados de la actividad)"}</strong>
+      <label><span>Pared</span><select name="zona-pared">${opciones(Object.keys(state.config.paredes), pared)}</select></label>
+      ${conVentanas ? `<label><span>Vidrio</span><select name="zona-vidrio">${opciones(Object.keys(state.config.vidrios), vidrio)}</select></label>${orientacion}` : `<p class="muted">Este recinto no tiene ventanas.</p>`}
+      <div class="actions">
+        <button type="button" class="primary" data-zone-save="${escapeHtml(zone.id)}">Aplicar a este recinto</button>
+        ${personal ? `<button type="button" class="secondary" data-zone-reset="${escapeHtml(zone.id)}">Volver a la actividad</button>` : ""}
+      </div>
+    </div>
+  `;
+}
+
+function enlazarFormularioRecinto(zoneId) {
+  const contenedor = $("#zone-detail");
+  const guardar = contenedor.querySelector("[data-zone-save]");
+  const restablecer = contenedor.querySelector("[data-zone-reset]");
+  if (guardar) {
+    guardar.addEventListener("click", () => {
+      const pared = contenedor.querySelector("[name=zona-pared]").value;
+      const vidrioEl = contenedor.querySelector("[name=zona-vidrio]");
+      const orientacionEls = [...contenedor.querySelectorAll("[name=zona-orientacion]")];
+      const orientaciones = orientacionEls[0] && orientacionEls[0].tagName === "SELECT"
+        ? [orientacionEls[0].value]
+        : orientacionEls.filter((item) => item.checked).map((item) => item.value);
+      state.config.zonas_personalizadas = state.config.zonas_personalizadas || {};
+      state.config.zonas_personalizadas[zoneId] = { pared, vidrio: vidrioEl ? vidrioEl.value : null, orientaciones };
+      marcarCambiosPendientes();
+      showZoneDetail(zoneId);
+    });
+  }
+  if (restablecer) {
+    restablecer.addEventListener("click", () => {
+      delete state.config.zonas_personalizadas[zoneId];
+      marcarCambiosPendientes();
+      showZoneDetail(zoneId);
+    });
+  }
 }
 
 function renderResult(result) {
   state.result = result;
   state.post = result;
+  state.reestructuracion = null;
+  $("#reestructuracion-resultado").innerHTML = `<p class="muted">Aún no se ha buscado una reestructuración para este balance.</p>`;
   if ($("#plan-view")) $("#plan-view").value = "despues";
   $("#results-panel").classList.remove("hidden");
   $("#result-cards").innerHTML = summaryCards(result);
@@ -1134,6 +1213,70 @@ function downloadCsv() {
   download("reporte.csv", csv, "text/csv;charset=utf-8");
 }
 
+function porcentajeTexto(valor) {
+  return valor === null || valor === undefined ? "—" : `${(valor * 100).toFixed(1)} %`;
+}
+
+function describirPaso(paso) {
+  const formato = (valor) => (Array.isArray(valor) ? valor.join(", ") : String(valor ?? "—"));
+  return `${activityLabel(paso.actividad)} · ${CAMPO_LABELS[paso.campo] || paso.campo}: ${formato(paso.anterior)} → ${formato(paso.nuevo)}`;
+}
+
+async function buscarReestructuracion() {
+  const boton = $("#buscar-reestructuracion");
+  const salida = $("#reestructuracion-resultado");
+  boton.disabled = true;
+  boton.textContent = "Buscando...";
+  salida.innerHTML = `<p class="muted">Probando cambios dentro de los rangos del proyecto. En el escenario completo puede tardar cerca de medio minuto.</p>`;
+  try {
+    state.reestructuracion = await request("/api/reestructurar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(state.config) });
+    renderReestructuracion(state.reestructuracion);
+  } catch (error) {
+    salida.innerHTML = `<p class="muted">No se pudo completar la búsqueda: ${escapeHtml(error.message)}</p>`;
+  } finally {
+    boton.disabled = false;
+    boton.textContent = "Buscar reestructuración";
+  }
+}
+
+function renderReestructuracion(payload) {
+  const salida = $("#reestructuracion-resultado");
+  const { inicial, final } = payload;
+  const mensajes = {
+    MEJORA_ENCONTRADA: "Se encontraron cambios que mejoran el puntaje.",
+    SIN_MEJORA: "Ningún cambio dentro de los rangos mejora el puntaje.",
+    SIN_ZONAS_POR_MEJORAR: "Todas las zonas ya son habitables; no hay nada que reestructurar."
+  };
+  const pasos = payload.pasos.length
+    ? `<ol class="pasos-reestructuracion">${payload.pasos.map((paso) => `<li>${escapeHtml(describirPaso(paso))} <small>→ puntaje ${porcentajeTexto(paso.puntaje)}</small></li>`).join("")}</ol>`
+    : "";
+  salida.innerHTML = `
+    <div class="cards">
+      ${card("Puntaje inicial", porcentajeTexto(inicial.puntaje))}
+      ${card("Puntaje propuesto", porcentajeTexto(final.puntaje))}
+      ${card("No habitables", `${inicial.no_habitables} → ${final.no_habitables}`)}
+      ${card("Casi habitables", `${inicial.casi_habitables} → ${final.casi_habitables}`)}
+      ${card("Energía total (Wh)", `${Math.round(inicial.energia_wh)} → ${Math.round(final.energia_wh)}`, "Energía del balance antes y después de aplicar la propuesta. Un aumento indica más luz artificial.")}
+    </div>
+    <p class="muted">${mensajes[payload.estado] || ""} Evaluaciones usadas: ${payload.evaluaciones_usadas} de ${payload.presupuesto_evaluaciones} (${payload.segundos} s).</p>
+    ${pasos}
+    ${payload.pasos.length ? `<div class="actions"><button type="button" class="primary" id="aplicar-reestructuracion">Cargar propuesta en los formularios</button></div>` : ""}
+    <p class="muted">La propuesta solo cambia los formularios. Se aplica al balance cuando la vuelvas a balancear.</p>
+  `;
+  const aplicar = $("#aplicar-reestructuracion");
+  if (aplicar) aplicar.addEventListener("click", aplicarReestructuracion);
+}
+
+async function aplicarReestructuracion() {
+  if (!state.reestructuracion) return;
+  state.config = state.reestructuracion.configuracion_propuesta;
+  buildForms();
+  $("#results-panel").classList.add("hidden");
+  await loadCurrentCondition();
+  $("#validation-status").textContent = "Propuesta de reestructuración cargada en los formularios. Balancea de nuevo para confirmar el resultado.";
+}
+
+$("#buscar-reestructuracion").addEventListener("click", buscarReestructuracion);
 $("#plan-view").addEventListener("change", () => {
   const datos = vistaActiva();
   if (datos) renderFloorSelectors(datos.layout);

@@ -854,3 +854,12 @@ rect.no-habitable { fill: var(--c-exceso); fill-opacity: .9; }
 .mejora-card small { color: var(--text-muted); }
 .mejora-positiva { border-left: 4px solid var(--c-good); }
 @media (max-width: 800px) { .finish-row { grid-template-columns: 1fr; } }
+
+.orientation-group { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.orientation-group > span { width: 100%; font-size: .78rem; color: var(--text-muted); }
+.check-chip { display: inline-flex; align-items: center; gap: 5px; padding: 5px 9px; border: 1px solid var(--border-strong); border-radius: 999px; font-size: .8rem; cursor: pointer; }
+.check-chip input { accent-color: var(--accent); }
+.zone-edit { display: grid; gap: 8px; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--border); }
+.zone-edit > strong { font-size: .85rem; }
+.zone-edit .orientation-group { grid-column: auto; }
+.pasos-reestructuracion { margin: 10px 0; padding-left: 20px; font-size: .9rem; line-height: 1.6; }
