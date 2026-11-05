@@ -1,6 +1,25 @@
 from __future__ import annotations
 
-from .modelo import Actividad, EstadoIluminacion, Hotel, ModoOperacion
+from collections import Counter
+
+from .modelo import Hotel
+
+NO_O_CASI = ("NO_HABITABLE", "CASI_HABITABLE")
+IMPACTO_MEDIDO = "Efecto medido en la sección Mejoras medidas."
+
+
+def _sugerencia(categoria: str, tipo: str, prioridad: str, titulo: str, diagnostico: str, accion: str, items: list[str]) -> dict:
+    return {
+        "categoria": categoria,
+        "tipo": tipo,
+        "prioridad": prioridad,
+        "icono": "",
+        "titulo": titulo,
+        "diagnostico": diagnostico,
+        "accion_propuesta": accion,
+        "impacto_esperado": IMPACTO_MEDIDO,
+        "items": items,
+    }
 
 
 def generar_sugerencias_habitabilidad(
@@ -13,170 +32,104 @@ def generar_sugerencias_habitabilidad(
 ) -> list[dict]:
     sugerencias: list[dict] = []
     veredictos = {e["zona_id"]: e for e in (habitabilidad or {}).get("zonas", [])}
+    habitaciones = list(hotel.habitaciones)
+    no_habitables = [zid for zid in habitaciones if veredictos.get(zid, {}).get("veredicto") == "NO_HABITABLE"]
+    casi = [zid for zid in habitaciones if veredictos.get(zid, {}).get("veredicto") == "CASI_HABITABLE"]
 
-    # 1. Reasignaciones operativas de huéspedes
-    if reasignaciones:
-        propuestas_exitosas = [r for r in reasignaciones if r.get("estado") == "PROPUESTA"]
-        sin_alternativa = [r for r in reasignaciones if r.get("estado") == "NO_HAY_ALTERNATIVA"]
+    propuestas = [r for r in reasignaciones if r.get("estado") == "PROPUESTA"]
+    sin_alternativa = [r for r in reasignaciones if r.get("estado") == "NO_HAY_ALTERNATIVA"]
+    if propuestas:
+        sugerencias.append(_sugerencia(
+            "REASIGNACION_OPERATIVA", "operativa", "ALTA",
+            f"Reasignar {len(propuestas)} huéspedes a habitaciones habitables",
+            f"{len(propuestas)} habitaciones ocupadas no son habitables y existen habitaciones libres que sí lo son.",
+            "Cambiar la asignación de esos huéspedes a las habitaciones propuestas.",
+            [f"Huésped {p['huesped_id']}: {p['habitacion_actual']} -> {p['habitacion_propuesta']}" for p in propuestas[:6]],
+        ))
+    if sin_alternativa:
+        sugerencias.append(_sugerencia(
+            "REASIGNACION_OPERATIVA", "capacidad", "CRITICA",
+            f"Sin habitación alternativa para {len(sin_alternativa)} huéspedes",
+            f"{len(sin_alternativa)} habitaciones ocupadas no son habitables y no hay habitaciones libres habitables en su torre.",
+            "Revisar la capacidad del generador o la asignación de zonas comunes en horario nocturno.",
+            [f"Huésped {p['huesped_id']} en {p['habitacion_actual']}" for p in sin_alternativa[:6]],
+        ))
 
-        if propuestas_exitosas:
-            sugerencias.append({
-                "categoria": "REASIGNACION_OPERATIVA",
-                "tipo": "operativa",
-                "prioridad": "ALTA",
-                "icono": "",
-                "titulo": f"Reasignación inmediata de {len(propuestas_exitosas)} huéspedes en déficit",
-                "diagnostico": f"Se identificaron {len(propuestas_exitosas)} habitaciones ocupadas con pasos de déficit lumínico donde existen habitaciones alternativas con confort pleno.",
-                "accion_propuesta": "Ejecutar el cambio de asignación a las habitaciones propuestas en pisos superiores o fachadas con mejor iluminación natural.",
-                "impacto_esperado": "Eliminación inmediata del déficit para los huéspedes reasignados sin aumentar el consumo eléctrico.",
-                "items": [f"Huésped {p['huesped_id']}: {p['habitacion_actual']} -> {p['habitacion_propuesta']}" for p in propuestas_exitosas[:6]],
-            })
-
-        if sin_alternativa:
-            sugerencias.append({
-                "categoria": "REASIGNACION_OPERATIVA",
-                "tipo": "capacidad",
-                "prioridad": "CRITICA",
-                "icono": "",
-                "titulo": f"Falta de capacidad para {len(sin_alternativa)} huéspedes en déficit",
-                "diagnostico": f"{len(sin_alternativa)} habitaciones ocupadas sufren déficit pero no existen habitaciones confortables vacías disponibles en la misma torre.",
-                "accion_propuesta": "Habilitar habitaciones en la otra torre, aumentar potencia del generador o revisar el horario de uso de zonas comunes para liberar energía.",
-                "impacto_esperado": "Evita mantener huéspedes en condiciones no conformes de habitabilidad.",
-                "items": [f"Huésped {p['huesped_id']} en {p['habitacion_actual']} (sin alternativa disponible)" for p in sin_alternativa[:6]],
-            })
-
-    # 2. Análisis de Vidrios y Transmitancia Visible (VLT)
-    casi = [zid for zid in hotel.habitaciones if veredictos.get(zid, {}).get("veredicto") == "CASI_HABITABLE"]
     if casi:
-        sugerencias.append({
-            "categoria": "CASI_HABITABLE",
-            "tipo": "operativa",
-            "prioridad": "MEDIA",
-            "icono": "",
-            "titulo": f"{len(casi)} habitaciones están cerca de ser habitables",
-            "diagnostico": "Su puntaje está entre el umbral casi habitable y el umbral habitable.",
-            "accion_propuesta": "Aplicar la recomendación específica de cada habitación.",
-            "impacto_esperado": "Llevar la zona a habitable sin modificar la geometría del hotel.",
-            "items": [f"{zid}: {veredictos[zid].get('recomendacion') or 'sin recomendación específica'}" for zid in casi[:6]],
-        })
+        sugerencias.append(_sugerencia(
+            "CASI_HABITABLE", "operativa", "MEDIA",
+            f"{len(casi)} habitaciones están cerca de ser habitables",
+            "Su puntaje está entre el umbral casi habitable y el umbral habitable.",
+            "Aplicar la recomendación específica de cada habitación.",
+            [f"{zid}: {veredictos[zid].get('recomendacion') or 'sin recomendación específica'}" for zid in casi[:6]],
+        ))
 
-    zonas_con_deficit = [zid for zid in hotel.habitaciones if veredictos.get(zid, {}).get("veredicto") == "NO_HABITABLE" and str(veredictos[zid].get("causa") or "").startswith("DEFICIT")]
-    zonas_con_exceso = [zid for zid in hotel.habitaciones if veredictos.get(zid, {}).get("veredicto") in ("NO_HABITABLE", "CASI_HABITABLE") and str(veredictos[zid].get("causa") or "").startswith("EXCESO")]
+    deficit_diurno = [zid for zid in no_habitables if str(veredictos[zid].get("causa")) == "DEFICIT_DIURNO"]
+    if deficit_diurno:
+        vidrios = Counter(hotel.habitaciones[zid].ventanas[0].vidrio.tipo for zid in deficit_diurno if hotel.habitaciones[zid].ventanas)
+        if vidrios:
+            vidrio_actual, usos = vidrios.most_common(1)[0]
+            if vidrio_actual != "VIDRIO_CLARO":
+                sugerencias.append(_sugerencia(
+                    "VIDRIOS_VLT", "arquitectonica", "MEDIA",
+                    "Cambiar el vidrio en habitaciones con déficit diurno",
+                    f"{len(deficit_diurno)} habitaciones no habitables tienen déficit en horas de luz; {usos} usan {vidrio_actual}.",
+                    "Usar VIDRIO_CLARO en esas habitaciones.",
+                    [f"Zona {zid}" for zid in deficit_diurno[:5]],
+                ))
 
-    vidrio_actual_nombre = "VIDRIO_CLARO"
-    if hotel.torres and hotel.torres[0].pisos and hotel.torres[0].pisos[0].zonas:
-        z0 = hotel.torres[0].pisos[0].zonas[0]
-        if z0.ventanas:
-            vidrio_actual_nombre = z0.ventanas[0].vidrio.tipo
+    exceso_solar = [zid for zid in habitaciones if veredictos.get(zid, {}).get("veredicto") in NO_O_CASI and str(veredictos[zid].get("causa")) == "EXCESO_SOLAR"]
+    if exceso_solar:
+        sugerencias.append(_sugerencia(
+            "VIDRIOS_VLT", "arquitectonica", "MEDIA",
+            "Controlar la luz solar en habitaciones con exceso",
+            f"{len(exceso_solar)} habitaciones superan su máximo de iluminación en horas de sol.",
+            "Usar protección solar o VIDRIO_CONTROL_SOLAR en las fachadas afectadas.",
+            [f"Zona {zid}" for zid in exceso_solar[:5]],
+        ))
 
-    if zonas_con_deficit and vidrio_actual_nombre != "VIDRIO_CLARO":
-        sugerencias.append({
-            "categoria": "VIDRIOS_VLT",
-            "tipo": "arquitectonica",
-            "prioridad": "MEDIA",
-            "icono": "",
-            "titulo": "Mejora de transmitancia en ventanas (Vidrio Claro VLT 0.82)",
-            "diagnostico": f"Se detectaron {len(zonas_con_deficit)} habitaciones con déficit lumínico diurno. El acristalamiento actual ({vidrio_actual_nombre}) restringe la entrada de luz natural.",
-            "accion_propuesta": "Sustituir por VIDRIO_CLARO con transmitancia visible de 0.82 (VLT) en fachadas afectadas.",
-            "impacto_esperado": "Aumento del flujo lumínico natural incidente entre 15% y 58%, reduciendo horas de déficit sin consumo de combustible.",
-            "items": [f"Zona {z}" for z in zonas_con_deficit[:5]],
-        })
+    afectadas = [zid for zid in habitaciones if veredictos.get(zid, {}).get("veredicto") in NO_O_CASI]
+    if afectadas:
+        reflectancias = [hotel.habitaciones[zid].superficies[0].reflectancia for zid in afectadas if hotel.habitaciones[zid].superficies]
+        promedio = sum(reflectancias) / len(reflectancias) if reflectancias else None
+        if promedio is not None and promedio < 0.80:
+            sugerencias.append(_sugerencia(
+                "REFLECTANCIA_PAREDES", "arquitectonica", "MEDIA",
+                "Aumentar la reflectancia de las paredes",
+                f"Las habitaciones afectadas tienen una reflectancia media de {promedio:.2f}.",
+                "Pintar las paredes en BLANCO (reflectancia 0,80).",
+                [],
+            ))
 
-    if zonas_con_exceso:
-        sugerencias.append({
-            "categoria": "VIDRIOS_VLT",
-            "tipo": "arquitectonica",
-            "prioridad": "MEDIA",
-            "icono": "",
-            "titulo": "Protección contra deslumbramiento solar en fachadas expuestas",
-            "diagnostico": f"{len(zonas_con_exceso)} habitaciones superan los 300 lux máximos (llegando a más de 500 lux en horas pico de sol), generando potencial deslumbramiento visual.",
-            "accion_propuesta": "Instalar VIDRIO_CONTROL_SOLAR (VLT 0.52) o persianas/parasoles exteriores en fachadas Este y Oeste para atenuar radiación solar directa.",
-            "impacto_esperado": "Confort visual garantizado en horas de radiación directa y mitigación de sobrecalentamiento interior.",
-            "items": [f"Zona {z}" for z in zonas_con_exceso[:5]],
-        })
+    if generador_info.get("estado") in ("CAPACIDAD_LIMITADA", "ALTA_DEMANDA"):
+        capacidad_kw = hotel.generador.capacidad_kw
+        requerida_kw = 1.20 * hotel.generador.demanda_objetivo_maxima / 1000.0
+        sugerencias.append(_sugerencia(
+            "GENERADOR_ENERGIA", "electrica", "ALTA" if generador_info.get("estado") == "CAPACIDAD_LIMITADA" else "MEDIA",
+            "Revisar la capacidad del generador",
+            f"La demanda objetivo máxima es {hotel.generador.demanda_objetivo_maxima / 1000.0:.1f} kW. Con la reserva del 20 % se requieren {requerida_kw:.1f} kW frente a {capacidad_kw:.1f} kW instalados.",
+            f"Instalar al menos {requerida_kw:.1f} kW para cubrir los objetivos de todas las zonas.",
+            [],
+        ))
 
-    # 3. Análisis de Reflectancia de Paredes
-    reflectancia_actual = 0.80
-    for z in hotel.zonas.values():
-        if z.superficies:
-            reflectancia_actual = z.superficies[0].reflectancia
-            break
+    if no_habitables:
+        por_piso = Counter(hotel.habitaciones[zid].piso for zid in no_habitables)
+        sugerencias.append(_sugerencia(
+            "DISTRIBUCION_PISOS", "operativa", "INFORMATIVA",
+            "Habitaciones no habitables por piso",
+            f"Distribución de las {len(no_habitables)} habitaciones no habitables según su piso.",
+            "Revisar la asignación de huéspedes en los pisos con más habitaciones no habitables.",
+            [f"Piso {piso}: {total} habitaciones" for piso, total in sorted(por_piso.items())],
+        ))
 
-    if zonas_con_deficit and reflectancia_actual < 0.80:
-        sugerencias.append({
-            "categoria": "REFLECTANCIA_PAREDES",
-            "tipo": "arquitectonica",
-            "prioridad": "MEDIA",
-            "icono": "",
-            "titulo": "Optimización de reflectancia de paredes interiores (Blanco 0.80)",
-            "diagnostico": f"La reflectancia actual de paredes ({reflectancia_actual:.2f}) limita la distribución de luz reflejada de primer orden por el grafo de influencia.",
-            "accion_propuesta": "Pintar superficies interiores en color BLANCO (reflectancia 0.80) o CREMA (0.70).",
-            "impacto_esperado": "Incremento de iluminancia indirecta difusa en hasta un 33%, mejorando uniformidad sin fuentes adicionales.",
-            "items": [],
-        })
-
-    # 4. Capacidad del Generador y Balance Eléctrico
-    capacidad_w = generador_info.get("capacidad_w", 22000.0)
-    demanda_max_w = generador_info.get("demanda_maxima_w", 0.0)
-    estado_gen = generador_info.get("estado", "")
-    porcentaje = generador_info.get("porcentaje_usado", 0.0)
-
-    if estado_gen == "CAPACIDAD_LIMITADA" or (zonas_con_deficit and demanda_max_w >= capacidad_w * 0.95):
-        potencia_requerida = max(demanda_max_w * 1.25, capacidad_w * 1.3)
-        sugerencias.append({
-            "categoria": "GENERADOR_ENERGIA",
-            "tipo": "electrica",
-            "prioridad": "ALTA",
-            "icono": "",
-            "titulo": "Ampliación de capacidad del generador eléctrico",
-            "diagnostico": f"El generador ha alcanzado su límite operativo ({demanda_max_w/1000:.1f} kW de {capacidad_w/1000:.1f} kW disponibles), provocando déficit en zonas de menor prioridad.",
-            "accion_propuesta": f"Incrementar la capacidad nominal del generador a al menos {potencia_requerida/1000:.1f} kW para cubrir la demanda objetivo de todas las zonas activas manteniendo el 20% de reserva didáctica.",
-            "impacto_esperado": "Eliminación completa de déficits en horas nocturnas para habitaciones y zonas comunes.",
-            "items": [],
-        })
-    elif estado_gen == "ALTA_DEMANDA" or porcentaje > 80.0:
-        sugerencias.append({
-            "categoria": "GENERADOR_ENERGIA",
-            "tipo": "electrica",
-            "prioridad": "MEDIA",
-            "icono": "",
-            "titulo": "Gestión de reserva del generador en picos de demanda",
-            "diagnostico": f"La demanda máxima alcanza el {porcentaje:.1f}% de la capacidad del generador, invadiendo el margen de reserva didáctica del 20%.",
-            "accion_propuesta": "Reprogramar horarios de zonas recreativas o escalonar el encendido de luminarias de parqueadero (720 W) para mitigar el pico horario.",
-            "impacto_esperado": "Operación segura del generador en margen normal (< 80%) sin riesgo de apagón por sobrecarga.",
-            "items": [],
-        })
-
-    # 5. Distribución por Pisos y Sombras Arrojadas
-    deficits_por_piso: dict[int, int] = {}
-    for zid in zonas_con_deficit:
-        hab = hotel.habitaciones[zid]
-        deficits_por_piso[hab.piso] = deficits_por_piso.get(hab.piso, 0) + 1
-
-    if any(deficits_por_piso.get(p, 0) > deficits_por_piso.get(p + 2, 0) for p in [1, 2]):
-        sugerencias.append({
-            "categoria": "DISTRIBUCION_PISOS",
-            "tipo": "operativa",
-            "prioridad": "MEDIA",
-            "icono": "",
-            "titulo": "Priorización de asignación en pisos superiores (Pisos 3 a 6)",
-            "diagnostico": "Los pisos 1 y 2 reciben sombra proyectada de la torre vecina (separación de 13 m modelada en Octree) y tienen menor peso de prioridad (1 + 0.10·(p-1)).",
-            "accion_propuesta": "Asignar huéspedes preferentemente en pisos 3 o superiores, donde la radiación solar es libre y la prioridad del generador es mayor.",
-            "impacto_esperado": "Aprovechamiento de hasta 25% más luz natural incidente y mayor asignación de potencia en caso de racionamiento.",
-            "items": [f"Piso {p}: {c} habitaciones con déficit" for p, c in sorted(deficits_por_piso.items())],
-        })
-
-    # 6. Modo Reducido y Optimización Horaria
-    sugerencias.append({
-        "categoria": "MODOS_HORARIOS",
-        "tipo": "operativa",
-        "prioridad": "INFORMATIVA",
-        "icono": "",
-        "titulo": "Asegurar transición a modo REDUCIDO en descanso nocturno",
-        "diagnostico": "Las habitaciones en descanso no deben marcarse automáticamente como deficitarias si están en modo REDUCIDA (30% de lux objetivo: 60 lux).",
-        "accion_propuesta": "Confirmar que entre 22:00 y 06:00 las habitaciones no ocupadas o en descanso permanezcan en modo REDUCIDA para no sobrecargar el generador.",
-        "impacto_esperado": "Ahorro de hasta 70% de potencia eléctrica nocturna disponible para las zonas críticas de seguridad.",
-        "items": [],
-    })
+    nocturnas = [zid for zid in habitaciones if veredictos.get(zid, {}).get("veredicto") in NO_O_CASI and str(veredictos[zid].get("causa")) == "DEFICIT_NOCTURNO"]
+    if nocturnas:
+        sugerencias.append(_sugerencia(
+            "MODOS_HORARIOS", "operativa", "MEDIA",
+            "Revisar la iluminación nocturna de habitaciones",
+            f"{len(nocturnas)} habitaciones tienen déficit en horas nocturnas.",
+            "Ampliar el horario de iluminación o revisar la potencia de las luminarias de esas zonas.",
+            [f"Zona {zid}" for zid in nocturnas[:5]],
+        ))
 
     return sugerencias

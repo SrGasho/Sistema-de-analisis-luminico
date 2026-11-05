@@ -845,3 +845,12 @@ rect.no-habitable { fill: var(--c-exceso); fill-opacity: .9; }
 @keyframes planReveal { from { opacity: 0.2; transform: scale(0.985); } to { opacity: 1; transform: scale(1); } }
 .plan-revealed svg { animation: planReveal 0.8s ease both; }
 @media (max-width: 800px) { .comparativa-grid { grid-template-columns: 1fr; } }
+
+/* Acabados y mejoras medidas */
+.finish-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; align-items: end; border-top: 1px solid var(--border); padding: 9px 0 0; margin-top: 9px; }
+.finish-row strong { font-size: .8rem; color: var(--text-muted); }
+.mejora-card { border: 1px solid var(--border); border-radius: 10px; padding: 12px; margin-top: 10px; background: var(--surface-alt); }
+.mejora-card strong { display: block; margin-bottom: 4px; }
+.mejora-card small { color: var(--text-muted); }
+.mejora-positiva { border-left: 4px solid var(--c-good); }
+@media (max-width: 800px) { .finish-row { grid-template-columns: 1fr; } }

@@ -273,7 +273,23 @@ function renderScheduleForms() {
   `).join("");
 }
 
+function renderAcabadosForms() {
+  const contenedor = $("#finish-forms");
+  if (!contenedor || !state.config.acabados) return;
+  const paredes = Object.keys(state.config.paredes);
+  const vidrios = Object.keys(state.config.vidrios);
+  const opciones = (lista, valor) => lista.map((nombre) => `<option value="${nombre}" ${nombre === valor ? "selected" : ""}>${nombre}</option>`).join("");
+  contenedor.innerHTML = `<p class="muted">Acabados por actividad</p>` + Object.entries(state.config.acabados).map(([actividad, acabado]) => `
+    <div class="finish-row">
+      <strong>${escapeHtml(activityLabel(actividad))}</strong>
+      <label><span>Pared</span><select data-path="acabados.${actividad}.pared">${opciones(paredes, acabado.pared)}</select></label>
+      ${acabado.vidrio !== null && acabado.vidrio !== undefined ? `<label><span>Vidrio</span><select data-path="acabados.${actividad}.vidrio">${opciones(vidrios, acabado.vidrio)}</select></label>` : ""}
+    </div>
+  `).join("");
+}
+
 function renderMaterialForms() {
+  renderAcabadosForms();
   const glass = Object.entries(state.config.vidrios).map(([name, value]) => `
     <div class="material-row">
       <strong>${name} ${infoIcon("Transmitancia visible (VLT): fracción de radiación solar luminosa exterior que ingresa a través del vidrio.")}</strong>
@@ -350,13 +366,35 @@ function setPath(path, rawValue) {
 
 function bindInputs() {
   document.querySelectorAll("[data-path]").forEach((element) => {
-    element.addEventListener("input", () => {
+    const actualizar = () => {
       setPath(element.dataset.path, element.type === "number" ? Number(element.value) : element.value);
       $("#validation-status").textContent = "Cambios pendientes de analizar";
       $("#current-status").textContent = "La condición actual corresponde a la configuración anterior";
       renderComfortTable();
-    });
+    };
+    element.addEventListener("input", actualizar);
+    element.addEventListener("change", actualizar);
   });
+}
+
+async function cargarMejoras() {
+  const contenedor = $("#mejoras-medidas");
+  if (!contenedor) return;
+  contenedor.innerHTML = `<p class="muted">Midiendo mejoras con simulaciones de prueba…</p>`;
+  try {
+    const payload = await request("/api/mejoras", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(state.config) });
+    const tarjetas = payload.mejoras.map((mejora) => `
+      <div class="mejora-card ${mejora.delta > 0 ? "mejora-positiva" : ""}">
+        <strong>${escapeHtml(mejora.titulo)}</strong>
+        <div>Puntaje ${mejora.puntaje_antes.toFixed(3)} → ${mejora.puntaje_despues.toFixed(3)}
+          <span class="${mejora.delta > 0 ? "delta-up" : "delta-flat"}">(${mejora.delta >= 0 ? "+" : ""}${mejora.delta.toFixed(3)})</span></div>
+        <small>${mejora.delta > 0 ? "Mejora medida en este escenario" : "Sin efecto en este escenario"}</small>
+      </div>
+    `).join("");
+    contenedor.innerHTML = `<div class="output-block"><h3>Mejoras medidas</h3><p class="muted">Cada cambio se simula por separado sobre la configuración actual.</p>${tarjetas || `<p class="muted">No hay mejoras aplicables a este escenario.</p>`}</div>`;
+  } catch (error) {
+    contenedor.innerHTML = `<p class="muted">No se pudieron medir las mejoras: ${escapeHtml(error.message)}</p>`;
+  }
 }
 
 function summaryCards(result) {
@@ -477,7 +515,7 @@ function renderSuggestions(containerId, suggestions, isCurrent = false) {
     <div class="output-block">
       <div class="section-heading compact-heading">
         <div>
-          <p class="eyebrow">Diagnóstico y Recomendaciones (PDF del Proyecto)</p>
+          <p class="eyebrow">Diagnóstico y recomendaciones</p>
           <h3>Sugerencias para mejorar la habitabilidad ${infoIcon("Opciones derivadas de los parámetros de diseño del hotel: vidrios VLT, reflectancia de muros, capacidad del generador y reasignación de habitaciones.")}</h3>
           <p class="muted">${isCurrent ? "Diagnóstico preliminar basado en la iluminación natural y reflectancia de la envolvente." : "Propuestas operativas y técnicas para resolver déficits, excesos y optimizar el confort de los huéspedes."}</p>
         </div>
@@ -1055,6 +1093,7 @@ async function balance() {
     const validation = await request("/api/validar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(state.config) });
     $("#validation-status").textContent = `Entradas válidas · ${validation.zonas_generadas} zonas`;
     renderResult(await request("/api/balancear", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(state.config) }));
+    cargarMejoras();
   } catch (error) {
     $("#validation-status").textContent = error.message;
   } finally {
