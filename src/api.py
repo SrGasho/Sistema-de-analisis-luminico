@@ -8,6 +8,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 from .evaluacion import estado_predominante, resumen_zonas
+from .habitabilidad import evaluar_hotel
 from .io_datos import cargar_hotel, cargar_hotel_data
 from .simulacion import SimuladorUnificado
 from .sugerencias import generar_sugerencias_habitabilidad
@@ -69,7 +70,8 @@ def _punto_zona(zona):
     return {"x": punto.x, "y": punto.y, "z": punto.z, "ancho": ancho, "alto": alto}
 
 
-def _layout_hotel(hotel, resumen):
+def _layout_hotel(hotel, resumen, veredictos=None):
+    veredictos = veredictos or {}
     torres = []
     for torre in hotel.torres:
         pisos = []
@@ -82,6 +84,7 @@ def _layout_hotel(hotel, resumen):
                     "piso": piso.numero,
                     "modo": zona.modo.value,
                     "estado": estado_predominante(zona.resultados).value,
+                    "veredicto": veredictos.get(zona.id, {}).get("veredicto", "DATOS_INSUFICIENTES"),
                     "promedio_lux": resumen.get(zona.id, {}).get("promedio_lux", 0.0),
                     "posicion": _punto_zona(zona),
                 })
@@ -127,6 +130,7 @@ def _generador_resultado(hotel, resultados, resumen, balanceado: bool = True):
 def ejecutar_balance(data: dict, balancear_energia: bool = True, incluir_resultados: bool = True) -> dict:
     hotel = cargar_hotel_data(data)
     resultados, resumen, reasignaciones = SimuladorUnificado(hotel).ejecutar(balancear_energia=balancear_energia)
+    habitabilidad = evaluar_hotel(hotel)
     serializados = []
     for resultado in resultados:
         item = asdict(resultado)
@@ -150,10 +154,14 @@ def ejecutar_balance(data: dict, balancear_energia: bool = True, incluir_resulta
             "zonas_con_deficit": sum(datos["pasos_deficit"] > 0 for datos in resumen.values()),
             "zonas_con_exceso": sum(datos["pasos_exceso"] > 0 for datos in resumen.values()),
             "reasignaciones": len(reasignaciones),
+            "habitables": habitabilidad["conteo"].get("HABITABLE", 0),
+            "casi_habitables": habitabilidad["conteo"].get("CASI_HABITABLE", 0),
+            "no_habitables": habitabilidad["conteo"].get("NO_HABITABLE", 0),
             "sugerencias": len(sugerencias),
         },
         "generador": generador_resultado,
-        "layout": _layout_hotel(hotel, resumen),
+        "layout": _layout_hotel(hotel, resumen, {e["zona_id"]: e for e in habitabilidad["zonas"]}),
+        "habitabilidad": habitabilidad,
         "resultados": serializados if incluir_resultados else [],
         "resumen_zonas": resumen,
         "reasignaciones": reasignaciones,
