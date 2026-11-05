@@ -11,6 +11,7 @@ from .balance import agregar_energia_postorden
 from .evaluacion import estado_predominante, resumen_zonas
 from .mejoras import medir_mejoras
 from .io_datos import cargar_hotel, cargar_hotel_data
+from .reestructuracion import buscar_reestructuracion
 from .simulacion import SimuladorUnificado
 from .sugerencias import generar_sugerencias_habitabilidad
 
@@ -205,6 +206,9 @@ class WebHandler(BaseHTTPRequestHandler):
                 return
             if path == "/api/balancear":
                 self._json(ejecutar_balance(data))
+                return
+            if path == "/api/reestructurar":
+                self._json(buscar_reestructuracion(data, lambda config: ejecutar_balance(config, incluir_resultados=False)))
                 return
             self._json({"error": "Ruta no encontrada"}, 404)
         except Exception as error:
