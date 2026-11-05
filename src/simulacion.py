@@ -14,6 +14,8 @@ class SimuladorUnificado:
     def __init__(self, hotel: Hotel, paso_horas: float = 0.5):
         self.hotel = hotel
         self.paso_horas = paso_horas
+        self._lux_por_irradiancia = float(hotel.parametros.get("luz", {}).get("lux_por_irradiancia", 900.0))
+        self.habitabilidad: dict = {}
         self.octree = self._crear_octree()
         self.grafo = GrafoInfluencia()
         self.grafo.construir(hotel, self.octree)
@@ -78,8 +80,10 @@ class SimuladorUnificado:
 
     def _calcular_naturales(self, hora: float) -> dict[str, float]:
         perfil = self.hotel.perfiles_climaticos[self.hotel.perfil_climatico_activo]
-        base = luz_base(hora, perfil)
+        base = luz_base(hora, perfil, self._lux_por_irradiancia)
         direccion = direccion_solar(hora)
+        f_directa = max(0.10, 1.0 - perfil.nubosidad)
+        f_difusa = 0.15 + 0.45 * perfil.nubosidad
         naturales = {}
         for zona in self.hotel.zonas.values():
             if not zona.ventanas or base == 0:
@@ -88,8 +92,9 @@ class SimuladorUnificado:
             aportes = []
             for ventana in zona.ventanas:
                 directa = max(0.0, ventana.normal.normalized().dot(direccion))
-                sombreada = self._sombreada(ventana, zona.torre_id, direccion)
-                aporte = base * (0.15 if sombreada else directa) * ventana.vidrio.transmitancia_visible
+                if self._sombreada(ventana, zona.torre_id, direccion):
+                    directa = 0.0
+                aporte = base * ventana.vidrio.transmitancia_visible * (directa * f_directa + f_difusa)
                 aportes.append(aporte)
             naturales[zona.id] = sum(aportes) / len(aportes)
         return naturales
@@ -100,7 +105,7 @@ class SimuladorUnificado:
 
     def _calcular_reflejadas(self, hora: float) -> dict[str, float]:
         perfil = self.hotel.perfiles_climaticos[self.hotel.perfil_climatico_activo]
-        base = luz_base(hora, perfil)
+        base = luz_base(hora, perfil, self._lux_por_irradiancia)
         superficies = {superficie.id: base * superficie.reflectancia for zona in self.hotel.zonas.values() for superficie in zona.superficies}
         ventanas_por_zona = {zona.id: zona.ventanas for zona in self.hotel.zonas.values()}
         reflejadas = {}

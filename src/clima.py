@@ -6,11 +6,11 @@ from .geometria import Vector3
 from .modelo import PerfilClimatico
 
 
-def luz_base(hora: float, perfil: PerfilClimatico) -> float:
+def luz_base(hora: float, perfil: PerfilClimatico, lux_por_irradiancia: float = 900.0) -> float:
     if hora < 6.0 or hora >= 18.0:
         return 0.0
     curva = math.sin(math.pi * (hora - 6.0) / 12.0)
-    return 900.0 * curva * perfil.factor_luz
+    return lux_por_irradiancia * curva * perfil.factor_luz
 
 
 def direccion_solar(hora: float) -> Vector3:

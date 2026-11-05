@@ -71,6 +71,7 @@ def cargar_hotel_data(data: dict) -> Hotel:
         perfiles_climaticos=climas,
         perfil_climatico_activo=data["hotel"]["perfil_climatico"],
         horarios=data.get("horarios", {}),
+        parametros=data.get("parametros_evaluacion", {}),
         fuentes=fuentes,
         huespedes={},
         asignaciones=[],

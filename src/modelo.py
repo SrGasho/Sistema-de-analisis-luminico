@@ -194,6 +194,7 @@ class Hotel:
     generador: GeneradorEnergia
     zonas: dict[str, ZonaHotel] = field(default_factory=dict)
     habitaciones: dict[str, HabitacionHotel] = field(default_factory=dict)
+    parametros: dict = field(default_factory=dict)
 
     def indexar(self) -> None:
         self.zonas.clear()
