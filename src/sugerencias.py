@@ -9,8 +9,10 @@ def generar_sugerencias_habitabilidad(
     resultados: list,
     generador_info: dict,
     reasignaciones: list[dict],
+    habitabilidad: dict | None = None,
 ) -> list[dict]:
     sugerencias: list[dict] = []
+    veredictos = {e["zona_id"]: e for e in (habitabilidad or {}).get("zonas", [])}
 
     # 1. Reasignaciones operativas de huéspedes
     if reasignaciones:
@@ -44,8 +46,22 @@ def generar_sugerencias_habitabilidad(
             })
 
     # 2. Análisis de Vidrios y Transmitancia Visible (VLT)
-    zonas_con_deficit = [zid for zid, d in resumen.items() if d.get("pasos_deficit", 0) > 0 and zid in hotel.habitaciones]
-    zonas_con_exceso = [zid for zid, d in resumen.items() if d.get("pasos_exceso", 0) > 0 and zid in hotel.habitaciones]
+    casi = [zid for zid in hotel.habitaciones if veredictos.get(zid, {}).get("veredicto") == "CASI_HABITABLE"]
+    if casi:
+        sugerencias.append({
+            "categoria": "CASI_HABITABLE",
+            "tipo": "operativa",
+            "prioridad": "MEDIA",
+            "icono": "",
+            "titulo": f"{len(casi)} habitaciones están cerca de ser habitables",
+            "diagnostico": "Su puntaje está entre el umbral casi habitable y el umbral habitable.",
+            "accion_propuesta": "Aplicar la recomendación específica de cada habitación.",
+            "impacto_esperado": "Llevar la zona a habitable sin modificar la geometría del hotel.",
+            "items": [f"{zid}: {veredictos[zid].get('recomendacion') or 'sin recomendación específica'}" for zid in casi[:6]],
+        })
+
+    zonas_con_deficit = [zid for zid in hotel.habitaciones if veredictos.get(zid, {}).get("veredicto") == "NO_HABITABLE" and str(veredictos[zid].get("causa") or "").startswith("DEFICIT")]
+    zonas_con_exceso = [zid for zid in hotel.habitaciones if veredictos.get(zid, {}).get("veredicto") in ("NO_HABITABLE", "CASI_HABITABLE") and str(veredictos[zid].get("causa") or "").startswith("EXCESO")]
 
     vidrio_actual_nombre = "VIDRIO_CLARO"
     if hotel.torres and hotel.torres[0].pisos and hotel.torres[0].pisos[0].zonas:
@@ -133,10 +149,9 @@ def generar_sugerencias_habitabilidad(
 
     # 5. Distribución por Pisos y Sombras Arrojadas
     deficits_por_piso: dict[int, int] = {}
-    for zid, d in resumen.items():
-        if zid in hotel.habitaciones and d.get("pasos_deficit", 0) > 0:
-            hab = hotel.habitaciones[zid]
-            deficits_por_piso[hab.piso] = deficits_por_piso.get(hab.piso, 0) + 1
+    for zid in zonas_con_deficit:
+        hab = hotel.habitaciones[zid]
+        deficits_por_piso[hab.piso] = deficits_por_piso.get(hab.piso, 0) + 1
 
     if any(deficits_por_piso.get(p, 0) > deficits_por_piso.get(p + 2, 0) for p in [1, 2]):
         sugerencias.append({

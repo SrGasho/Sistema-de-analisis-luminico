@@ -141,7 +141,7 @@ def ejecutar_balance(data: dict, balancear_energia: bool = True, incluir_resulta
     for resultado in resultados:
         estados[resultado.estado.value] = estados.get(resultado.estado.value, 0) + 1
     generador_resultado = _generador_resultado(hotel, resultados, resumen, balancear_energia)
-    sugerencias = generar_sugerencias_habitabilidad(hotel, resumen, resultados, generador_resultado, reasignaciones)
+    sugerencias = generar_sugerencias_habitabilidad(hotel, resumen, resultados, generador_resultado, reasignaciones, habitabilidad)
     return {
         "estado": "BALANCE_COMPLETADO" if balancear_energia else "ANALISIS_ACTUAL",
         "resumen": {
@@ -151,8 +151,8 @@ def ejecutar_balance(data: dict, balancear_energia: bool = True, incluir_resulta
             "potencia_maxima_w": max((resultado.potencia_asignada for resultado in resultados), default=0.0),
             "energia_total_wh": sum(resultado.potencia_asignada * 0.5 for resultado in resultados),
             "estados": estados,
-            "zonas_con_deficit": sum(datos["pasos_deficit"] > 0 for datos in resumen.values()),
-            "zonas_con_exceso": sum(datos["pasos_exceso"] > 0 for datos in resumen.values()),
+            "zonas_con_deficit": sum(1 for e in habitabilidad["zonas"] if e["veredicto"] in ("NO_HABITABLE", "CASI_HABITABLE") and str(e.get("causa") or "").startswith("DEFICIT")),
+            "zonas_con_exceso": sum(1 for e in habitabilidad["zonas"] if e["veredicto"] in ("NO_HABITABLE", "CASI_HABITABLE") and str(e.get("causa") or "").startswith("EXCESO")),
             "reasignaciones": len(reasignaciones),
             "habitables": habitabilidad["conteo"].get("HABITABLE", 0),
             "casi_habitables": habitabilidad["conteo"].get("CASI_HABITABLE", 0),

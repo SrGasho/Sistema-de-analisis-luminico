@@ -18,7 +18,8 @@ def main() -> None:
     args = parser.parse_args()
 
     hotel = cargar_hotel(args.entrada)
-    resultados, resumen, propuestas = SimuladorUnificado(hotel).ejecutar()
+    simulador = SimuladorUnificado(hotel)
+    resultados, resumen, propuestas = simulador.ejecutar()
     salida = Path(args.salida)
     salida.mkdir(parents=True, exist_ok=True)
     por_hora = {}
@@ -33,7 +34,7 @@ def main() -> None:
         "porcentaje_usado": 0.0 if capacidad == 0 else min(100.0, demanda_maxima / capacidad * 100.0),
         "estado": "CAPACIDAD_LIMITADA" if demanda_maxima > capacidad else ("ALTA_DEMANDA" if demanda_maxima > capacidad * 0.8 else "OPERACION_NORMAL"),
     }
-    sugerencias = generar_sugerencias_habitabilidad(hotel, resumen, resultados, generador_info, propuestas)
+    sugerencias = generar_sugerencias_habitabilidad(hotel, resumen, resultados, generador_info, propuestas, simulador.habitabilidad)
     _guardar_json(salida / "resultados.json", resultados, resumen, propuestas, sugerencias)
     _guardar_csv(salida / "reporte.csv", resultados)
     _guardar_json(salida / "resumen.json", [], resumen, propuestas, sugerencias)
