@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from .balance import balancear, horario_modo
 from .clima import direccion_solar, luz_base, periodo
-from .evaluacion import clasificar, resumen_zonas
+from .evaluacion import clasificar, datos_zona_completos, resumen_zonas
 from .geometria import CajaEspacial, Rayo, Vector3
 from .habitabilidad import evaluar_hotel
 from .influencia import GrafoInfluencia
@@ -50,7 +50,7 @@ class SimuladorUnificado:
         return resultados, resumen, propuestas
 
     def _estado(self, zona, total: float, perfil, periodo_actual: str, balanceado: bool) -> EstadoIluminacion:
-        if perfil is None or zona.area <= 0:
+        if perfil is None or not datos_zona_completos(zona):
             return EstadoIluminacion.DATOS_INSUFICIENTES
         if not balanceado and periodo_actual == "NOCHE":
             return EstadoIluminacion.DATOS_INSUFICIENTES

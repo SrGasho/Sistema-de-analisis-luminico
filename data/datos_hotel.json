@@ -70,6 +70,7 @@
   "generador": {"capacidad_kw": 22.0, "reserva": 0.20},
   "parametros_evaluacion": {
     "luz": {"lux_por_irradiancia": 900.0},
+    "puntaje": {"q_confortable": 1.0, "q_leve": 0.5, "q_severo": 0.0},
     "habitabilidad": {"umbral_habitable": 0.90, "umbral_casi": 0.75, "maximo_deficit_severo": 0.05},
     "reasignacion": {"w_luz": 0.5, "w_actividad": 0.2, "w_energia": 0.2, "w_cambio": 0.1}
   },

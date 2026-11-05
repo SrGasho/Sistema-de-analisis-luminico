@@ -14,11 +14,15 @@ CAUSA_RECOMENDACION = {
 
 
 def umbrales(hotel: Hotel) -> dict[str, float]:
-    configurados = hotel.parametros.get("habitabilidad", {})
+    habitabilidad = hotel.parametros.get("habitabilidad", {})
+    puntaje = hotel.parametros.get("puntaje", {})
     return {
-        "umbral_habitable": float(configurados.get("umbral_habitable", 0.90)),
-        "umbral_casi": float(configurados.get("umbral_casi", 0.75)),
-        "maximo_deficit_severo": float(configurados.get("maximo_deficit_severo", 0.05)),
+        "umbral_habitable": float(habitabilidad.get("umbral_habitable", 0.90)),
+        "umbral_casi": float(habitabilidad.get("umbral_casi", 0.75)),
+        "maximo_deficit_severo": float(habitabilidad.get("maximo_deficit_severo", 0.05)),
+        "q_confortable": float(puntaje.get("q_confortable", 1.0)),
+        "q_leve": float(puntaje.get("q_leve", 0.5)),
+        "q_severo": float(puntaje.get("q_severo", 0.0)),
     }
 
 
@@ -30,21 +34,35 @@ def _causa(resultado: ResultadoIluminacion) -> str | None:
     return None
 
 
-def _puntaje(resultados: list[ResultadoIluminacion]) -> dict | None:
+def _puntaje(resultados: list[ResultadoIluminacion], limites: dict[str, float]) -> dict | None:
     evaluables = [r for r in resultados if r.estado != EstadoIluminacion.DATOS_INSUFICIENTES]
     if not evaluables:
         return None
     n = len(evaluables)
-    confortables = sum(r.estado == EstadoIluminacion.CONFORTABLE for r in evaluables)
-    leves = sum(r.estado in (EstadoIluminacion.DEFICIT_LEVE, EstadoIluminacion.EXCESO_LEVE) for r in evaluables)
+    suma_q = 0.0
+    for resultado in evaluables:
+        if resultado.estado == EstadoIluminacion.CONFORTABLE:
+            suma_q += limites["q_confortable"]
+        elif resultado.estado in (EstadoIluminacion.DEFICIT_LEVE, EstadoIluminacion.EXCESO_LEVE):
+            suma_q += limites["q_leve"]
+        else:
+            suma_q += limites["q_severo"]
     severos = sum(r.estado == EstadoIluminacion.DEFICIT_SEVERO for r in evaluables)
-    return {"puntaje": (confortables + 0.5 * leves) / n, "proporcion_severa": severos / n, "pasos": n}
+    deficit = sum(r.estado.value.startswith("DEFICIT") for r in evaluables)
+    exceso = sum(r.estado.value.startswith("EXCESO") for r in evaluables)
+    return {
+        "puntaje": suma_q / n,
+        "proporcion_severa": severos / n,
+        "proporcion_deficit": deficit / n,
+        "proporcion_exceso": exceso / n,
+        "pasos": n,
+    }
 
 
 def evaluar_zona(zona_id: str, resultados: list[ResultadoIluminacion], limites: dict[str, float], peso: float) -> dict:
-    total = _puntaje(resultados)
-    dia = _puntaje([r for r in resultados if r.periodo != "NOCHE"])
-    noche = _puntaje([r for r in resultados if r.periodo == "NOCHE"])
+    total = _puntaje(resultados, limites)
+    dia = _puntaje([r for r in resultados if r.periodo != "NOCHE"], limites)
+    noche = _puntaje([r for r in resultados if r.periodo == "NOCHE"], limites)
     base = {
         "zona_id": zona_id,
         "peso": round(peso, 4),
@@ -52,7 +70,7 @@ def evaluar_zona(zona_id: str, resultados: list[ResultadoIluminacion], limites: 
         "puntaje_noche": round(noche["puntaje"], 4) if noche else None,
     }
     if total is None:
-        return {**base, "veredicto": "DATOS_INSUFICIENTES", "puntaje": None, "brecha": None, "causa": None, "recomendacion": None, "pasos_evaluables": 0, "proporcion_deficit_severo": None}
+        return {**base, "veredicto": "DATOS_INSUFICIENTES", "puntaje": None, "brecha": None, "causa": None, "recomendacion": None, "pasos_evaluables": 0, "proporcion_deficit_severo": None, "proporcion_deficit": None, "proporcion_exceso": None}
 
     puntaje = total["puntaje"]
     severa = total["proporcion_severa"]
@@ -71,10 +89,12 @@ def evaluar_zona(zona_id: str, resultados: list[ResultadoIluminacion], limites: 
         "veredicto": veredicto,
         "puntaje": round(puntaje, 4),
         "brecha": round(limites["umbral_habitable"] - puntaje, 4) if casi else None,
-        "causa": causa if casi or veredicto == "NO_HABITABLE" else None,
+        "causa": causa,
         "recomendacion": CAUSA_RECOMENDACION[causa] if casi and causa else None,
         "pasos_evaluables": total["pasos"],
         "proporcion_deficit_severo": round(severa, 4),
+        "proporcion_deficit": round(total["proporcion_deficit"], 4),
+        "proporcion_exceso": round(total["proporcion_exceso"], 4),
     }
 
 

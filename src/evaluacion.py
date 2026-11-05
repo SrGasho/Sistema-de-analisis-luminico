@@ -2,7 +2,17 @@ from __future__ import annotations
 
 from collections import Counter, defaultdict
 
-from .modelo import EstadoIluminacion, ModoOperacion, PerfilIluminacion, ResultadoIluminacion
+from .modelo import Actividad, EstadoIluminacion, ModoOperacion, PerfilIluminacion, ResultadoIluminacion, ZonaHotel
+
+ZONAS_SIN_VENTANAS = {Actividad.PARQUEADERO}
+
+
+def datos_zona_completos(zona: ZonaHotel) -> bool:
+    if zona.area <= 0:
+        return False
+    if zona.actividad not in ZONAS_SIN_VENTANAS and not zona.ventanas:
+        return False
+    return all(ventana.normal.length() > 0 for ventana in zona.ventanas)
 
 
 def estado_predominante(resultados: list[ResultadoIluminacion]) -> EstadoIluminacion:

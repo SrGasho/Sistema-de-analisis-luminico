@@ -188,6 +188,9 @@ def _validar(hotel: Hotel) -> None:
         raise ValueError("El hotel debe contener exactamente dos torres")
     if len(hotel.zonas) == 0:
         raise ValueError("El hotel no contiene zonas")
+    for habitacion in hotel.habitaciones.values():
+        if habitacion.ocupacion > habitacion.capacidad:
+            raise ValueError(f"Ocupación mayor que la capacidad en {habitacion.id}")
     for asignacion in hotel.asignaciones:
         if asignacion.huesped_id not in hotel.huespedes:
             raise ValueError(f"Huésped inexistente: {asignacion.huesped_id}")
