@@ -27,7 +27,10 @@ const STATE_META = {
   DEFICIT_SEVERO: { cls: "deficit-severo", label: "Déficit severo", dot: "🔵" },
   EXCESO_LEVE: { cls: "exceso-leve", label: "Exceso leve", dot: "🔴" },
   EXCESO_SEVERO: { cls: "exceso-severo", label: "Exceso severo", dot: "🔴" },
-  DATOS_INSUFICIENTES: { cls: "sin-datos", label: "Datos insuficientes", dot: "⚪" }
+  DATOS_INSUFICIENTES: { cls: "sin-datos", label: "Datos insuficientes", dot: "⚪" },
+  HABITABLE: { cls: "habitable", label: "Habitable", dot: "🟢" },
+  CASI_HABITABLE: { cls: "casi-habitable", label: "Casi habitable", dot: "🟡" },
+  NO_HABITABLE: { cls: "no-habitable", label: "No habitable", dot: "🔴" }
 };
 const STATE_ORDER = ["CONFORTABLE", "DEFICIT_LEVE", "DEFICIT_SEVERO", "EXCESO_LEVE", "EXCESO_SEVERO", "DATOS_INSUFICIENTES"];
 const ACTIVITY_LABELS = { HABITACION: "Habitación", COCINA: "Cocina", RECREACION: "Recreación", PARQUEADERO: "Parqueadero" };
@@ -69,6 +72,59 @@ const ACTIVITY_THEMES = {
 
 function stateInfo(estado) {
   return STATE_META[estado] || STATE_META.DATOS_INSUFICIENTES;
+}
+
+function claveVisual(zone) {
+  const modo = $("#plan-color-mode") ? $("#plan-color-mode").value : "habitabilidad";
+  return modo === "habitabilidad" ? (zone.veredicto || "DATOS_INSUFICIENTES") : zone.estado;
+}
+
+function evaluacionZona(zoneId) {
+  const zonas = (state.result && state.result.habitabilidad && state.result.habitabilidad.zonas) || [];
+  return zonas.find((z) => z.zona_id === zoneId) || {};
+}
+
+function renderVeredictos(containerId, habitabilidad) {
+  const container = $(containerId);
+  if (!container || !habitabilidad) return;
+  const conteo = habitabilidad.conteo || {};
+  const puntajes = habitabilidad.puntaje_hotel || {};
+  const porcentaje = (valor) => (valor === null || valor === undefined ? "—" : `${(valor * 100).toFixed(1)} %`);
+  const zonas = habitabilidad.zonas || [];
+  const casi = zonas.filter((z) => z.veredicto === "CASI_HABITABLE");
+  const no = zonas.filter((z) => z.veredicto === "NO_HABITABLE");
+  const causas = {};
+  no.forEach((z) => { const clave = z.causa || "SIN_CAUSA"; causas[clave] = (causas[clave] || 0) + 1; });
+
+  const cards = [
+    card("Habitables", conteo.HABITABLE || 0),
+    card("Casi habitables", conteo.CASI_HABITABLE || 0),
+    card("No habitables", conteo.NO_HABITABLE || 0),
+    card("Puntaje ponderado", porcentaje(puntajes.ponderado)),
+    card("Puntaje diurno", porcentaje(puntajes.dia)),
+    card("Puntaje nocturno", porcentaje(puntajes.noche))
+  ].join("");
+
+  const recomendaciones = casi.length ? casi.slice(0, 12).map((z) => `
+    <div class="recommendation veredicto-casi">
+      <strong>${escapeHtml(z.zona_id)}</strong> · puntaje ${porcentaje(z.puntaje)} · faltan ${porcentaje(z.brecha)} para ser habitable<br>
+      ${escapeHtml(z.recomendacion || "Sin recomendación específica.")}
+    </div>
+  `).join("") : `<p class="muted">Ninguna zona está en el rango casi habitable.</p>`;
+
+  const resumenNo = Object.entries(causas).map(([causa, total]) => `<li>${escapeHtml(causa.replaceAll("_", " ").toLowerCase())}: ${total}</li>`).join("");
+
+  container.innerHTML = `
+    <div class="output-block">
+      <p class="eyebrow">Habitabilidad por zona</p>
+      <div class="cards">${cards}</div>
+      <h3>Casi habitables: recomendaciones</h3>
+      ${recomendaciones}
+      <h3>No habitables</h3>
+      <p class="muted">Solo se muestra el diagnóstico; no se recomiendan cambios automáticos para estas zonas.</p>
+      <ul class="causas-lista">${resumenNo || "<li>Sin zonas no habitables.</li>"}</ul>
+    </div>
+  `;
 }
 
 function activityLabel(activity) {
@@ -276,6 +332,7 @@ function renderCurrentAnalysis(result) {
   state.result = result;
   renderFloorSelectors(result.layout);
   renderSuggestions("#current-suggestions", result.sugerencias_habitabilidad, true);
+  renderVeredictos("#current-verdicts", result.habitabilidad);
 }
 
 function renderGenerator(generator) {
@@ -435,11 +492,11 @@ function renderFloorPlan() {
 
   // 1. HABITACIÓN CAD (AZUL)
   function roomCad(zone, x, y, w, h, isTop, index) {
-    const info = stateInfo(zone.estado);
+    const info = stateInfo(claveVisual(zone));
     const zLabel = zoneLabel(zone, tower);
     const luxText = `${zone.promedio_lux.toFixed(1)} lx`;
     const isSelected = state.selectedZoneId === zone.id;
-    const style = getSpaceStyle("HABITACION", index, zone.estado);
+    const style = getSpaceStyle("HABITACION", index, claveVisual(zone));
     const facadeLabel = isTop ? "Fachada Norte" : "Fachada Sur";
 
     const winW = Math.min(w * 0.45, 60);
@@ -499,11 +556,11 @@ function renderFloorPlan() {
 
   // 2. COCINA CAD (NARANJA)
   function kitchenCad(zone, x, y, w, h, index) {
-    const info = stateInfo(zone.estado);
+    const info = stateInfo(claveVisual(zone));
     const zLabel = zoneLabel(zone, tower);
     const luxText = `${zone.promedio_lux.toFixed(1)} lx`;
     const isSelected = state.selectedZoneId === zone.id;
-    const style = getSpaceStyle("COCINA", index, zone.estado);
+    const style = getSpaceStyle("COCINA", index, claveVisual(zone));
 
     const winW = Math.min(w * 0.5, 45);
     const winX = x + (w - winW) / 2;
@@ -538,11 +595,11 @@ function renderFloorPlan() {
 
   // 3. RECREACIÓN CAD (VERDE)
   function recreationCad(zone, x, y, w, h, index) {
-    const info = stateInfo(zone.estado);
+    const info = stateInfo(claveVisual(zone));
     const zLabel = zoneLabel(zone, tower);
     const luxText = `${zone.promedio_lux.toFixed(1)} lx`;
     const isSelected = state.selectedZoneId === zone.id;
-    const style = getSpaceStyle("RECREACION", index, zone.estado);
+    const style = getSpaceStyle("RECREACION", index, claveVisual(zone));
 
     const winW = Math.min(w * 0.6, 65);
     const winX = x + (w - winW) / 2;
@@ -580,11 +637,11 @@ function renderFloorPlan() {
 
   // 4. PARQUEADERO CAD (GRIS)
   function parkingCad(zone, x, y, w, h, index) {
-    const info = stateInfo(zone.estado);
+    const info = stateInfo(claveVisual(zone));
     const zLabel = zoneLabel(zone, tower);
     const luxText = `${zone.promedio_lux.toFixed(1)} lx`;
     const isSelected = state.selectedZoneId === zone.id;
-    const style = getSpaceStyle("PARQUEADERO", index, zone.estado);
+    const style = getSpaceStyle("PARQUEADERO", index, claveVisual(zone));
 
     const bayW = 28;
     const bayH = 46;
@@ -820,6 +877,12 @@ function renderFloorPlan() {
       <span><i class="legend-swatch swatch-circulacion"></i>Núcleo / Pasillos</span>
     </div>
     <div class="legend-group">
+      <span class="legend-group-title">Habitabilidad:</span>
+      <span><i class="legend-dot habitable"></i>Habitable</span>
+      <span><i class="legend-dot casi-habitable"></i>Casi habitable</span>
+      <span><i class="legend-dot no-habitable"></i>No habitable</span>
+    </div>
+    <div class="legend-group">
       <span class="legend-group-title">Confort Lumínico:</span>
       <span><i class="legend-dot good"></i>Confortable</span>
       <span><i class="legend-dot deficit-leve"></i>Déficit leve</span>
@@ -831,7 +894,7 @@ function renderFloorPlan() {
 
   // Tarjetas de zonas comunes con borde y badge temático
   $("#common-zones").innerHTML = common.length ? common.map((zone) => {
-    const info = stateInfo(zone.estado);
+    const info = stateInfo(claveVisual(zone));
     const theme = ACTIVITY_THEMES[zone.actividad] || ACTIVITY_THEMES.HABITACION;
     return `
       <button type="button" class="common-zone-card ${info.cls}" style="border-left: 5px solid ${theme.border}; background: ${theme.fillSoft};" data-zone-id="${zone.id}">
@@ -865,7 +928,7 @@ function showZoneDetail(zoneId) {
   const tower = state.result.layout.torres.find((t) => t.pisos.some((p) => p.zonas.some((z) => z.id === zoneId)));
   const zone = state.result.layout.torres.flatMap((t) => t.pisos.flatMap((p) => p.zonas)).find((item) => item.id === zoneId);
   if (!zone) return;
-  const info = stateInfo(zone.estado);
+  const info = stateInfo(claveVisual(zone));
   const theme = ACTIVITY_THEMES[zone.actividad] || ACTIVITY_THEMES.HABITACION;
 
   $("#zone-detail").innerHTML = `
@@ -875,6 +938,9 @@ function showZoneDetail(zoneId) {
     <span>Estado: <b class="inline-state ${info.cls}">${info.dot} ${info.label}</b></span>
     <span>Iluminancia Promedio: <strong class="num">${zone.promedio_lux.toFixed(1)} lux</strong></span>
     <span>Modo Operativo: <b>${escapeHtml(zone.modo)}</b></span>
+    <span>Veredicto: <b class="inline-state ${stateInfo(zone.veredicto).cls}">${stateInfo(zone.veredicto).dot} ${stateInfo(zone.veredicto).label}</b></span>
+    ${evaluacionZona(zone.id).puntaje !== undefined && evaluacionZona(zone.id).puntaje !== null ? `<span>Puntaje: <strong class="num">${(evaluacionZona(zone.id).puntaje * 100).toFixed(1)} %</strong></span>` : ""}
+    ${evaluacionZona(zone.id).recomendacion ? `<span>Recomendación: ${escapeHtml(evaluacionZona(zone.id).recomendacion)}</span>` : ""}
   `;
 }
 
@@ -888,6 +954,7 @@ function renderResult(result) {
   const states = Object.entries(result.resumen.estados).map(([name, count]) => `<tr><td>${escapeHtml(name)}</td><td>${count}</td></tr>`).join("");
   $("#state-table").innerHTML = `<div class="output-block"><h3>Estados calculados</h3><table><thead><tr><th>Estado</th><th>Resultados</th></tr></thead><tbody>${states}</tbody></table></div>`;
 
+  renderVeredictos("#results-verdicts", result.habitabilidad);
   renderSuggestions("#results-suggestions", result.sugerencias_habitabilidad, false);
 
   const recommendations = result.reasignaciones.length ? result.reasignaciones.map((item) => `

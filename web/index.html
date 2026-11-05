@@ -143,6 +143,7 @@
         <span class="status" id="current-status">Calculando condición actual...</span>
       </div>
       <div class="cards" id="current-analysis-cards"></div>
+      <div id="current-verdicts"></div>
       <div id="current-suggestions" class="suggestions-panel"></div>
       <div class="floor-panel">
         <div class="section-heading compact-heading">
@@ -156,7 +157,8 @@
             <label><span>Piso <span class="info-icon" tabindex="0">!<span class="tooltip-box">Nivel arquitectónico seleccionado. El peso de prioridad aumenta con la altura: 1 + 0.10·(p-1).</span></span></span><select id="floor-number"></select></label>
             <label><span>Capa de color <span class="info-icon" tabindex="0">!<span class="tooltip-box">Alterna entre la zonificación por colores de espacios (habitaciones azul, cocina naranja, recreación verde, parqueadero gris) y el mapa térmico de confort lumínico.</span></span></span>
               <select id="plan-color-mode">
-                <option value="synergy" selected>Separacion de Espacios</option>
+                <option value="habitabilidad" selected>Habitabilidad</option>
+                <option value="synergy">Separacion de Espacios</option>
                 <option value="confort">Confort lumínico</option>
               </select>
             </label>
@@ -187,6 +189,7 @@
       </div>
       <div class="cards" id="result-cards"></div>
       <div class="generator-panel" id="generator-panel"></div>
+      <div id="results-verdicts"></div>
       <div id="results-suggestions" class="suggestions-panel"></div>
       <div id="recommendations"></div>
       <div class="actions">

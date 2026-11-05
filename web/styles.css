@@ -823,3 +823,16 @@ th { color: var(--text-muted); font-family: var(--font-mono); font-size: .7rem; 
   .generator-top { flex-direction: column; }
   .generator-value { text-align: left; }
 }
+
+/* Veredictos de habitabilidad: habitable, casi habitable y no habitable */
+rect.habitable { fill: var(--c-good); fill-opacity: .88; }
+rect.casi-habitable { fill: #f59e0b; fill-opacity: .9; }
+rect.no-habitable { fill: var(--c-exceso); fill-opacity: .9; }
+.legend-dot.habitable { background: var(--c-good); }
+.legend-dot.casi-habitable { background: #f59e0b; }
+.legend-dot.no-habitable { background: var(--c-exceso); }
+.inline-state.habitable { color: #4fd1a5; }
+.inline-state.casi-habitable { color: #fbbf24; }
+.inline-state.no-habitable { color: #f3858a; }
+.recommendation.veredicto-casi { border-left: 4px solid #f59e0b; }
+.causas-lista { color: var(--text-muted); padding-left: 18px; }
