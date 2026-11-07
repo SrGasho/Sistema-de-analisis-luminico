@@ -255,6 +255,12 @@ const MOTIVOS_REASIGNACION = {
   RESTRICCIONES: "Sus restricciones excluyen todas las habitaciones habitables libres",
 };
 
+function ajustarTexto(texto, ancho, tamano) {
+  const estimado = [...String(texto)].length * tamano * 0.62;
+  const disponible = ancho - 8;
+  return estimado > disponible ? ` textLength="${disponible.toFixed(1)}" lengthAdjust="spacingAndGlyphs"` : "";
+}
+
 function towerLabel(tower) {
   return tower.nombre && tower.nombre !== tower.id ? `${tower.id} · ${tower.nombre}` : tower.id;
 }
@@ -738,8 +744,8 @@ function renderFloorPlan() {
         <line class="window-cad" x1="${winX}" y1="${winY}" x2="${winX + winW}" y2="${winY}"></line>
         <line class="window-glass" x1="${winX}" y1="${winY}" x2="${winX + winW}" y2="${winY}"></line>
 
-        <text class="room-title-text" x="${x + w / 2}" y="${y + h / 2 - 8}">${escapeHtml(zLabel)}</text>
-        <text class="room-sub-text" x="${x + w / 2}" y="${y + h / 2 + 5}">24 m² · Habitación</text>
+        <text class="room-title-text" x="${x + w / 2}" y="${y + h / 2 - 8}"${ajustarTexto(zLabel, w, 11)}>${escapeHtml(zLabel)}</text>
+        <text class="room-sub-text" x="${x + w / 2}" y="${y + h / 2 + 5}"${ajustarTexto("24 m² · Habitación", w, 8.5)}>24 m² · Habitación</text>
         <rect class="status-indicator-pill ${info.cls}" x="${x + w / 2 - 32}" y="${y + h / 2 + 13}" width="64" height="15"></rect>
         <text class="room-lux-text" fill="#ffffff" x="${x + w / 2}" y="${y + h / 2 + 21}">${info.dot} ${luxText}</text>
       </g>
@@ -777,8 +783,8 @@ function renderFloorPlan() {
         <line class="window-cad" x1="${winX}" y1="${winY}" x2="${winX + winW}" y2="${winY}"></line>
         <line class="window-glass" x1="${winX}" y1="${winY}" x2="${winX + winW}" y2="${winY}"></line>
 
-        <text class="room-title-text" x="${x + w / 2}" y="${y + h / 2 - 6}">🍳 ${escapeHtml(zLabel)}</text>
-        <text class="room-sub-text" x="${x + w / 2}" y="${y + h / 2 + 7}">35 m² · Cocina</text>
+        <text class="room-title-text" x="${x + w / 2}" y="${y + h / 2 - 6}"${ajustarTexto(`🍳 ${zLabel}`, w, 11)}>🍳 ${escapeHtml(zLabel)}</text>
+        <text class="room-sub-text" x="${x + w / 2}" y="${y + h / 2 + 7}"${ajustarTexto("35 m² · Cocina", w, 8.5)}>35 m² · Cocina</text>
         <rect class="status-indicator-pill ${info.cls}" x="${x + w / 2 - 32}" y="${y + h / 2 + 14}" width="64" height="15"></rect>
         <text class="room-lux-text" fill="#ffffff" x="${x + w / 2}" y="${y + h / 2 + 22}">${info.dot} ${luxText}</text>
       </g>
@@ -819,8 +825,8 @@ function renderFloorPlan() {
         <line class="window-cad" x1="${winX}" y1="${winY}" x2="${winX + winW}" y2="${winY}"></line>
         <line class="window-glass" x1="${winX}" y1="${winY}" x2="${winX + winW}" y2="${winY}"></line>
 
-        <text class="room-title-text" x="${x + w / 2}" y="${y + h / 2 - 6}">🎯 ${escapeHtml(zLabel)}</text>
-        <text class="room-sub-text" x="${x + w / 2}" y="${y + h / 2 + 7}">80 m² · Recreación</text>
+        <text class="room-title-text" x="${x + w / 2}" y="${y + h / 2 - 6}"${ajustarTexto(`🎯 ${zLabel}`, w, 11)}>🎯 ${escapeHtml(zLabel)}</text>
+        <text class="room-sub-text" x="${x + w / 2}" y="${y + h / 2 + 7}"${ajustarTexto("80 m² · Recreación", w, 8.5)}>80 m² · Recreación</text>
         <rect class="status-indicator-pill ${info.cls}" x="${x + w / 2 - 32}" y="${y + h / 2 + 14}" width="64" height="15"></rect>
         <text class="room-lux-text" fill="#ffffff" x="${x + w / 2}" y="${y + h / 2 + 22}">${info.dot} ${luxText}</text>
       </g>
@@ -854,8 +860,8 @@ function renderFloorPlan() {
         <line class="parking-stripe" x1="${bay1X + bayW}" y1="${bayY}" x2="${bay1X + bayW}" y2="${bayY + bayH}"></line>
         <line class="parking-stripe" x1="${bay2X + bayW}" y1="${bayY}" x2="${bay2X + bayW}" y2="${bayY + bayH}"></line>
 
-        <text class="room-title-text" x="${x + w / 2}" y="${y + h / 2 + 6}">🚗 ${escapeHtml(zLabel)}</text>
-        <text class="room-sub-text" x="${x + w / 2}" y="${y + h / 2 + 18}">450 m² · Parqueadero</text>
+        <text class="room-title-text" x="${x + w / 2}" y="${y + h / 2 + 6}"${ajustarTexto(`🚗 ${zLabel}`, w, 11)}>🚗 ${escapeHtml(zLabel)}</text>
+        <text class="room-sub-text" x="${x + w / 2}" y="${y + h / 2 + 18}"${ajustarTexto("450 m² · Parqueadero", w, 8.5)}>450 m² · Parqueadero</text>
         <rect class="status-indicator-pill ${info.cls}" x="${x + w / 2 - 32}" y="${y + h / 2 + 25}" width="64" height="15"></rect>
         <text class="room-lux-text" fill="#ffffff" x="${x + w / 2}" y="${y + h / 2 + 33}">${info.dot} ${luxText}</text>
       </g>
@@ -1391,6 +1397,7 @@ function mostrarPestana(nombre) {
     boton.setAttribute("aria-selected", String(activa));
   });
   document.querySelectorAll(".tab-panel").forEach((panel) => { panel.hidden = panel.dataset.tab !== nombre; });
+  document.querySelector(".container").classList.toggle("wide", nombre === "plano");
   if (nombre === "plano") renderFloorPlan();
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
