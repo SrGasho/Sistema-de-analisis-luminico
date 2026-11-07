@@ -314,6 +314,9 @@ def _validar(hotel: Hotel) -> None:
         raise ValueError("El hotel debe contener exactamente dos torres")
     if len(hotel.zonas) == 0:
         raise ValueError("El hotel no contiene zonas")
+    for actividad, perfil in hotel.perfiles_iluminacion.items():
+        if not 0 <= perfil.minimo <= perfil.objetivo <= perfil.maximo:
+            raise ValueError(f"El perfil de {actividad.value} debe cumplir 0 ≤ mínimo ≤ objetivo ≤ máximo")
     for habitacion in hotel.habitaciones.values():
         if habitacion.ocupacion > habitacion.capacidad:
             raise ValueError(f"Ocupación mayor que la capacidad en {habitacion.id}")

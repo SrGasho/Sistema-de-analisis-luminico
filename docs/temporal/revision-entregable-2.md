@@ -215,6 +215,23 @@ Cada paso va en su propio commit. Al terminar cada paso actualizo este documento
 
 Los dos casos de exceso usan cielo despejado (factor 1,0 antes y después), por eso no cambian. La luz natural baja (0,85 → 0,69 en el perfil base), pero las zonas que antes quedaban en exceso de día ahora quedan confortables y el balance compensa con más energía artificial.
 
+## 5.2 Ampliación: casos de prueba e interfaz
+
+Pedido aparte de la revisión original, aprobado en el chat.
+
+| Código | Decisión | Detalle |
+|---|---|---|
+| P1 | Sí | Una prueba ejecuta cada caso de `data/casos_prueba/` y comprueba su comportamiento, no solo un conteo. |
+| C1 | Reemplazar | `confortable_base` repetía el escenario base. El escenario base se prueba directo desde `datos_hotel.json`. |
+| C2 | Sí | `exceso_severo` pasa a exceso solar real. Al cargar se valida mínimo ≤ objetivo ≤ máximo en cada perfil. |
+| C3 | Sí | Hay casos con huéspedes que sí se mueven, con restricciones que se cumplen y que bloquean. |
+| Casos | Lo más reales posible | Casos sobre el hotel completo (TP y TG, 78 huéspedes) en vez de hoteles de una torre de 2 habitaciones. Cada JSON trae un bloque `caso` con la historia del escenario y lo que se espera ver, para leer los resultados. |
+| I1 | Pestañas | Configurar, Diagnóstico, Balance, Mejoras y Detalle técnico. Se reubican los componentes existentes: no se borran ni se reescriben. |
+| Plano | No se toca | Se conservan sus cuartos, detalles, colores y forma. Solo se puede ajustar su tamaño. |
+| Estilo | Paleta y fuentes | Paleta `#D90D7E`, `#F728CD`, `#232559`, `#F0AD26`, `#F2793A`; Playfair Display para títulos y Source Sans Pro para texto; modo claro opcional. |
+
+Pasos, un commit cada uno: (a) validación de perfiles; (b) casos JSON y prueba P1; (c) pestañas; (d) paleta, fuentes y modo claro; (e) documentos.
+
 ## 6. Cierre de la carpeta temporal
 
 Cuando digas "cierra la revisión", se hace esto, en un solo commit:
