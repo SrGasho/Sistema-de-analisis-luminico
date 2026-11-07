@@ -1,0 +1,167 @@
+%% Diagrama de clases inicial - Sistema educativo de iluminación y balance energético hotelero
+%% Fiel a las clases y relaciones descritas en entregable-arquitectura-iluminacion.tex
+%% Render sugerido: https://mermaid.live  (exportar a PNG/SVG e insertar con \includegraphics)
+
+classDiagram
+    direction TB
+
+    %% ============ DOMINIO: jerarquia fisica ============
+    class Hotel {
+        +id
+        +torres: Torre[2]
+        +generador: GeneradorEnergia
+        +perfilClima: PerfilClimatico
+        +fuentes: FuenteIluminacion[]
+        +asignaciones: Asignacion[]
+        +simular24h()
+    }
+    class Torre {
+        +id
+        +caja: CajaEspacial
+        +areaRef
+        +pisos: Piso[]
+    }
+    class Piso {
+        +numero
+        +peso
+        +zonas: ZonaHotel[]
+    }
+    class ZonaHotel {
+        +id
+        +actividad
+        +area
+        +modo
+        +perfil: PerfilIluminacion
+        +ventanas: Ventana[]
+        +superficies: SuperficiePared[]
+        +resultados: ResultadoIluminacion[]
+    }
+    class HabitacionHotel {
+        +capacidad
+        +disponible
+        +ocupacion
+    }
+    class Ventana {
+        +posicion
+        +normal
+        +area
+        +vidrio: Vidrio
+    }
+    class Vidrio {
+        +tipo
+        +transmitanciaVisible
+        +indiceRefraccion
+    }
+    class SuperficiePared {
+        +colorNominal
+        +reflectancia
+        +normal
+    }
+
+    %% ============ ENERGIA Y HUESPEDES ============
+    class FuenteIluminacion {
+        +posicion
+        +potencia
+        +eficacia
+        +CU
+        +MF
+        +horario
+        +zonaServida
+    }
+    class GeneradorEnergia {
+        +capacidadKW
+        +reserva
+        +potenciaDisponible
+    }
+    class Huesped {
+        +id
+        +actividad
+        +prioridad
+        +restricciones
+    }
+    class Asignacion {
+        +estado
+    }
+
+    %% ============ PERFILES ============
+    class PerfilClimatico {
+        +irradiancia
+        +nubosidad
+        +precipitacion
+        +curvaSolar()
+    }
+    class PerfilIluminacion {
+        +minimo
+        +objetivo
+        +maximo
+        +prioridad
+    }
+
+    %% ============ ESTRUCTURAS ESPACIALES Y GRAFO ============
+    class Octree {
+        +raiz
+        +insertar()
+        +consultarRayo()
+        +consultarRadio()
+    }
+    class GrafoInfluencia {
+        +adyacencia
+        +agregarArista()
+        +reflexionPrimerOrden()
+    }
+
+    %% ============ SIMULACION, RESULTADOS Y CONTROL ============
+    class ResultadoIluminacion {
+        +hora
+        +periodo
+        +luzNatural
+        +luzReflejada
+        +luzArtificial
+        +luzTotal
+        +potenciaAsignada
+        +estado
+    }
+    class EvaluadorHabitabilidad {
+        +clasificar()
+        +puntuar()
+    }
+    class BalanceEnergetico {
+        +calcularDemandas()
+        +asignarEnergia()
+    }
+    class ReasignadorHuespedes {
+        +buscarCandidatos()
+        +proponer()
+    }
+
+    %% ============ RELACIONES DE COMPOSICION (arbol) ============
+    Hotel "1" *-- "2" Torre : contiene
+    Torre "1" *-- "1..*" Piso : contiene
+    Piso "1" *-- "1..*" ZonaHotel : contiene
+    ZonaHotel "1" *-- "0..*" Ventana : contiene
+    ZonaHotel "1" *-- "0..*" SuperficiePared : tiene
+    HabitacionHotel --|> ZonaHotel : especializa
+
+    %% ============ ASOCIACIONES ============
+    Ventana "1" --> "1" Vidrio : usa
+    ZonaHotel "1" --> "1" PerfilIluminacion : usa
+    Hotel "1" --> "1" GeneradorEnergia : alimenta iluminacion
+    Hotel "1" --> "0..*" FuenteIluminacion : opera
+    Hotel "1" --> "1" PerfilClimatico : aplica
+    Huesped "1" --> "0..1" Asignacion : tiene
+    Asignacion "1" --> "1" HabitacionHotel : ocupa
+    ZonaHotel "1" *-- "0..*" ResultadoIluminacion : produce
+
+    %% ============ DEPENDENCIAS DE CONTROL (no composicion) ============
+    Hotel ..> Octree : consulta espacio
+    Hotel ..> GrafoInfluencia : propaga reflexion
+    Octree ..> Torre : indexa
+    Octree ..> Ventana : indexa
+    Octree ..> FuenteIluminacion : indexa
+    GrafoInfluencia ..> SuperficiePared : origen
+    GrafoInfluencia ..> Ventana : receptor
+    BalanceEnergetico ..> GeneradorEnergia : reparte
+    BalanceEnergetico ..> ZonaHotel : asigna potencia
+    EvaluadorHabitabilidad ..> ResultadoIluminacion : clasifica
+    ReasignadorHuespedes ..> HabitacionHotel : evalua alternativa
+    ReasignadorHuespedes ..> Huesped : recomienda

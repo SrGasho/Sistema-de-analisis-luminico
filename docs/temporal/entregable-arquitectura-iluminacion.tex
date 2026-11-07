@@ -1,0 +1,401 @@
+\documentclass[12pt,a4paper]{article}
+
+% Documento compatible con pdflatex.
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[spanish,es-nodecimaldot]{babel}
+\usepackage[a4paper,margin=2.5cm]{geometry}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{fancyhdr}
+\usepackage{longtable}
+\usepackage{url}
+
+\hypersetup{colorlinks=true,linkcolor=blue!50!black,urlcolor=blue!50!black,citecolor=blue!50!black,pdftitle={Sistema educativo de iluminación y balance energético hotelero}}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.35em}
+\setlist{nosep,leftmargin=*}
+\renewcommand{\arraystretch}{1.08}
+\pagestyle{fancy}
+\fancyhf{}
+\lhead{Iluminación y balance energético hotelero}
+\rhead{Ciencias de la Computación 1}
+\cfoot{\thepage}
+
+\newcommand{\clase}[1]{\texttt{#1}}
+\newcommand{\estado}[1]{\texttt{#1}}
+\newcommand{\codigo}[1]{\texttt{#1}}
+
+\begin{document}
+
+\begin{titlepage}
+    \centering
+    \vspace*{1.5cm}
+    {\Large \textbf{Ciencias de la Computación 1}\par}
+    \vspace{0.9cm}
+    {\Huge \textbf{Sistema educativo de iluminación}\par}
+    {\Huge \textbf{y balance energético para un hotel}\par}
+    \vspace{1.2cm}
+    {\Large Documento de arquitectura y propuesta de implementación\par}
+    \vfill
+    \begin{tabular}{rl}
+        \textbf{Escenario:} & Hotel de dos torres en Bogotá\\
+        \textbf{Actividades:} & Habitaciones, cocina, recreación y parqueadero\\
+        \textbf{Análisis:} & Modelo unificado de 24 horas\\
+        \textbf{Implementación propuesta:} & Python\\
+    \end{tabular}
+    \vfill
+    {\large \today\par}
+\end{titlepage}
+
+\tableofcontents
+\newpage
+
+El documento se organiza únicamente según los contenidos de evaluación solicitados. El escenario es un hotel compuesto por exactamente dos torres en Bogotá, con cuatro actividades y un análisis temporal único de 24 horas. Las cantidades, rangos y geometría son datos sintéticos educativos; el sistema diagnostica y recomienda, pero no constituye una certificación fotométrica, eléctrica ni arquitectónica.
+
+\section{Entradas}
+
+Las entradas son los datos que el programa necesita para construir el escenario, calcular la iluminación y ejecutar el balance energético.
+
+\textbf{Almacenamiento de las entradas.} La información inicial se guardará en el archivo \codigo{datos\_hotel.json}. Este archivo contendrá las torres, pisos, zonas, ventanas, vidrios, paredes, luminarias, huéspedes, horarios, perfiles climáticos y parámetros de evaluación. Python cargará el archivo y convertirá los registros en objetos \codigo{dataclass}. Además, se crearán diccionarios indexados por identificador para localizar rápidamente habitaciones, zonas, ventanas y huéspedes.
+
+\begin{center}\small
+\begin{tabular}{p{0.25\textwidth}p{0.28\textwidth}p{0.34\textwidth}}
+\toprule
+\textbf{Información} & \textbf{Almacenamiento inicial} & \textbf{Uso en el algoritmo}\\
+\midrule
+Torres, pisos y zonas & \codigo{datos\_hotel.json} & Construir el árbol \clase{Hotel}--\clase{Torre}--\clase{Piso}--\clase{ZonaHotel}.\\
+Ventanas, paredes y luminarias & \codigo{datos\_hotel.json} & Calcular sombras, visibilidad, reflexión y luz artificial.\\
+Vidrios y reflectancias & \codigo{datos\_hotel.json} & Aplicar transmitancia, refracción y reflexión de primer orden.\\
+Clima y horarios & \codigo{datos\_hotel.json} & Evaluar cada instante del eje de 24 horas.\\
+Huéspedes y asignaciones & \codigo{datos\_hotel.json} & Determinar ocupación, prioridades y posibles reasignaciones.\\
+Resultados temporales & Memoria de Python y \codigo{resultados.json} & Clasificar zonas y generar el reporte final.\\
+\bottomrule
+\end{tabular}
+\end{center}
+
+El archivo de entrada conserva los datos del escenario; el Octree y el grafo no se escriben manualmente. Después de cargar el JSON, el programa construye el árbol jerárquico, el Octree y el grafo de influencia. Los resultados se mantienen durante la simulación y se exportan a \codigo{resultados.json} o a un reporte CSV.
+
+\textbf{Relación entre entradas y evaluación.} La geometría, las posiciones y las normales permiten calcular sombras y visibilidad; las ventanas, el clima y la orientación permiten calcular luz natural; el vidrio permite calcular transmisión y refracción; las paredes y el grafo permiten calcular luz reflejada; las luminarias y sus horarios permiten calcular luz artificial; y la actividad, el modo y el perfil permiten comparar el resultado con los niveles mínimo, objetivo y máximo. Finalmente, la ocupación y la capacidad del generador determinan las prioridades del balance y la posibilidad de reasignar huéspedes.
+
+\begin{center}\small
+\fbox{\parbox{0.88\textwidth}{\centering
+\codigo{datos\_hotel.json}
+$\longrightarrow$ objetos \codigo{dataclass} y diccionarios por ID
+$\longrightarrow$ árbol jerárquico + Octree + grafo
+$\longrightarrow$ simulación de iluminación
+$\longrightarrow$ \codigo{resultados.json} y reporte CSV}}
+\end{center}
+
+\textbf{Hotel y geometría.} El hotel contiene exactamente dos torres. Cada torre contiene pisos; cada piso contiene zonas; una zona puede contener ventanas, superficies y luminarias. Las áreas de referencia se inspiran en modelos comerciales del DOE \cite{doeReferenceBuildings}, pero las cajas y registros siguientes son sintéticos.
+
+\begin{center}\small
+\begin{tabular}{p{0.17\textwidth}p{0.21\textwidth}p{0.30\textwidth}p{0.23\textwidth}}
+\toprule
+\textbf{Torre} & \textbf{Referencia} & \textbf{Caja espacial (m)} & \textbf{Zonas y ocupación}\\
+\midrule
+\clase{TorrePequena} & 4.013 m$^2$, 4 pisos & $x=0..32$, $y=0..31.35$, $z=0..12$ & 32 habitaciones, 4 cocinas, 4 recreaciones, 1 parqueadero; 24 ocupadas.\\
+\clase{TorreGrande} & 11.346 m$^2$, 6 pisos & $x=45..89$, $y=0..43$, $z=0..18$ & 72 habitaciones, 6 cocinas, 6 recreaciones, 2 parqueaderos; 54 ocupadas.\\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Cada piso tiene 3 m de altura y la separación horizontal aproximada entre torres es de 13 m. Las habitaciones tienen 24 m$^2$ y capacidad para dos huéspedes. El escenario inicia con 78 huéspedes: 24 habitaciones ocupadas en la torre pequeña y 54 en la grande. Los identificadores de prueba son \codigo{TP-H-101}, \codigo{TG-H-101} y \codigo{H-001}--\codigo{H-078}; no representan personas reales.
+
+\textbf{Zonas y actividades.} El sistema usa cuatro actividades para evitar clases innecesarias:
+
+\begin{center}\small
+\begin{tabular}{p{0.16\textwidth}r r r p{0.19\textwidth}p{0.24\textwidth}}
+\toprule
+\textbf{Actividad} & \textbf{Área} & \textbf{Zonas TP} & \textbf{Zonas TG} & \textbf{Ventanas} & \textbf{Horario sintético}\\
+\midrule
+Habitación & 24 m$^2$ & 32 & 72 & 1 de 2,0 m$^2$ & 06:00--22:00 activa; resto reducida.\\
+Cocina & 35 m$^2$ & 4 & 6 & 2 de 1,5 m$^2$ & 06:00--22:00 activa; resto reducida.\\
+Recreación & 80 m$^2$ & 4 & 6 & 3 de 2,0 m$^2$ & 08:00--23:00 activa; resto reducida.\\
+Parqueadero & 450 m$^2$ & 1 & 2 & Sin ventana interior & Activo las 24 horas.\\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Las ventanas de habitaciones alternan fachadas norte, este, sur y oeste; las de cocinas y recreaciones miran hacia fachadas exteriores. Cada luminaria equivalente usa 100 lm/W, $CU=0,70$ y $MF=0,80$ como supuestos de cálculo.
+
+\textbf{Perfiles de iluminación.} Los siguientes valores son presets educativos configurables, expresados como lux de referencia. No son una transcripción normativa del RETILAP:
+
+\begin{center}\small
+\begin{tabular}{p{0.20\textwidth}r r r r p{0.22\textwidth}}
+\toprule
+\textbf{Actividad} & \textbf{Mín. (lux)} & \textbf{Objetivo (lux)} & \textbf{Máx. (lux)} & \textbf{Prioridad} & \textbf{Luminaria}\\
+\midrule
+Habitación activa & 100 & 200 & 300 & 3 & 72 W\\
+Cocina activa & 300 & 400 & 500 & 3 & 200 W\\
+Recreación activa & 200 & 300 & 500 & 2 & 450 W\\
+Parqueadero activo & 50 & 100 & 150 & 1 & 720 W\\
+\bottomrule
+\end{tabular}
+\end{center}
+
+El modo de emergencia tiene un parámetro separado y debe validarse independientemente. Una habitación en descanso se modela como \estado{REDUCIDA}; no se marca automáticamente como deficitaria.
+
+\textbf{Clima de Bogotá.} La ubicación de referencia es latitud $4.7110$, longitud $-74.0721$, con climatología NASA POWER de 2001--2020 \cite{nasaPowerApi}. Se usan estos perfiles:
+
+\begin{center}\small
+\begin{tabular}{p{0.25\textwidth}p{0.19\textwidth}r r r}
+\toprule
+\textbf{Perfil} & \textbf{Referencia} & \textbf{Radiación} & \textbf{Nubosidad} & \textbf{Lluvia}\\
+ & & kWh/m$^2$/día & \% & mm/día\\
+\midrule
+Nubes parciales & Febrero & 4,863 & 70,89 & 2,51\\
+Nublado & Mayo & 4,477 & 85,82 & 6,68\\
+Lluvioso & Abril & 4,454 & 84,87 & 6,97\\
+Cielo despejado & Clear-sky & 7,063 & -- & --\\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Como contexto anual se usan 4,639 kWh/m$^2$/día de radiación global all-sky, 7,063 de cielo despejado, 78,41\% de nubosidad y 4,45 mm/día de precipitación. La irradiancia se transforma en lux de referencia mediante una constante calibrable, no en lux fotométricos medidos:
+\begin{equation}
+ E_{base}(t)=K_{lux}I_{clima}C(t),\qquad
+ f_{directa}=\max(0.10,1-c),\quad f_{difusa}=0.15+0.45c.
+ \label{eq:clima}
+\end{equation}
+
+\textbf{Vidrios y paredes.} Las ventanas reciben uno de tres presets basados en fichas de vidrio arquitectónico \cite{cardinalSolarControl,cardinalClear}: \clase{VIDRIO\_CLARO}, VLT 0,82; \clase{VIDRIO\_LOW\_E}, VLT 0,70--0,72; o \clase{VIDRIO\_CONTROL\_SOLAR}, VLT 0,52. Las paredes usan reflectancias educativas: blanco 0,80, crema 0,70, gris claro 0,60, gris medio 0,45 y oscuro 0,25.
+
+\textbf{Fuentes y generador.} Una fuente contiene posición, potencia, eficacia, $CU$, $MF$, horario y zona servida. El generador tiene capacidad nominal sintética de 22,0 kW, reserva didáctica del 20\% y se usa solamente para iluminación. No alimenta climatización, ascensores ni otras cargas.
+
+\section{Salidas}
+
+El programa produce resultados por zona e instante y después los agrega por piso, torre, actividad y hotel. La salida temporal conserva separadas las componentes para que la luz artificial no se confunda con iluminación natural.
+
+\begin{center}\small
+\begin{tabular}{p{0.25\textwidth}p{0.63\textwidth}}
+\toprule
+\textbf{Salida} & \textbf{Contenido}\\
+\midrule
+\clase{ResultadoIluminacion} & Hora, periodo, modo, luz natural, luz reflejada, luz artificial, luz total, potencia asignada y estado.\\
+Estado por zona & Déficit, confort o exceso; actividad, perfil y causa dominante.\\
+Balance & Potencia máxima, potencia disponible, demanda mínima, demanda objetivo, energía en Wh/kWh y déficit residual.\\
+Reporte jerárquico & Resultados por zona, piso, torre, actividad y hotel; comparación entre torres.\\
+Habitabilidad operativa & Habitaciones ocupadas no conformes, candidatos compatibles, propuesta de reasignación o falta de capacidad.\\
+Métricas & Puntuación por periodo, pasos deficitarios, zonas críticas, consumo por torre/actividad y huéspedes reasignados.\\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Para cualquier instante se reporta:
+\begin{equation}
+ E_{total}(z,t)=E_{natural}(z,t)+E_{reflejada}(z,t)+E_{artificial}(z,t).
+ \label{eq:totalhotel}
+\end{equation}
+La salida distingue además puntuación diurna/nocturna, potencia y energía. No se suman lux con Wh: son magnitudes distintas.
+
+\section{Condiciones}
+
+Las condiciones definen cuándo se calcula cada componente y cómo se interpreta el resultado.
+
+\textbf{Condición temporal.} El eje cubre de 00:00 a 24:00 con un único conjunto de instantes. Durante el día se consideran luz natural, reflexión y artificial; en amanecer/anochecer se combinan; durante la noche:
+\begin{equation}
+ E_{natural}(z,t)=0,\qquad E_{reflejada\ solar}(z,t)=0,\qquad E_{total}(z,t)=E_{artificial}(z,t).
+ \label{eq:noche}
+\end{equation}
+No se crean clases separadas de día y noche.
+
+\textbf{Modos de operación.} Toda zona puede estar \estado{ACTIVA}, \estado{REDUCIDA}, \estado{CERRADA} o \estado{EMERGENCIA}. El modo activo usa el perfil normal; el reducido usa un nivel inferior configurable; cerrado conserva, si corresponde, una luz mínima; emergencia usa un parámetro independiente de seguridad y evacuación. ISO 30061:2007 se usa como referencia de contexto para emergencia \cite{isoEmergency}.
+
+\textbf{Clasificación por instante.} El estado siempre usa el nivel real de iluminación de la zona, no su peso de prioridad:
+
+\begin{center}\small
+\begin{tabular}{p{0.29\textwidth}p{0.55\textwidth}}
+\toprule
+\textbf{Estado} & \textbf{Regla}\\
+\midrule
+\estado{DEFICIT\_SEVERO} & $E<0,50E_{min}$.\\
+\estado{DEFICIT\_LEVE} & $0,50E_{min}\leq E<E_{min}$.\\
+\estado{CONFORTABLE} & $E_{min}\leq E\leq E_{max}$.\\
+\estado{EXCESO\_LEVE} & $E_{max}<E\leq1,25E_{max}$.\\
+\estado{EXCESO\_SEVERO} & $E>1,25E_{max}$.\\
+\estado{DATOS\_INSUFICIENTES} & Falta geometría, actividad, perfil o asignación.\\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Los factores 0,50 y 1,25 son reglas del proyecto, no valores RETILAP. Los rangos deben contrastarse con la categoría exacta, plano de trabajo, uniformidad, mantenimiento y deslumbramiento antes de un diseño real \cite{retilap,en12464}.
+
+\textbf{Condiciones ópticas.} Para cada ventana se aplica transmisión y refracción simplificadas con la ley de Snell \cite{edmundOptics}:
+\begin{equation}
+ n_{aire}\sin(\theta_i)=n_{vidrio}\sin(\theta_t),\qquad
+ E_{transmitida}=\tau_vE_{incidente}\max(0,\mathbf n_v\cdot\mathbf d_{transmitida}),
+ \label{eq:snell}
+\end{equation}
+donde $n_{vidrio}\approx1,5$. No se modelan polarización, dispersión espectral, reflexión interna múltiple ni marcos detallados. La reflexión de paredes es difusa y de primer orden.
+
+\section{Diagrama de clases inicial y estructuras de datos}
+
+La arquitectura inicial se representa mediante composición:
+\begin{center}
+\fbox{\parbox{0.82\textwidth}{\centering
+\clase{Hotel} $\rightarrow$ \clase{Torre} $\rightarrow$ \clase{Piso} $\rightarrow$ \clase{ZonaHotel} $\rightarrow$ \clase{Ventana}}}
+\end{center}
+
+El diagrama de la Figura~\ref{fig:uml-clases} presenta las clases agrupadas en cinco bloques: dominio físico, energía y huéspedes, perfiles, estructuras espaciales y control. Las relaciones se representan con composición para el árbol físico y los resultados de zona, herencia para \clase{HabitacionHotel} como especialización de \clase{ZonaHotel}, asociación para el vidrio, el perfil, el generador, las fuentes, el clima y la asignación, y dependencias punteadas para los servicios de \clase{Octree}, \clase{GrafoInfluencia}, \clase{BalanceEnergetico}, \clase{EvaluadorHabitabilidad} y \clase{ReasignadorHuespedes}.
+
+\textbf{Clases de dominio y control.}
+
+\begin{center}\small
+\begin{tabular}{p{0.29\textwidth}p{0.57\textwidth}}
+\toprule
+\textbf{Clase} & \textbf{Responsabilidad y relación}\\
+\midrule
+\clase{Hotel} & Contiene exactamente dos \clase{Torre}, un \clase{GeneradorEnergia}, perfiles, fuentes y asignaciones.\\
+\clase{Torre}, \clase{Piso} & Mantienen caja espacial, pisos, peso $1+0,10(p-1)$ y zonas.\\
+\clase{ZonaHotel}, \clase{HabitacionHotel} & Mantienen actividad, área, modo, perfil, ventanas, capacidad, ocupación y resultados.\\
+\clase{Ventana}, \clase{Vidrio}, \clase{SuperficiePared} & Representan posición, orientación, VLT, refracción, color y reflectancia.\\
+\clase{FuenteIluminacion}, \clase{GeneradorEnergia} & Mantienen potencia, eficacia, horarios, capacidad y asignación.\\
+\clase{Huesped}, \clase{Asignacion} & Representan restricciones y relación huésped--habitación.\\
+\clase{PerfilClimatico}, \clase{PerfilIluminacion} & Mantienen clima, mínimos, objetivos, máximos y prioridades.\\
+\clase{ResultadoIluminacion}, \clase{EvaluadorHabitabilidad} & Guardan componentes temporales y clasifican zonas.\\
+\clase{BalanceEnergetico}, \clase{ReasignadorHuespedes} & Distribuyen potencia y proponen habitaciones alternativas.\\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{Estructura para modelar edificios.} Se usará un árbol de composición mediante objetos Python o `dataclasses`: cada \clase{Hotel} contiene una lista de torres; cada torre una lista de pisos; cada piso una lista de zonas; y cada zona listas de ventanas, superficies y fuentes. Además, diccionarios indexados por ID permiten localizar rápidamente \codigo{TP-H-101}, zonas y huéspedes.
+
+\textbf{Octree para el espacio.} Las torres, paredes, ventanas, zonas y luminarias se representan mediante cajas alineadas con los ejes o puntos. Un \clase{Octree} almacena objetos en nodos con límites, objetos y hasta ocho hijos. Un objeto que no cabe completamente en un hijo permanece en su padre. Se consulta para rayos de sombra, vecinos cercanos y visibilidad.
+
+\textbf{Grafo para la propagación.} La propagación simplificada se representa mediante un grafo dirigido y ponderado con listas de adyacencia:
+\begin{center}\textit{Superficie/Fuente $\longrightarrow$ Ventana/ZonaHotel}\end{center}
+\begin{equation}
+ w_{ij}=\rho_i\max(0,\mathbf n_i\cdot\mathbf d_{ij})\max(0,\mathbf n_j\cdot(-\mathbf d_{ij}))\frac{V_{ij}}{1+d_{ij}^{2}},\qquad
+ E_{reflejada}(j,t)=\sum_{i\rightarrow j}w_{ij}E_i(t).
+ \label{eq:influencia}
+\end{equation}
+La reflexión se ejecuta una sola vez; la luz reflejada no vuelve a propagarse.
+
+% El diagrama fuente está en diagrama-clases-hotel.mmd (Mermaid, orientación vertical TB).
+% Exportarlo a PNG o PDF con ese mismo nombre. La imagen se rota 90 grados y ocupa la hoja completa.
+\begin{figure}[p]
+\centering
+\makebox[\textwidth]{%
+\includegraphics[angle=90,height=\paperwidth,width=0.96\paperheight,keepaspectratio]{diagrama-clases-hotel.png}}
+\caption{Diagrama de clases inicial del sistema hotelero.}
+\label{fig:uml-clases}
+\end{figure}
+
+\clearpage
+
+\section{Programa y balanceos}
+
+\textbf{Programa propuesto.} La implementación se propone en Python por su manejo de clases, `dataclasses`, listas, diccionarios, matemáticas vectoriales y facilidad para exportar reportes. Una organización mínima sería:
+
+\begin{center}\small
+\begin{tabular}{p{0.25\textwidth}p{0.62\textwidth}}
+\toprule
+\textbf{Módulo} & \textbf{Responsabilidad}\\
+\midrule
+\codigo{modelo.py} & Hotel, Torre, Piso, ZonaHotel, Ventana, Vidrio, huésped y asignación.\\
+\codigo{espacio.py} & Vector, caja, rayo y Octree; consultas de rayo y radio.\\
+\codigo{influencia.py} & Grafo de adyacencia, visibilidad, pesos y reflexión de primer orden.\\
+\codigo{clima.py} & Perfil de Bogotá, curva solar y lux de referencia.\\
+\codigo{balance.py} & Demandas, generador, prioridades, energía y asignaciones.\\
+\codigo{evaluacion.py} & Estados, puntuaciones, métricas y reasignación greedy.\\
+\codigo{main.py} & Carga del escenario, simulación de 24 horas y exportación del reporte.\\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{Iluminación artificial y balance.} Para una zona de área $A_z$:
+\begin{equation}
+ E_{artificial}(z,t)=\frac{\eta P_{asignada}(z,t)CU MF}{A_z},\qquad
+ P_{req}(E^*)=\max\left(0,\frac{E^*-E_{natural}-E_{reflejada}}{\eta CU MF/A_z}\right),
+ \label{eq:artificial}
+\end{equation}
+donde $E^*$ es el mínimo o el objetivo. La potencia del generador y la energía acumulada son:
+\begin{equation}
+ P_{generador}=1,20\max_t\left(\sum_zP_{obj}(z,t)\right),\qquad
+ Energia_{iluminacion}=\sum_t\sum_zP_{asignada}(z,t)\Delta t.
+ \label{eq:generador}
+\end{equation}
+
+En cada instante el balance sigue este orden:
+\begin{enumerate}
+    \item Identificar zonas activas, cerradas, reducidas y habitaciones ocupadas.
+    \item Calcular luz natural, reflejada, demandas mínima y objetivo.
+    \item Cubrir primero mínimos de seguridad y habitaciones ocupadas.
+    \item Ordenar las demandas restantes con \(Prioridad(z)=pesoActividad(z)\,pesoPiso(z)\,factorOcupacion(z)\).
+    \item Asignar potencia hasta el objetivo o hasta agotar los 22,0 kW disponibles.
+    \item Guardar estado, potencia asignada, energía y déficit residual.
+\end{enumerate}
+
+El peso decide prioridad, pero no altera el estado físico: una zona con iluminación real menor que su mínimo continúa en déficit. La estrategia es greedy y no garantiza un óptimo global.
+
+\textbf{Reasignación de huéspedes.} Si una habitación ocupada no alcanza su mínimo, Python busca habitaciones disponibles con capacidad, actividad compatible, restricciones satisfechas y nivel suficiente. El score propuesto es:
+\begin{equation}
+ Score(r)=w_lCalidadLuz(r)+w_aAjusteActividad(r)+w_eAhorroEnergia(r)-w_cPenalizacionCambio(r).
+ \label{eq:score}
+\end{equation}
+Se elige el mayor score; si no hay candidatos, el reporte indica falta de capacidad. La operación modifica la asignación lógica, no la geometría ni una reserva real.
+
+\textbf{Flujo del programa.}
+\begin{verbatim}
+cargar escenario y validar exactamente dos torres
+construir árbol, diccionarios, Octree y grafo
+para cada instante t de 00:00 a 24:00:
+    determinar modo y periodo de cada zona
+    calcular natural, vidrio, sombra y reflexión cuando corresponda
+    calcular demandas y asignar primero mínimos
+    ordenar prioridades y distribuir energía restante
+    clasificar y guardar ResultadoIluminacion
+para cada habitación ocupada no conforme:
+    buscar y puntuar alternativas compatibles
+exportar resultados por zona, torre, actividad y hotel
+\end{verbatim}
+
+\textbf{Complejidad y pruebas.} Las cotas esperadas son: sombras sin Octree $O(VBT)$; sombras con Octree $O(VT(\log B+k))$; grafo ingenuo $O(S^2)$; grafo espacial disperso $O(S\log S+E)$; agregación $O(N)$; balance ordenado $O(Z\log Z)$. Con dos torres, el beneficio del Octree es principalmente didáctico y organizativo. Las pruebas mínimas cubren sol/sombra, clima nublado y lluvioso, tres vidrios, pared reflectante, reflexión sin cascada, noche sin luz solar, generador limitado, habitación reducida, reasignación exitosa y ausencia de alternativa.
+
+\textbf{Balance de alcance.} El proyecto no incluye óptica espectral, polarización, deslumbramiento profesional, ganancia térmica, consumo total del hotel, mallas complejas, optimización global ni reservas reales. Los rangos, horarios, pesos, conteos, potencias y capacidad del generador son supuestos didácticos. RETILAP, UNE-EN 12464-1 e ISO 30061 deben verificarse para una instalación real. Los estudios de energía hotelera y habitaciones sirven como contexto, no como sustituto de un cálculo eléctrico \cite{hotelReview,lbnlHotelLighting,energyStarEui}.
+
+\section*{Referencias}
+\begin{thebibliography}{99}
+
+\bibitem{nasaPowerApi}
+NASA POWER, \textit{Climatology API}. Datos de irradiancia, nubosidad y precipitación para Bogotá, periodo 2001--2020. Disponible en: \url{https://power.larc.nasa.gov/api/temporal/climatology/point}. Documentación: \url{https://power.larc.nasa.gov/docs/methodology/}.
+
+\bibitem{retilap}
+Ministerio de Minas y Energía de Colombia, \textit{Reglamento Técnico de Iluminación y Alumbrado Público -- RETILAP vigente}. La página oficial informa la modificación mediante la Resolución 40286 del 23 de junio de 2026 y la organización en cuatro libros. Disponible en: \url{https://www.minenergia.gov.co/es/misional/energia-electrica-2/reglamentos-tecnicos/reglamento-t%C3%A9cnico-de-iluminaci%C3%B3n-y-alumbrado-p%C3%BAblico-retilap/}.
+
+\bibitem{doeReferenceBuildings}
+U.S. Department of Energy, \textit{Commercial Reference Buildings}. Modelos de referencia de hotel pequeño y grande. Disponible en: \url{https://www.energy.gov/cmei/buildings/commercial-reference-buildings}.
+
+\bibitem{energyStarEui}
+ENERGY STAR, \textit{What is Energy Use Intensity (EUI)?} Disponible en: \url{https://www.energystar.gov/buildings/benchmark/understand-metrics/what-eui}.
+
+\bibitem{hotelReview}
+Rodríguez-Uribe, M. C., \textit{Energy Efficiency Indicators for Hotel Buildings}, Sustainability, 2021. Disponible en: \url{https://www.mdpi.com/2071-1050/13/4/1754}.
+
+\bibitem{lbnlHotelLighting}
+Lawrence Berkeley National Laboratory, \textit{Lighting Energy Savings Opportunities in Hotel Guestrooms}. Disponible en: \url{https://eta-publications.lbl.gov/sites/default/files/lbnl-44448.pdf}.
+
+\bibitem{isoEmergency}
+International Organization for Standardization, \textit{ISO 30061:2007 Emergency lighting}. Disponible en: \url{https://www.iso.org/standard/45801.html}.
+
+\bibitem{en12464}
+Asociación Española de Normalización, \textit{Iluminación de los lugares de trabajo en interiores -- UNE-EN 12464-1}. Disponible en: \url{https://revista.une.org/46/iluminacion-de-los-lugares-de-trabajo-en-interiores.html}.
+
+\bibitem{cardinalSolarControl}
+Cardinal Glass Industries, \textit{LoE2-272/270 Solar Control Glass}. Disponible en: \url{https://www.cardinalcorp.com/products/coated-glass/loe2-272-270/}.
+
+\bibitem{cardinalClear}
+Cardinal Glass Industries, \textit{Quad LoE-452+ Solar Control Glass}. Disponible en: \url{https://www.cardinalcorp.com/products/coated-glass/quad-loe-452-plus/}.
+
+\bibitem{edmundOptics}
+Edmund Optics, \textit{Introduction to Basic Ray Optics}. Disponible en: \url{https://www.edmundoptics.com/knowledge-center/application-notes/optics/introduction-to-basic-ray-optics/}.
+
+\end{thebibliography}
+\end{document}
