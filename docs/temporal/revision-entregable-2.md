@@ -324,3 +324,14 @@ Resultados:
 Los casos de prueba de `casos_prueba/` (salvo `confortable_base`, que es igual al base) tienen un piso, así que no cambian. Las 10 pruebas siguen pasando.
 
 **Hallazgo nuevo (R28), sin corregir.** Las zonas comunes comparten posición entre sí: `TP-COC-01`, `TP-REC-01` y `TP-PAR-01` están en el mismo punto, y en la torre grande también se superponen con `TG-H-108`. Viene de `_zona_comun`, que ubica todas las zonas comunes desde el centro de la torre con el mismo desplazamiento por índice. No lo causó D11 (ya pasaba antes) y no se corrige sin decisión.
+
+**Paso 10, documentos (hecho).** Se actualizaron en su lugar el README, los cuatro documentos y el diagrama de clases. El traslado a `docs/` queda para el cierre de la revisión (sección 6). Cambios comunes:
+
+- radiación real, Snell y Fresnel, y los cuatro modos con sus horarios;
+- orden del balance, veredicto de habitabilidad, AVL y rojo-negro con sus mediciones (incluida la de D12);
+- IDs `TP` y `TG` con su leyenda, y el alcance de R24 (geometría fija, variables de luz ajustables);
+- interfaz web, pruebas y limitaciones (R28).
+
+El diagrama Mermaid se reescribió con los nombres del código y pasa `mermaid.parse`. El LaTeX conserva preámbulo, márgenes, portada y estilo de referencias, y agrega la referencia NFPA 101. No hay compilador LaTeX en el entorno: se revisaron a mano llaves, entornos, citas y referencias cruzadas. Las cifras de la prueba de carga del AVL (2.790 y 3.451 contra 6.240) y la demanda objetivo máxima (18.110,7 W) se volvieron a medir después de D11 y no cambiaron.
+
+**Hallazgo nuevo (R29), sin corregir.** La reflectancia de la pared se aplica dos veces. `_calcular_reflejadas` da a cada superficie `E_base · ρ`, y el peso de la arista en `influencia.py` vuelve a multiplicar por `ρ`, así que la luz reflejada escala con `ρ²`. Los documentos describen lo que hace el código. Corregirlo cambia los resultados, así que queda como `D13`.

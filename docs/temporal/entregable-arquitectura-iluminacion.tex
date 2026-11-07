@@ -63,7 +63,7 @@ El documento se organiza únicamente según los contenidos de evaluación solici
 
 Las entradas son los datos que el programa necesita para construir el escenario, calcular la iluminación y ejecutar el balance energético.
 
-\textbf{Almacenamiento de las entradas.} La información inicial se guardará en el archivo \codigo{datos\_hotel.json}. Este archivo contendrá las torres, pisos, zonas, ventanas, vidrios, paredes, luminarias, huéspedes, horarios, perfiles climáticos y parámetros de evaluación. Python cargará el archivo y convertirá los registros en objetos \codigo{dataclass}. Además, se crearán diccionarios indexados por identificador para localizar rápidamente habitaciones, zonas, ventanas y huéspedes.
+\textbf{Almacenamiento de las entradas.} La información inicial se guarda en el archivo \codigo{datos\_hotel.json}. Este archivo contiene las torres, pisos, zonas, ventanas, vidrios, paredes, luminarias, huéspedes y sus restricciones, horarios de actividad y de cierre, perfiles climáticos y parámetros de evaluación. Python carga el archivo y convierte los registros en objetos \codigo{dataclass}. Además, se crean diccionarios indexados por identificador para localizar rápidamente habitaciones, zonas, ventanas y huéspedes. Las mismas entradas se pueden editar desde los formularios de la interfaz web.
 
 \begin{center}\small
 \begin{tabular}{p{0.25\textwidth}p{0.28\textwidth}p{0.34\textwidth}}
@@ -73,14 +73,15 @@ Las entradas son los datos que el programa necesita para construir el escenario,
 Torres, pisos y zonas & \codigo{datos\_hotel.json} & Construir el árbol \clase{Hotel}--\clase{Torre}--\clase{Piso}--\clase{ZonaHotel}.\\
 Ventanas, paredes y luminarias & \codigo{datos\_hotel.json} & Calcular sombras, visibilidad, reflexión y luz artificial.\\
 Vidrios y reflectancias & \codigo{datos\_hotel.json} & Aplicar transmitancia, refracción y reflexión de primer orden.\\
-Clima y horarios & \codigo{datos\_hotel.json} & Evaluar cada instante del eje de 24 horas.\\
-Huéspedes y asignaciones & \codigo{datos\_hotel.json} & Determinar ocupación, prioridades y posibles reasignaciones.\\
-Resultados temporales & Memoria de Python y \codigo{resultados.json} & Clasificar zonas y generar el reporte final.\\
+Clima y horarios & \codigo{datos\_hotel.json} & Calcular la luz base y el modo de cada zona en cada instante del eje de 24 horas.\\
+Huéspedes, asignaciones y restricciones & \codigo{datos\_hotel.json} & Determinar ocupación, prioridades y posibles reasignaciones.\\
+Parámetros de evaluación & \codigo{datos\_hotel.json} & Nivel de emergencia, umbrales de habitabilidad, pesos de reasignación y rangos de reestructuración.\\
+Resultados temporales & Memoria de Python, índice rojo-negro y \codigo{resultados.json} & Clasificar zonas, consultar franjas horarias y generar el reporte final.\\
 \bottomrule
 \end{tabular}
 \end{center}
 
-El archivo de entrada conserva los datos del escenario; el Octree y el grafo no se escriben manualmente. Después de cargar el JSON, el programa construye el árbol jerárquico, el Octree y el grafo de influencia. Los resultados se mantienen durante la simulación y se exportan a \codigo{resultados.json} o a un reporte CSV.
+El archivo de entrada conserva los datos del escenario; el Octree, el grafo y los árboles AVL y rojo-negro no se escriben manualmente. Después de cargar el JSON, el programa construye el árbol jerárquico, el Octree y el grafo de influencia. Los resultados se mantienen durante la simulación, se indexan en el árbol rojo-negro y se exportan a \codigo{resultados.json} y a un reporte CSV.
 
 \textbf{Relación entre entradas y evaluación.} La geometría, las posiciones y las normales permiten calcular sombras y visibilidad; las ventanas, el clima y la orientación permiten calcular luz natural; el vidrio permite calcular transmisión y refracción; las paredes y el grafo permiten calcular luz reflejada; las luminarias y sus horarios permiten calcular luz artificial; y la actividad, el modo y el perfil permiten comparar el resultado con los niveles mínimo, objetivo y máximo. Finalmente, la ocupación y la capacidad del generador determinan las prioridades del balance y la posibilidad de reasignar huéspedes.
 
@@ -100,13 +101,13 @@ $\longrightarrow$ \codigo{resultados.json} y reporte CSV}}
 \toprule
 \textbf{Torre} & \textbf{Referencia} & \textbf{Caja espacial (m)} & \textbf{Zonas y ocupación}\\
 \midrule
-\clase{TorrePequena} & 4.013 m$^2$, 4 pisos & $x=0..32$, $y=0..31.35$, $z=0..12$ & 32 habitaciones, 4 cocinas, 4 recreaciones, 1 parqueadero; 24 ocupadas.\\
-\clase{TorreGrande} & 11.346 m$^2$, 6 pisos & $x=45..89$, $y=0..43$, $z=0..18$ & 72 habitaciones, 6 cocinas, 6 recreaciones, 2 parqueaderos; 54 ocupadas.\\
+\codigo{TP} (Torre Pequeña) & 4.013 m$^2$, 4 pisos & $x=0..32$, $y=0..31.35$, $z=0..12$ & 32 habitaciones, 4 cocinas, 4 recreaciones, 1 parqueadero; 24 ocupadas.\\
+\codigo{TG} (Torre Grande) & 11.346 m$^2$, 6 pisos & $x=45..89$, $y=0..43$, $z=0..18$ & 72 habitaciones, 6 cocinas, 6 recreaciones, 2 parqueaderos; 54 ocupadas.\\
 \bottomrule
 \end{tabular}
 \end{center}
 
-Cada piso tiene 3 m de altura y la separación horizontal aproximada entre torres es de 13 m. Las habitaciones tienen 24 m$^2$ y capacidad para dos huéspedes. El escenario inicia con 78 huéspedes: 24 habitaciones ocupadas en la torre pequeña y 54 en la grande. Los identificadores de prueba son \codigo{TP-H-101}, \codigo{TG-H-101} y \codigo{H-001}--\codigo{H-078}; no representan personas reales.
+Cada piso tiene 3 m de altura y la separación horizontal aproximada entre torres es de 13 m. Las habitaciones tienen 24 m$^2$ y capacidad para dos huéspedes. El escenario inicia con 78 huéspedes: 24 habitaciones ocupadas en la torre pequeña y 54 en la grande. Las torres se identifican como \codigo{TP} (Torre Pequeña) y \codigo{TG} (Torre Grande); el nombre completo se guarda como campo de presentación. Las zonas usan el prefijo de su torre, la actividad y un número: \codigo{TP-H-101} es una habitación de la torre pequeña y \codigo{TG-COC-01} una cocina de la torre grande (\codigo{H} habitación, \codigo{COC} cocina, \codigo{REC} recreación, \codigo{PAR} parqueadero). Los huéspedes son \codigo{H-001}--\codigo{H-078}; no representan personas reales. La geometría de las torres es fija: el sistema no mueve ni rediseña los edificios.
 
 \textbf{Zonas y actividades.} El sistema usa cuatro actividades para evitar clases innecesarias:
 
@@ -115,13 +116,15 @@ Cada piso tiene 3 m de altura y la separación horizontal aproximada entre torre
 \toprule
 \textbf{Actividad} & \textbf{Área} & \textbf{Zonas TP} & \textbf{Zonas TG} & \textbf{Ventanas} & \textbf{Horario sintético}\\
 \midrule
-Habitación & 24 m$^2$ & 32 & 72 & 1 de 2,0 m$^2$ & 06:00--22:00 activa; resto reducida.\\
-Cocina & 35 m$^2$ & 4 & 6 & 2 de 1,5 m$^2$ & 06:00--22:00 activa; resto reducida.\\
-Recreación & 80 m$^2$ & 4 & 6 & 3 de 2,0 m$^2$ & 08:00--23:00 activa; resto reducida.\\
-Parqueadero & 450 m$^2$ & 1 & 2 & Sin ventana interior & Activo las 24 horas.\\
+Habitación & 24 m$^2$ & 32 & 72 & 1 de 2,0 m$^2$ & 06:00--22:00 activa; resto reducida. Nunca cierra.\\
+Cocina & 35 m$^2$ & 4 & 6 & 2 de 1,5 m$^2$ & 06:00--22:00 activa; 23:00--05:00 cerrada; resto reducida.\\
+Recreación & 80 m$^2$ & 4 & 6 & 3 de 2,0 m$^2$ & 08:00--23:00 activa; 00:00--07:00 cerrada; resto reducida.\\
+Parqueadero & 450 m$^2$ & 1 & 2 & Sin ventana interior & Activo las 24 horas. Nunca cierra.\\
 \bottomrule
 \end{tabular}
 \end{center}
+
+Los horarios se guardan en \codigo{horarios} del JSON con los campos \codigo{inicio\_activa}, \codigo{fin\_activa}, \codigo{cierre\_inicio} y \codigo{cierre\_fin}. Si una hora cae a la vez en la franja activa y en la de cierre, manda la franja activa; así la reestructuración puede extender el horario de la cocina hasta las 24:00 sin editar el cierre.
 
 Las ventanas de habitaciones alternan fachadas norte, este, sur y oeste; las de cocinas y recreaciones miran hacia fachadas exteriores. Cada luminaria equivalente usa 100 lm/W, $CU=0,70$ y $MF=0,80$ como supuestos de cálculo.
 
@@ -140,34 +143,43 @@ Parqueadero activo & 50 & 100 & 150 & 1 & 720 W\\
 \end{tabular}
 \end{center}
 
-El modo de emergencia tiene un parámetro separado y debe validarse independientemente. Una habitación en descanso se modela como \estado{REDUCIDA}; no se marca automáticamente como deficitaria.
+En modo \estado{REDUCIDA} los tres niveles se multiplican por \codigo{factor\_reducido}, que vale 0,30 en todas las actividades. Una habitación en descanso se modela como \estado{REDUCIDA}; no se marca automáticamente como deficitaria. El nivel de emergencia es un parámetro separado, \codigo{parametros\_evaluacion.emergencia.nivel\_lux}, con valor de 10 lux (si falta en el JSON, se usa 10). Es un supuesto del proyecto cercano al promedio inicial de 1 pie-candela (10,8 lux) que NFPA 101 pide en las rutas de evacuación \cite{nfpa101}.
 
 \textbf{Clima de Bogotá.} La ubicación de referencia es latitud $4.7110$, longitud $-74.0721$, con climatología NASA POWER de 2001--2020 \cite{nasaPowerApi}. Se usan estos perfiles:
 
 \begin{center}\small
-\begin{tabular}{p{0.25\textwidth}p{0.19\textwidth}r r r}
+\begin{tabular}{p{0.22\textwidth}p{0.16\textwidth}r r r r}
 \toprule
-\textbf{Perfil} & \textbf{Referencia} & \textbf{Radiación} & \textbf{Nubosidad} & \textbf{Lluvia}\\
- & & kWh/m$^2$/día & \% & mm/día\\
+\textbf{Perfil} & \textbf{Referencia} & \textbf{Radiación} & \textbf{Nubosidad} & \textbf{Lluvia} & \textbf{factor\_luz}\\
+ & & kWh/m$^2$/día & \% & mm/día & \\
 \midrule
-Nubes parciales & Febrero & 4,863 & 70,89 & 2,51\\
-Nublado & Mayo & 4,477 & 85,82 & 6,68\\
-Lluvioso & Abril & 4,454 & 84,87 & 6,97\\
-Cielo despejado & Clear-sky & 7,063 & -- & --\\
+Nubes parciales & Febrero & 4,863 & 70,89 & 2,51 & 0,689\\
+Nublado & Mayo & 4,477 & 85,82 & 6,68 & 0,634\\
+Lluvioso & Abril & 4,454 & 84,87 & 6,97 & 0,631\\
+Cielo despejado & Clear-sky & 7,063 & -- & -- & 1,000\\
 \bottomrule
 \end{tabular}
 \end{center}
 
-Como contexto anual se usan 4,639 kWh/m$^2$/día de radiación global all-sky, 7,063 de cielo despejado, 78,41\% de nubosidad y 4,45 mm/día de precipitación. La irradiancia se transforma en lux de referencia mediante una constante calibrable, no en lux fotométricos medidos:
+Como contexto anual se usan 4,639 kWh/m$^2$/día de radiación global all-sky, 7,063 de cielo despejado, 78,41\% de nubosidad y 4,45 mm/día de precipitación. El escenario base usa el perfil de nubes parciales. La irradiancia se transforma en lux de referencia mediante una constante calibrable, no en lux fotométricos medidos:
 \begin{equation}
- E_{base}(t)=K_{lux}I_{clima}C(t),\qquad
- f_{directa}=\max(0.10,1-c),\quad f_{difusa}=0.15+0.45c.
+ E_{base}(t)=K_{lux}\,C(t)\,factor_{luz},\qquad
+ factor_{luz}=\min\left(1,\frac{I_{clima}}{I_{despejado}}\right),\qquad
+ C(t)=\sin\left(\frac{\pi(t-6)}{12}\right),
  \label{eq:clima}
 \end{equation}
+donde $K_{lux}=900$ (\codigo{parametros\_evaluacion.luz.lux\_por\_irradiancia}), $I_{clima}$ es la radiación del perfil activo e $I_{despejado}=7,063$ kWh/m$^2$/día es la radiación de cielo despejado de NASA POWER (\codigo{parametros\_evaluacion.luz.radiacion\_cielo\_despejado}; si falta, se usa la mayor radiación de los perfiles). La curva solar $C(t)$ solo se evalúa entre 06:00 y 18:00; fuera de ese intervalo $E_{base}=0$. El factor no se escribe a mano en el JSON: lo calcula la propiedad \codigo{PerfilClimatico.factor\_luz}, así que cambiar la radiación cambia el resultado. La nubosidad $c$ reparte la luz entre directa y difusa:
+\begin{equation}
+ f_{directa}=\max(0.10,1-c),\qquad f_{difusa}=0.15+0.45c.
+ \label{eq:nubosidad}
+\end{equation}
+La precipitación se carga y se reporta, pero es informativa: no entra en el cálculo.
 
-\textbf{Vidrios y paredes.} Las ventanas reciben uno de tres presets basados en fichas de vidrio arquitectónico \cite{cardinalSolarControl,cardinalClear}: \clase{VIDRIO\_CLARO}, VLT 0,82; \clase{VIDRIO\_LOW\_E}, VLT 0,70--0,72; o \clase{VIDRIO\_CONTROL\_SOLAR}, VLT 0,52. Las paredes usan reflectancias educativas: blanco 0,80, crema 0,70, gris claro 0,60, gris medio 0,45 y oscuro 0,25.
+\textbf{Vidrios y paredes.} Las ventanas reciben uno de tres presets basados en fichas de vidrio arquitectónico \cite{cardinalSolarControl,cardinalClear}: \clase{VIDRIO\_CLARO}, VLT 0,82; \clase{VIDRIO\_LOW\_E}, VLT 0,70--0,72; o \clase{VIDRIO\_CONTROL\_SOLAR}, VLT 0,52. Los tres usan índice de refracción $n=1,5$ (\codigo{indice\_refraccion}), que entra en el cálculo de Snell y Fresnel de la luz directa. El vidrio, el color de pared y la orientación de las ventanas se configuran por actividad en \codigo{acabados} y por recinto en \codigo{zonas\_personalizadas}. Las paredes usan reflectancias educativas: blanco 0,80, crema 0,70, gris claro 0,60, gris medio 0,45 y oscuro 0,25.
 
-\textbf{Fuentes y generador.} Una fuente contiene posición, potencia, eficacia, $CU$, $MF$, horario y zona servida. El generador tiene capacidad nominal sintética de 22,0 kW, reserva didáctica del 20\% y se usa solamente para iluminación. No alimenta climatización, ascensores ni otras cargas.
+\textbf{Fuentes y generador.} Una fuente contiene posición, potencia, eficacia, $CU$, $MF$, horario y zona servida. El generador tiene capacidad nominal sintética de 22,0 kW y se usa solamente para iluminación. No alimenta climatización, ascensores ni otras cargas. La reserva del 20\% es el margen con que se dimensionó la capacidad (ecuación~\ref{eq:generador}); en cada instante el balance puede repartir los 22,0 kW completos.
+
+\textbf{Huéspedes y restricciones.} Cada huésped puede tener restricciones en \codigo{huespedes.restricciones\_por\_huesped}. Hay dos restricciones duras, que descartan candidatas: \codigo{MISMA\_TORRE} y \codigo{PISO\_MAXIMO:n}. Hay una preferencia, que suma al puntaje de la candidata: \codigo{ORIENTACION:ESTE}, \codigo{NORTE}, \codigo{OESTE} o \codigo{SUR}. Una restricción desconocida se rechaza al cargar el escenario.
 
 \section{Salidas}
 
@@ -180,13 +192,18 @@ El programa produce resultados por zona e instante y después los agrega por pis
 \midrule
 \clase{ResultadoIluminacion} & Hora, periodo, modo, luz natural, luz reflejada, luz artificial, luz total, potencia asignada y estado.\\
 Estado por zona & Déficit, confort o exceso; actividad, perfil y causa dominante.\\
-Balance & Potencia máxima, potencia disponible, demanda mínima, demanda objetivo, energía en Wh/kWh y déficit residual.\\
-Reporte jerárquico & Resultados por zona, piso, torre, actividad y hotel; comparación entre torres.\\
-Habitabilidad operativa & Habitaciones ocupadas no conformes, candidatos compatibles, propuesta de reasignación o falta de capacidad.\\
-Métricas & Puntuación por periodo, pasos deficitarios, zonas críticas, consumo por torre/actividad y huéspedes reasignados.\\
+Veredicto de habitabilidad & \estado{HABITABLE}, \estado{CASI\_HABITABLE} o \estado{NO\_HABITABLE} por zona, con puntaje total, diurno y nocturno, brecha, causa y recomendación; puntaje ponderado del hotel.\\
+Balance & Potencia máxima, capacidad del generador, demanda mínima, demanda objetivo, energía en Wh y kWh.\\
+Reporte por franja horaria & Para el día completo y las franjas 00--06, 06--12, 12--18, 18--22 y 22--24: energía en Wh y kWh, energía por actividad y por torre, hora y potencia pico del generador, déficit residual (lux$\cdot$h bajo el mínimo), energía no asignada (Wh que habrían cerrado ese déficit), zonas críticas (las 10 con más horas en déficit), horas con déficit por zona, instantes con déficit y estado predominante de cada zona.\\
+Reporte jerárquico & Energía por zona, piso, torre y hotel; comparación entre torres.\\
+Reasignación & Por huésped en habitación \estado{NO\_HABITABLE}: habitación propuesta y su puntaje, candidatas revisadas y descartadas con motivo, o motivo de falta de alternativa.\\
+Mejoras y reestructuración & Cambio medido del puntaje para cada mejora candidata y secuencia de cambios de la reestructuración.\\
+Estructuras de datos & Pares evaluados y aristas del grafo, tamaño, altura, rotaciones y comparaciones del AVL y del rojo-negro.\\
 \bottomrule
 \end{tabular}
 \end{center}
+
+Las salidas se exportan a \codigo{resultados.json}, \codigo{resumen.json} y \codigo{reporte.csv} con \codigo{python -m src.main}, y se muestran en la interfaz web.
 
 Para cualquier instante se reporta:
 \begin{equation}
@@ -199,14 +216,29 @@ La salida distingue además puntuación diurna/nocturna, potencia y energía. No
 
 Las condiciones definen cuándo se calcula cada componente y cómo se interpreta el resultado.
 
-\textbf{Condición temporal.} El eje cubre de 00:00 a 24:00 con un único conjunto de instantes. Durante el día se consideran luz natural, reflexión y artificial; en amanecer/anochecer se combinan; durante la noche:
+\textbf{Condición temporal.} El eje cubre de 00:00 a 24:00 con un único conjunto de 48 instantes separados por $\Delta t=0,5$ h. Con 127 zonas, cada simulación produce 6.096 resultados. El periodo es \codigo{DIA} entre 07:00 y 17:00, \codigo{TRANSICION} entre 06:00 y 07:00 y entre 17:00 y 18:00, y \codigo{NOCHE} el resto. Durante el día y la transición se consideran luz natural, reflexión y artificial; durante la noche:
 \begin{equation}
  E_{natural}(z,t)=0,\qquad E_{reflejada\ solar}(z,t)=0,\qquad E_{total}(z,t)=E_{artificial}(z,t).
  \label{eq:noche}
 \end{equation}
 No se crean clases separadas de día y noche.
 
-\textbf{Modos de operación.} Toda zona puede estar \estado{ACTIVA}, \estado{REDUCIDA}, \estado{CERRADA} o \estado{EMERGENCIA}. El modo activo usa el perfil normal; el reducido usa un nivel inferior configurable; cerrado conserva, si corresponde, una luz mínima; emergencia usa un parámetro independiente de seguridad y evacuación. ISO 30061:2007 se usa como referencia de contexto para emergencia \cite{isoEmergency}.
+\textbf{Modos de operación.} Toda zona puede estar \estado{ACTIVA}, \estado{REDUCIDA}, \estado{CERRADA} o \estado{EMERGENCIA}. Los tres primeros salen del horario; el cuarto lo asigna el balance:
+
+\begin{center}\small
+\begin{tabular}{p{0.20\textwidth}p{0.66\textwidth}}
+\toprule
+\textbf{Modo} & \textbf{Cuándo y efecto}\\
+\midrule
+\estado{ACTIVA} & Dentro de la franja activa de la actividad. Usa el perfil normal. El parqueadero está siempre activo.\\
+\estado{REDUCIDA} & Fuera de la franja activa y fuera del cierre. Mínimo, objetivo y máximo se multiplican por 0,30.\\
+\estado{CERRADA} & Cocina de 23:00 a 05:00 y recreación de 00:00 a 07:00; habitaciones y parqueadero nunca cierran. La zona no recibe energía y sus pasos quedan como \estado{DATOS\_INSUFICIENTES}, así que no cuentan en el puntaje de habitabilidad.\\
+\estado{EMERGENCIA} & La zona abierta no alcanzó su mínimo porque el generador se agotó. Conserva la potencia que alcanzó a recibir, empezando por la reserva del nivel de emergencia de 10 lux, no compite por objetivos, se clasifica contra el mínimo del modo que le tocaba por horario y ese paso cuenta como déficit.\\
+\bottomrule
+\end{tabular}
+\end{center}
+
+En el escenario base el generador alcanza y ninguna zona entra en \estado{EMERGENCIA}; hay 260 pasos \estado{CERRADA}. Con el generador de 1,8 kW del caso \codigo{deficit\_leve} aparecen 8 pasos \estado{EMERGENCIA}, y con el de 0 kW del caso \codigo{deficit\_severo}, 328. ISO 30061:2007 y NFPA 101 se usan como referencia de contexto para emergencia \cite{isoEmergency,nfpa101}.
 
 \textbf{Clasificación por instante.} El estado siempre usa el nivel real de iluminación de la zona, no su peso de prioridad:
 
@@ -220,20 +252,57 @@ No se crean clases separadas de día y noche.
 \estado{CONFORTABLE} & $E_{min}\leq E\leq E_{max}$.\\
 \estado{EXCESO\_LEVE} & $E_{max}<E\leq1,25E_{max}$.\\
 \estado{EXCESO\_SEVERO} & $E>1,25E_{max}$.\\
-\estado{DATOS\_INSUFICIENTES} & Falta geometría, actividad, perfil o asignación.\\
+\estado{DATOS\_INSUFICIENTES} & Falta geometría, actividad, perfil o asignación, o la zona está \estado{CERRADA}.\\
 \bottomrule
 \end{tabular}
 \end{center}
 
-Los factores 0,50 y 1,25 son reglas del proyecto, no valores RETILAP. Los rangos deben contrastarse con la categoría exacta, plano de trabajo, uniformidad, mantenimiento y deslumbramiento antes de un diseño real \cite{retilap,en12464}.
+$E_{min}$ y $E_{max}$ son los del modo de la zona en ese instante: en \estado{REDUCIDA} ya vienen multiplicados por 0,30. Los factores 0,50 y 1,25 son reglas del proyecto, no valores RETILAP. Los rangos deben contrastarse con la categoría exacta, plano de trabajo, uniformidad, mantenimiento y deslumbramiento antes de un diseño real \cite{retilap,en12464}.
 
-\textbf{Condiciones ópticas.} Para cada ventana se aplica transmisión y refracción simplificadas con la ley de Snell \cite{edmundOptics}:
+\textbf{Veredicto de habitabilidad por zona.} Después de las 24 horas, cada zona recibe un veredicto a partir de sus $n$ pasos evaluables (los pasos \estado{DATOS\_INSUFICIENTES}, incluidos los cerrados, no cuentan):
+\begin{equation}
+ P(z)=\frac{1}{n}\sum_{t}q(t),\qquad
+ q(t)=\begin{cases}
+ 1 & \text{si el estado es \estado{CONFORTABLE}},\\
+ 0,5 & \text{si es \estado{DEFICIT\_LEVE} o \estado{EXCESO\_LEVE}},\\
+ 0 & \text{si es \estado{DEFICIT\_SEVERO} o \estado{EXCESO\_SEVERO}}.
+ \end{cases}
+ \label{eq:puntaje}
+\end{equation}
+
+\begin{center}\small
+\begin{tabular}{p{0.29\textwidth}p{0.55\textwidth}}
+\toprule
+\textbf{Veredicto} & \textbf{Regla}\\
+\midrule
+\estado{NO\_HABITABLE} & $P<0,75$ o más del 5\% de los pasos en \estado{DEFICIT\_SEVERO}.\\
+\estado{HABITABLE} & $P\geq0,90$ y no es \estado{NO\_HABITABLE}.\\
+\estado{CASI\_HABITABLE} & $0,75\leq P<0,90$ y no es \estado{NO\_HABITABLE}.\\
+\estado{DATOS\_INSUFICIENTES} & La zona no tiene pasos evaluables.\\
+\bottomrule
+\end{tabular}
+\end{center}
+
+El puntaje se calcula también solo con los pasos de día y solo con los de noche. Para una zona casi habitable se reporta la brecha hasta 0,90, la causa más frecuente (déficit diurno o nocturno, exceso solar o artificial) y una recomendación. El puntaje del hotel es el promedio de los puntajes de zona ponderado por $Prioridad_{actividad}\,(1+0,10(p-1))$. Los umbrales y los valores de $q$ están en \codigo{parametros\_evaluacion} del JSON. En el escenario base las 127 zonas son \estado{HABITABLE} y el puntaje ponderado del hotel es 0,9839.
+
+\textbf{Condiciones ópticas.} Para la luz directa, cada ventana calcula el ángulo de refracción con la ley de Snell y la transmitancia de Fresnel no polarizada \cite{edmundOptics}. Con $\cos\theta_i=\max(0,\mathbf n_v\cdot\mathbf s)$, donde $\mathbf s$ es la dirección solar:
 \begin{equation}
  n_{aire}\sin(\theta_i)=n_{vidrio}\sin(\theta_t),\qquad
- E_{transmitida}=\tau_vE_{incidente}\max(0,\mathbf n_v\cdot\mathbf d_{transmitida}),
+ R_s=\left(\frac{\cos\theta_i-n\cos\theta_t}{\cos\theta_i+n\cos\theta_t}\right)^2,\qquad
+ R_p=\left(\frac{\cos\theta_t-n\cos\theta_i}{\cos\theta_t+n\cos\theta_i}\right)^2,
  \label{eq:snell}
 \end{equation}
-donde $n_{vidrio}\approx1,5$. No se modelan polarización, dispersión espectral, reflexión interna múltiple ni marcos detallados. La reflexión de paredes es difusa y de primer orden.
+\begin{equation}
+ T(\theta_i)=1-\frac{R_s+R_p}{2},\qquad
+ F(\theta_i)=\left(\frac{T(\theta_i)}{T(0)}\right)^2,
+ \label{eq:fresnel}
+\end{equation}
+donde $n=n_{vidrio}=1,5$ y $n_{aire}=1$. El cuadrado representa las dos caras del vidrio. Al dividir por la incidencia perpendicular, $F(0)=1$ y la VLT del catálogo se conserva a 0°. El factor angular resultante es 0,997 a 30°, 0,979 a 45°, 0,900 a 60°, 0,605 a 75° y 0,163 a 85°. La función que lo calcula es \codigo{factor\_angular\_vidrio} en \codigo{geometria.py}. La luz natural de la zona es el promedio de sus ventanas:
+\begin{equation}
+ E_{natural}(z,t)=\frac{1}{|V_z|}\sum_{v\in V_z}E_{base}(t)\,\tau_v\left(\cos\theta_i\,F(\theta_i)\,f_{directa}+f_{difusa}\right),
+ \label{eq:natural}
+\end{equation}
+donde $\tau_v$ es la VLT del catálogo y $\cos\theta_i=0$ si un rayo del Octree hacia el sol encuentra la otra torre. La componente difusa usa solo la VLT, sin corrección angular. No se modelan polarización de salida, dispersión espectral, reflexión interna múltiple ni marcos detallados. La reflexión de paredes es difusa y de primer orden.
 
 \section{Diagrama de clases inicial y estructuras de datos}
 
@@ -259,15 +328,20 @@ El diagrama de la Figura~\ref{fig:uml-clases} presenta las clases agrupadas en c
 \clase{FuenteIluminacion}, \clase{GeneradorEnergia} & Mantienen potencia, eficacia, horarios, capacidad y asignación.\\
 \clase{Huesped}, \clase{Asignacion} & Representan restricciones y relación huésped--habitación.\\
 \clase{PerfilClimatico}, \clase{PerfilIluminacion} & Mantienen clima, mínimos, objetivos, máximos y prioridades.\\
-\clase{ResultadoIluminacion}, \clase{EvaluadorHabitabilidad} & Guardan componentes temporales y clasifican zonas.\\
+\clase{ResultadoIluminacion}, \clase{EvaluadorHabitabilidad} & Guardan componentes temporales, clasifican zonas y emiten el veredicto de habitabilidad.\\
 \clase{BalanceEnergetico}, \clase{ReasignadorHuespedes} & Distribuyen potencia y proponen habitaciones alternativas.\\
+\clase{SimuladorUnificado} & Recorre los 48 instantes, construye el Octree y el grafo, y coordina balance, evaluación y reasignación.\\
+\clase{Octree}, \clase{GrafoInfluencia} & Consultas espaciales de rayo y radio; aristas de reflexión indexadas por origen y por destino.\\
+\clase{IndiceAVL}, \clase{IndiceRojoNegro}, \clase{IndiceTemporal} & Bolsa de habitaciones libres para la reasignación e índice de resultados por hora.\\
 \bottomrule
 \end{tabular}
 \end{center}
 
+En el código, \clase{BalanceEnergetico}, \clase{EvaluadorHabitabilidad} y \clase{ReasignadorHuespedes} se implementan como funciones de módulo: \codigo{balancear} en \codigo{balance.py}, \codigo{evaluar\_hotel} en \codigo{habitabilidad.py} y \codigo{proponer\_reasignaciones} en \codigo{reasignacion.py}.
+
 \textbf{Estructura para modelar edificios.} Se usará un árbol de composición mediante objetos Python o `dataclasses`: cada \clase{Hotel} contiene una lista de torres; cada torre una lista de pisos; cada piso una lista de zonas; y cada zona listas de ventanas, superficies y fuentes. Además, diccionarios indexados por ID permiten localizar rápidamente \codigo{TP-H-101}, zonas y huéspedes.
 
-\textbf{Octree para el espacio.} Las torres, paredes, ventanas, zonas y luminarias se representan mediante cajas alineadas con los ejes o puntos. Un \clase{Octree} almacena objetos en nodos con límites, objetos y hasta ocho hijos. Un objeto que no cabe completamente en un hijo permanece en su padre. Se consulta para rayos de sombra, vecinos cercanos y visibilidad.
+\textbf{Octree para el espacio.} Las torres, paredes, ventanas y luminarias se representan mediante cajas alineadas con los ejes o puntos. Un \clase{Octree} almacena objetos en nodos con límites, objetos y hasta ocho hijos. Un objeto que no cabe completamente en un hijo permanece en su padre. Cada nodo admite hasta 16 objetos antes de dividirse, con profundidad máxima 6, y la raíz cubre todos los objetos del escenario con un margen de 2 m. Se usan dos consultas: \codigo{consultar\_rayo}, para saber si la otra torre hace sombra sobre una ventana o tapa la línea entre una pared y una ventana, y \codigo{consultar\_radio}, para encontrar las ventanas cercanas a cada superficie al construir el grafo.
 
 \textbf{Grafo para la propagación.} La propagación simplificada se representa mediante un grafo dirigido y ponderado con listas de adyacencia:
 \begin{center}\textit{Superficie/Fuente $\longrightarrow$ Ventana/ZonaHotel}\end{center}
@@ -276,7 +350,35 @@ El diagrama de la Figura~\ref{fig:uml-clases} presenta las clases agrupadas en c
  E_{reflejada}(j,t)=\sum_{i\rightarrow j}w_{ij}E_i(t).
  \label{eq:influencia}
 \end{equation}
-La reflexión se ejecuta una sola vez; la luz reflejada no vuelve a propagarse.
+donde $E_i(t)=\rho_iE_{base}(t)$ es la luz de la superficie $i$, $V_{ij}$ vale 1 si ninguna torre tapa la línea entre $i$ y $j$ y 0 si la tapa, y solo se guardan aristas con $d_{ij}\leq18$ m y $w_{ij}>0,0001$. La luz reflejada de una zona es el promedio de la que llega a sus ventanas. La reflexión se ejecuta una sola vez; la luz reflejada no vuelve a propagarse.
+
+El grafo se construye con \codigo{Octree.consultar\_radio}: para cada superficie se piden solo las ventanas a 18 m o menos, en vez de compararla con todas. Las aristas se guardan en dos diccionarios, por origen y por destino; así, en cada instante, el cálculo de la luz reflejada de una ventana solo recorre las aristas que llegan a ella. En el escenario base hay 127 superficies y 154 ventanas: la versión ingenua evaluaría 19.558 pares y la versión con Octree evalúa 7.501. El grafo resultante tiene 161 aristas, y por instante se recorren 161 aristas en lugar de recorrer todas las aristas una vez por cada una de las 154 ventanas. Los resultados de iluminación son idénticos a los de la construcción ingenua; solo cambia el número de comparaciones.
+
+\textbf{Árbol AVL para la reasignación.} La reasignación usa un \clase{IndiceAVL} como bolsa de habitaciones con veredicto \estado{HABITABLE} y al menos una cama libre. La clave es $(torre, piso, -calidad, id)$, con
+\begin{equation}
+ calidad(r)=w_l\,P(r)+w_e\,Ahorro(r),\qquad Ahorro(r)=1-\min\left(1,\frac{Energia(r)}{Energia_{max}}\right),
+ \label{eq:calidad}
+\end{equation}
+donde $P(r)$ es el puntaje de habitabilidad de la habitación y $Energia_{max}$ la mayor energía consumida por una zona. Como la calidad entra negativa, dentro de cada piso la primera clave es la mejor habitación. El árbol usa cuatro operaciones: insertar, \codigo{sucesor} (menor clave $\geq x$), \codigo{siguiente} (menor clave $>x$) y \codigo{eliminar} con rebalanceo. Para cada huésped que hay que mover se consulta el sucesor de $(torre, piso, -\infty)$ en cada piso permitido por sus restricciones; si tiene preferencia de orientación, se siguen los sucesores del piso mientras alguno todavía pueda ganar con el bono. Cuando una habitación se llena, se elimina del árbol, de modo que dos huéspedes no reciben la misma cama. El trabajo es casi todo de lectura (varias consultas y como máximo una eliminación por huésped), y por eso conviene el equilibrio estricto del AVL. El costo es $O(G\cdot F\cdot\log H)$ contra $O(G\cdot H)$ de recorrer la lista, con $G$ huéspedes por mover, $F$ pisos y $H$ habitaciones.
+
+En el escenario base el AVL se construye con las 104 habitaciones (altura 8, 115 rotaciones) y no se consulta, porque ningún huésped está en una habitación \estado{NO\_HABITABLE}. En una prueba de carga sobre el escenario base con 60 de las 78 habitaciones ocupadas marcadas \estado{NO\_HABITABLE}, el AVL hizo 2.790 comparaciones contra 6.240 de la búsqueda lineal, con 39 eliminaciones y ninguna habitación con sobrecupo; con restricciones mezcladas, 3.451 contra 6.240. En las dos corridas la habitación elegida coincidió, huésped por huésped, con una búsqueda lineal que descuenta capacidad.
+
+\textbf{Árbol rojo-negro para los resultados temporales.} Cada \clase{ResultadoIluminacion} se inserta, apenas se calcula, en un \clase{IndiceRojoNegro} con clave $(hora, zona\_id)$. Las franjas horarias se consultan como rango semiabierto $[inicio, fin)$ en $O(\log R+k)$, con $R$ resultados y $k$ resultados en la franja, contra $O(R)$ de recorrer la lista; construir el índice cuesta $O(R\log R)$. De esas consultas salen los reportes por franja de la sección de salidas y el selector de franja horaria del plano en la interfaz. Se eligió el rojo-negro porque hay 6.096 inserciones y pocas consultas, y en teoría rota menos que el AVL al insertar. La medición, hecha insertando los mismos resultados en los dos árboles, da:
+
+\begin{center}\small
+\begin{tabular}{p{0.42\textwidth}r r}
+\toprule
+\textbf{Medida} & \textbf{Escenario base} & \textbf{\codigo{deficit\_leve}}\\
+ & 6.096 resultados & 480 resultados\\
+\midrule
+Rotaciones rojo-negro / AVL & 9.099 / 7.232 & 465 / 564\\
+Altura rojo-negro / AVL & 22 / 14 & 15 / 10\\
+Nodos visitados en la franja 18--22 / lista completa & 1.029 / 6.096 & 89 / 480\\
+\bottomrule
+\end{tabular}
+\end{center}
+
+En el escenario base el rojo-negro rota más que el AVL. Los resultados llegan casi ordenados (hora ascendente y, dentro de cada hora, tramos largos de identificadores ascendentes), y con esa entrada la ventaja teórica no aparece. Con 6.096 claves en orden aleatorio sí se cumple: 3.511 rotaciones del rojo-negro contra 4.176 del AVL. Se verificó que el árbol cumple las propiedades de rojo-negro, así que la diferencia no es un error de implementación. El índice cumple su papel en las consultas por franja, pero con estos datos el argumento de las rotaciones no se sostiene.
 
 % El diagrama fuente está en diagrama-clases-hotel.mmd (Mermaid, orientación vertical TB).
 % Exportarlo a PNG o PDF con ese mismo nombre. La imagen se rota 90 grados y ocupa la hoja completa.
@@ -292,20 +394,30 @@ La reflexión se ejecuta una sola vez; la luz reflejada no vuelve a propagarse.
 
 \section{Programa y balanceos}
 
-\textbf{Programa propuesto.} La implementación se propone en Python por su manejo de clases, `dataclasses`, listas, diccionarios, matemáticas vectoriales y facilidad para exportar reportes. Una organización mínima sería:
+\textbf{Programa.} La implementación está en Python por su manejo de clases, `dataclasses`, listas, diccionarios, matemáticas vectoriales y facilidad para exportar reportes. Usa solo la biblioteca estándar. El código está organizado así:
 
 \begin{center}\small
 \begin{tabular}{p{0.25\textwidth}p{0.62\textwidth}}
 \toprule
 \textbf{Módulo} & \textbf{Responsabilidad}\\
 \midrule
-\codigo{modelo.py} & Hotel, Torre, Piso, ZonaHotel, Ventana, Vidrio, huésped y asignación.\\
-\codigo{espacio.py} & Vector, caja, rayo y Octree; consultas de rayo y radio.\\
-\codigo{influencia.py} & Grafo de adyacencia, visibilidad, pesos y reflexión de primer orden.\\
-\codigo{clima.py} & Perfil de Bogotá, curva solar y lux de referencia.\\
-\codigo{balance.py} & Demandas, generador, prioridades, energía y asignaciones.\\
-\codigo{evaluacion.py} & Estados, puntuaciones, métricas y reasignación greedy.\\
-\codigo{main.py} & Carga del escenario, simulación de 24 horas y exportación del reporte.\\
+\codigo{modelo.py} & Hotel, Torre, Piso, ZonaHotel, Ventana, Vidrio, perfiles, huésped, asignación, generador y enumeraciones de actividad, modo y estado.\\
+\codigo{io\_datos.py} & Carga y validación del JSON, valores por defecto y ubicación de zonas, ventanas y paredes.\\
+\codigo{geometria.py} & Vector, caja, rayo, Snell y Fresnel (\codigo{factor\_angular\_vidrio}).\\
+\codigo{octree.py} & Octree con consultas de rayo y de radio.\\
+\codigo{influencia.py} & Grafo de influencia construido con el Octree, visibilidad, pesos y reflexión de primer orden.\\
+\codigo{clima.py} & Curva solar, dirección solar, periodo y luz base.\\
+\codigo{simulacion.py} & \clase{SimuladorUnificado}: los 48 instantes, luz natural, reflejada y artificial, y estado de cada resultado.\\
+\codigo{balance.py} & Modos por horario, demandas, orden del balance con \codigo{heapq} y agregación de energía por torre y piso.\\
+\codigo{evaluacion.py} & Estados instantáneos y resumen por zona.\\
+\codigo{habitabilidad.py} & Puntaje y veredicto de habitabilidad por zona y del hotel.\\
+\codigo{arboles.py} & \clase{IndiceAVL} e \clase{IndiceRojoNegro} con contadores de comparaciones y rotaciones.\\
+\codigo{reasignacion.py} & Restricciones de huéspedes y reasignación con la bolsa AVL.\\
+\codigo{temporal.py} & Índice rojo-negro de resultados y reportes por franja horaria.\\
+\codigo{sugerencias.py} & Recomendaciones por zona, generador y reasignación.\\
+\codigo{mejoras.py}, \codigo{reestructuracion.py} & Medición de mejoras candidatas y búsqueda de reestructuraciones.\\
+\codigo{main.py} & Ejecución por consola y exportación a JSON y CSV.\\
+\codigo{api.py} & Servidor HTTP de la interfaz web (\codigo{python -m src.api}).\\
 \bottomrule
 \end{tabular}
 \end{center}
@@ -316,50 +428,79 @@ La reflexión se ejecuta una sola vez; la luz reflejada no vuelve a propagarse.
  P_{req}(E^*)=\max\left(0,\frac{E^*-E_{natural}-E_{reflejada}}{\eta CU MF/A_z}\right),
  \label{eq:artificial}
 \end{equation}
-donde $E^*$ es el mínimo o el objetivo. La potencia del generador y la energía acumulada son:
+donde $E^*$ es el mínimo, el objetivo o el nivel de emergencia, $\eta$ la eficacia (100 lm/W); la potencia asignada nunca supera la potencia máxima de la luminaria de la zona. La potencia del generador y la energía acumulada son:
 \begin{equation}
  P_{generador}=1,20\max_t\left(\sum_zP_{obj}(z,t)\right),\qquad
  Energia_{iluminacion}=\sum_t\sum_zP_{asignada}(z,t)\Delta t.
  \label{eq:generador}
 \end{equation}
+Con la demanda objetivo máxima medida al dimensionar el escenario, 18.110,7 W, la primera expresión da 21,73 kW, redondeados a los 22,0 kW del JSON. Las zonas cerradas no entran en la demanda.
 
 En cada instante el balance sigue este orden:
 \begin{enumerate}
-    \item Identificar zonas activas, cerradas, reducidas y habitaciones ocupadas.
-    \item Calcular luz natural, reflejada, demandas mínima y objetivo.
-    \item Cubrir primero mínimos de seguridad y habitaciones ocupadas.
-    \item Ordenar las demandas restantes con \(Prioridad(z)=pesoActividad(z)\,pesoPiso(z)\,factorOcupacion(z)\).
-    \item Asignar potencia hasta el objetivo o hasta agotar los 22,0 kW disponibles.
-    \item Guardar estado, potencia asignada, energía y déficit residual.
+    \item Asignar a cada zona su modo por horario (\estado{ACTIVA}, \estado{REDUCIDA} o \estado{CERRADA}) y calcular luz natural y reflejada.
+    \item Calcular para cada zona abierta la potencia de emergencia (hasta $\min(10\ \text{lux}, E_{min})$), la mínima y la objetivo con la ecuación~\ref{eq:artificial}.
+    \item Ordenar las zonas abiertas con una cola de prioridad (\codigo{heapq}) por categoría: primero seguridad (parqueadero), luego habitaciones ocupadas y luego el resto; dentro de cada categoría, por prioridad descendente.
+    \item Recorrer ese orden y reservar el nivel de emergencia para todas las zonas abiertas.
+    \item Recorrer el mismo orden y completar el mínimo de cada zona. La zona que no lo alcanza porque el generador se agotó queda en \estado{EMERGENCIA}.
+    \item Repartir la potencia restante hasta el objetivo con otra cola de prioridad, ordenada solo por $Prioridad(z)$; las zonas en \estado{EMERGENCIA} no participan.
+    \item Guardar estado, potencia asignada y energía; insertar el resultado en el índice rojo-negro.
 \end{enumerate}
-
-El peso decide prioridad, pero no altera el estado físico: una zona con iluminación real menor que su mínimo continúa en déficit. La estrategia es greedy y no garantiza un óptimo global.
-
-\textbf{Reasignación de huéspedes.} Si una habitación ocupada no alcanza su mínimo, Python busca habitaciones disponibles con capacidad, actividad compatible, restricciones satisfechas y nivel suficiente. El score propuesto es:
+La prioridad de una zona es
 \begin{equation}
- Score(r)=w_lCalidadLuz(r)+w_aAjusteActividad(r)+w_eAhorroEnergia(r)-w_cPenalizacionCambio(r).
+ Prioridad(z)=pesoActividad(z)\,(1+0,10(p-1))\,factorOcupacion(z),
+ \label{eq:prioridad}
+\end{equation}
+con $pesoActividad$ igual a 3 para habitación y cocina, 2 para recreación y 1 para parqueadero, $p$ el número del piso y $factorOcupacion$ igual a 1,4 en una habitación ocupada y 1,0 en las demás zonas. La cola de prioridad es suficiente porque el balance solo inserta y extrae el máximo; un árbol de búsqueda no aporta nada en esta parte.
+
+El peso decide prioridad, pero no altera el estado físico: una zona con iluminación real menor que su mínimo continúa en déficit. La estrategia es greedy y no garantiza un óptimo global. En el escenario base el balance consume 194.482,4 Wh en las 24 horas.
+
+\textbf{Reasignación de huéspedes.} Se reasigna a un huésped solo si su habitación tiene veredicto \estado{NO\_HABITABLE}; un paso aislado bajo el mínimo no basta. Las candidatas salen de la bolsa AVL descrita en la sección anterior, filtradas por \codigo{MISMA\_TORRE} y \codigo{PISO\_MAXIMO:n}. El puntaje de una candidata $r$ es:
+\begin{equation}
+ Score(r)=calidad(r)+w_a\,Orientacion(r)-w_c\frac{|p_r-p_{actual}|}{p_{max}},
  \label{eq:score}
 \end{equation}
-Se elige el mayor score; si no hay candidatos, el reporte indica falta de capacidad. La operación modifica la asignación lógica, no la geometría ni una reserva real.
+donde $calidad(r)$ es la de la ecuación~\ref{eq:calidad}, $Orientacion(r)$ vale 1 si la habitación coincide con la preferencia \codigo{ORIENTACION} del huésped o si el huésped no tiene preferencia, y 0 si no coincide, y $p_{max}$ es el piso más alto del hotel. Los pesos son $w_l=0,5$, $w_a=0,2$, $w_e=0,2$ y $w_c=0,1$ (\codigo{parametros\_evaluacion.reasignacion}). Se elige el mayor puntaje y se descuenta una cama de la habitación elegida. Cada propuesta lista las candidatas revisadas y descartadas con el motivo \codigo{MENOR\_PUNTAJE}. Si no hay candidata, el motivo es uno de estos:
+
+\begin{center}\small
+\begin{tabular}{p{0.42\textwidth}p{0.44\textwidth}}
+\toprule
+\textbf{Motivo} & \textbf{Cuándo}\\
+\midrule
+\codigo{SIN\_HABITACIONES\_HABITABLES\_LIBRES} & Al empezar no había ninguna habitación habitable con cama libre.\\
+\codigo{SIN\_CAPACIDAD} & Había candidatas en los pisos permitidos, pero otros huéspedes ya ocuparon sus camas.\\
+\codigo{RESTRICCIONES} & Las restricciones del huésped excluyen todos los pisos con candidatas.\\
+\bottomrule
+\end{tabular}
+\end{center}
+
+La operación modifica la asignación lógica, no la geometría ni una reserva real. El caso \codigo{deficit\_severo} demuestra la falta de alternativa: sus cuatro habitaciones son \estado{NO\_HABITABLE} y los dos huéspedes reciben \codigo{SIN\_HABITACIONES\_HABITABLES\_LIBRES}.
 
 \textbf{Flujo del programa.}
 \begin{verbatim}
 cargar escenario y validar exactamente dos torres
-construir árbol, diccionarios, Octree y grafo
-para cada instante t de 00:00 a 24:00:
-    determinar modo y periodo de cada zona
-    calcular natural, vidrio, sombra y reflexión cuando corresponda
-    calcular demandas y asignar primero mínimos
-    ordenar prioridades y distribuir energía restante
-    clasificar y guardar ResultadoIluminacion
-para cada habitación ocupada no conforme:
-    buscar y puntuar alternativas compatibles
+construir árbol, diccionarios, Octree y grafo (consultar_radio, 18 m)
+para cada instante t de 00:00 a 24:00, cada 0,5 h:
+    determinar modo por horario y periodo de cada zona
+    calcular luz natural (sombra, Snell y Fresnel) y reflejada
+    reservar nivel de emergencia, luego mínimos por categoría
+    distribuir la potencia restante hasta los objetivos
+    clasificar, guardar ResultadoIluminacion e insertarlo en el rojo-negro
+calcular reportes por franja con consultas de rango del rojo-negro
+evaluar el veredicto de habitabilidad de cada zona
+construir la bolsa AVL de habitaciones habitables con cama libre
+para cada huésped en una habitación NO_HABITABLE:
+    consultar sucesores por piso permitido, elegir y descontar capacidad
 exportar resultados por zona, torre, actividad y hotel
 \end{verbatim}
 
-\textbf{Complejidad y pruebas.} Las cotas esperadas son: sombras sin Octree $O(VBT)$; sombras con Octree $O(VT(\log B+k))$; grafo ingenuo $O(S^2)$; grafo espacial disperso $O(S\log S+E)$; agregación $O(N)$; balance ordenado $O(Z\log Z)$. Con dos torres, el beneficio del Octree es principalmente didáctico y organizativo. Las pruebas mínimas cubren sol/sombra, clima nublado y lluvioso, tres vidrios, pared reflectante, reflexión sin cascada, noche sin luz solar, generador limitado, habitación reducida, reasignación exitosa y ausencia de alternativa.
+\textbf{Mejoras medidas y reestructuración.} La geometría de las torres es fija, pero el sistema sí cambia variables de luz y mide el efecto de cada cambio con una simulación completa. Las mejoras candidatas son usar \clase{VIDRIO\_CLARO} en las habitaciones, pintar todas las paredes de blanco, aumentar 20\% la capacidad del generador y bajar el objetivo de habitación a 180 lux; para cada una se reporta el puntaje del hotel antes y después. La reestructuración busca, dentro de los rangos de \codigo{parametros\_evaluacion.reestructuracion}, cambios por actividad en el color de pared, el vidrio, la orientación de las ventanas, el objetivo de iluminación y los horarios de cocina y recreación. Acepta un cambio solo si mejora el resultado y se detiene a las 30 evaluaciones o a las 3 rondas.
 
-\textbf{Balance de alcance.} El proyecto no incluye óptica espectral, polarización, deslumbramiento profesional, ganancia térmica, consumo total del hotel, mallas complejas, optimización global ni reservas reales. Los rangos, horarios, pesos, conteos, potencias y capacidad del generador son supuestos didácticos. RETILAP, UNE-EN 12464-1 e ISO 30061 deben verificarse para una instalación real. Los estudios de energía hotelera y habitaciones sirven como contexto, no como sustituto de un cálculo eléctrico \cite{hotelReview,lbnlHotelLighting,energyStarEui}.
+\textbf{Interfaz web.} El servidor se inicia con \codigo{python -m src.api} y sirve la carpeta \codigo{web/}. La interfaz tiene formularios para editar las entradas, un plano por torre y piso con la leyenda \codigo{TP} = Torre Pequeña y \codigo{TG} = Torre Grande, un selector de franja horaria que colorea cada zona con su estado en esa franja, los veredictos de habitabilidad, las sugerencias, las mejoras medidas, la reestructuración y una tabla de estructuras de datos y comparaciones (grafo, AVL de reasignación y rotaciones del rojo-negro contra el AVL).
+
+\textbf{Complejidad y pruebas.} Las cotas son: sombras sin Octree $O(VBT)$; sombras con Octree $O(VT(\log B+k))$; grafo ingenuo $O(S\cdot V)$ y grafo con consultas de radio $O(S(\log B+k))$; agregación $O(N)$; balance con cola de prioridad $O(Z\log Z)$ por instante; reasignación $O(G\cdot F\cdot\log H)$ contra $O(G\cdot H)$; índice temporal $O(R\log R)$ para construirlo y $O(\log R+k)$ por franja. Las mediciones están en la sección de estructuras de datos. Con dos torres, el beneficio del Octree en las sombras es principalmente didáctico y organizativo; en el grafo reduce los pares evaluados de 19.558 a 7.501. Las pruebas automáticas están en \codigo{tests/test\_casos\_plan.py} y se ejecutan con \codigo{python -m unittest} desde la raíz del repositorio. Cubren diez casos: ventana al sol sin obstáculo, ventana sombreada por la otra torre, transmisión con cada vidrio, reflexión de primer orden sin cascada, noche sin luz natural, generador que alcanza para mínimos pero no para objetivos, habitación con déficit y alternativa, habitación con déficit sin alternativa, zona cerrada y habitación en descanso sin falso déficit, y cielo nublado contra despejado.
+
+\textbf{Balance de alcance.} La geometría de las torres es fija: el sistema no mueve ni rediseña edificios. Sí mide mejoras y propone reestructuraciones de las variables de luz: actividades (orientación de ventanas y objetivos), acabados (pared y vidrio), horarios y generador. El proyecto no incluye óptica espectral, deslumbramiento profesional, ganancia térmica, consumo total del hotel, mallas complejas ni reservas reales. Los resultados son aproximaciones educativas, y los rangos, horarios, pesos, conteos, potencias y capacidad del generador son supuestos didácticos. La precipitación es informativa. Las zonas comunes de cada torre comparten posición entre sí (por ejemplo, \codigo{TP-COC-01}, \codigo{TP-REC-01} y \codigo{TP-PAR-01} están en el mismo punto, y en la torre grande también coinciden con \codigo{TG-H-108}); es una limitación conocida que no se ha corregido. RETILAP, UNE-EN 12464-1, ISO 30061 y NFPA 101 deben verificarse para una instalación real. Los estudios de energía hotelera y habitaciones sirven como contexto, no como sustituto de un cálculo eléctrico \cite{hotelReview,lbnlHotelLighting,energyStarEui}.
 
 \section*{Referencias}
 \begin{thebibliography}{99}
@@ -384,6 +525,9 @@ Lawrence Berkeley National Laboratory, \textit{Lighting Energy Savings Opportuni
 
 \bibitem{isoEmergency}
 International Organization for Standardization, \textit{ISO 30061:2007 Emergency lighting}. Disponible en: \url{https://www.iso.org/standard/45801.html}.
+
+\bibitem{nfpa101}
+National Fire Protection Association, \textit{NFPA 101: Life Safety Code}. Sección 7.9.2.1, iluminación de emergencia en rutas de evacuación. Disponible en: \url{https://www.nfpa.org/codes-and-standards/nfpa-101-standard-development/101}.
 
 \bibitem{en12464}
 Asociación Española de Normalización, \textit{Iluminación de los lugares de trabajo en interiores -- UNE-EN 12464-1}. Disponible en: \url{https://revista.une.org/46/iluminacion-de-los-lugares-de-trabajo-en-interiores.html}.

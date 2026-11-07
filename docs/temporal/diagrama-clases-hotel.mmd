@@ -1,47 +1,87 @@
-%% Diagrama de clases inicial - Sistema educativo de iluminación y balance energético hotelero
-%% Fiel a las clases y relaciones descritas en entregable-arquitectura-iluminacion.tex
+%% Diagrama de clases - Sistema educativo de iluminacion y balance energetico hotelero
+%% Fiel a las clases, campos y relaciones del codigo en src/ (nombres tal como aparecen en Python)
+%% Las clases marcadas <<modulo>> son modulos de funciones, no clases de Python.
+%% Los campos marcados [propiedad] son @property calculadas, no datos guardados.
+%% Vector3 (geometria.py) se omite: es el tipo de todas las posiciones y normales.
 %% Render sugerido: https://mermaid.live  (exportar a PNG/SVG e insertar con \includegraphics)
 
 classDiagram
     direction TB
 
-    %% ============ DOMINIO: jerarquia fisica ============
+    %% ============ ENUMERACIONES (modelo.py) ============
+    class Actividad {
+        <<enumeration>>
+        HABITACION
+        COCINA
+        RECREACION
+        PARQUEADERO
+    }
+    class ModoOperacion {
+        <<enumeration>>
+        ACTIVA
+        REDUCIDA
+        CERRADA
+        EMERGENCIA
+    }
+    class EstadoIluminacion {
+        <<enumeration>>
+        DEFICIT_SEVERO
+        DEFICIT_LEVE
+        CONFORTABLE
+        EXCESO_LEVE
+        EXCESO_SEVERO
+        DATOS_INSUFICIENTES
+    }
+
+    %% ============ DOMINIO: jerarquia fisica (modelo.py) ============
     class Hotel {
         +id
         +torres: Torre[2]
-        +generador: GeneradorEnergia
-        +perfilClima: PerfilClimatico
-        +fuentes: FuenteIluminacion[]
+        +perfiles_iluminacion: dict
+        +perfiles_climaticos: dict
+        +perfil_climatico_activo
+        +horarios: dict
+        +fuentes: dict
+        +huespedes: dict
         +asignaciones: Asignacion[]
-        +simular24h()
+        +generador: GeneradorEnergia
+        +zonas: dict
+        +habitaciones: dict
+        +parametros: dict
+        +indexar()
+        +zona(zona_id)
     }
     class Torre {
         +id
+        +nombre
+        +area_referencia
         +caja: CajaEspacial
-        +areaRef
         +pisos: Piso[]
     }
     class Piso {
         +numero
-        +peso
         +zonas: ZonaHotel[]
+        +peso: float [propiedad]
     }
     class ZonaHotel {
         +id
-        +actividad
+        +actividad: Actividad
         +area
-        +modo
-        +perfil: PerfilIluminacion
+        +piso
+        +torre_id
+        +modo: ModoOperacion
         +ventanas: Ventana[]
         +superficies: SuperficiePared[]
+        +fuente_id
         +resultados: ResultadoIluminacion[]
     }
     class HabitacionHotel {
         +capacidad
-        +disponible
         +ocupacion
+        +disponible: bool [propiedad]
     }
     class Ventana {
+        +id
         +posicion
         +normal
         +area
@@ -49,119 +89,292 @@ classDiagram
     }
     class Vidrio {
         +tipo
-        +transmitanciaVisible
-        +indiceRefraccion
+        +transmitancia_visible
+        +indice_refraccion
     }
     class SuperficiePared {
-        +colorNominal
-        +reflectancia
+        +id
+        +posicion
         +normal
+        +reflectancia
+        +caja: CajaEspacial
     }
 
-    %% ============ ENERGIA Y HUESPEDES ============
+    %% ============ ENERGIA Y HUESPEDES (modelo.py) ============
     class FuenteIluminacion {
+        +id
         +posicion
-        +potencia
+        +potencia_maxima
         +eficacia
-        +CU
-        +MF
-        +horario
-        +zonaServida
+        +cu
+        +mf
+        +zona_servida
+        +hora_inicio
+        +hora_fin
+        +activa(hora)
     }
     class GeneradorEnergia {
-        +capacidadKW
+        +capacidad_kw
         +reserva
-        +potenciaDisponible
+        +potencia_disponible
+        +demanda_objetivo_maxima
+        +iniciar_instante()
     }
     class Huesped {
         +id
-        +actividad
+        +actividad: Actividad
         +prioridad
-        +restricciones
+        +restricciones: str[]
     }
     class Asignacion {
+        +huesped_id
+        +habitacion_id
         +estado
     }
 
-    %% ============ PERFILES ============
+    %% ============ PERFILES (modelo.py) ============
     class PerfilClimatico {
-        +irradiancia
+        +nombre
+        +radiacion
         +nubosidad
         +precipitacion
-        +curvaSolar()
+        +radiacion_cielo_despejado
+        +factor_luz: float [propiedad]
     }
     class PerfilIluminacion {
+        +actividad: Actividad
         +minimo
         +objetivo
         +maximo
         +prioridad
+        +factor_reducido
+        +para_modo(modo)
     }
-
-    %% ============ ESTRUCTURAS ESPACIALES Y GRAFO ============
-    class Octree {
-        +raiz
-        +insertar()
-        +consultarRayo()
-        +consultarRadio()
-    }
-    class GrafoInfluencia {
-        +adyacencia
-        +agregarArista()
-        +reflexionPrimerOrden()
-    }
-
-    %% ============ SIMULACION, RESULTADOS Y CONTROL ============
     class ResultadoIluminacion {
+        +zona_id
         +hora
         +periodo
-        +luzNatural
-        +luzReflejada
-        +luzArtificial
-        +luzTotal
-        +potenciaAsignada
-        +estado
-    }
-    class EvaluadorHabitabilidad {
-        +clasificar()
-        +puntuar()
-    }
-    class BalanceEnergetico {
-        +calcularDemandas()
-        +asignarEnergia()
-    }
-    class ReasignadorHuespedes {
-        +buscarCandidatos()
-        +proponer()
+        +modo: ModoOperacion
+        +luz_natural
+        +luz_reflejada
+        +luz_artificial
+        +luz_total
+        +potencia_asignada
+        +estado: EstadoIluminacion
     }
 
-    %% ============ RELACIONES DE COMPOSICION (arbol) ============
+    %% ============ GEOMETRIA (geometria.py) ============
+    class CajaEspacial {
+        +min_x, max_x
+        +min_y, max_y
+        +min_z, max_z
+        +center [propiedad]
+        +contains(point)
+        +intersects(other)
+    }
+    class Rayo {
+        +origen
+        +direccion
+        +intersects(box)
+    }
+
+    %% ============ OCTREE (octree.py) ============
+    class Octree {
+        +raiz: NodoOctree
+        +capacidad
+        +profundidad_maxima
+        +nodos_visitados
+        +insertar(entrada)
+        +consultar_rayo(rayo)
+        +consultar_radio(centro, radio)
+    }
+    class NodoOctree {
+        +caja: CajaEspacial
+        +profundidad
+        +objetos: EntradaEspacial[]
+        +hijos: NodoOctree[]
+    }
+    class EntradaEspacial {
+        +id
+        +caja: CajaEspacial
+        +objeto
+    }
+
+    %% ============ GRAFO DE INFLUENCIA (influencia.py) ============
+    class GrafoInfluencia {
+        +adyacencias: dict origen a AristaInfluencia[]
+        +entrantes: dict destino a AristaInfluencia[]
+        +estadisticas: dict
+        +agregar_arista(origen, destino, peso)
+        +construir(hotel, octree, radio_maximo=18)
+        +reflejada_para(receptor_id, luz_superficies)
+    }
+    class AristaInfluencia {
+        +origen
+        +destino
+        +peso
+    }
+
+    %% ============ ARBOLES BALANCEADOS (arboles.py, temporal.py) ============
+    class IndiceAVL {
+        +raiz: NodoAVL
+        +rotaciones
+        +tamano
+        +comparaciones
+        +eliminaciones
+        +insertar(clave, valor)
+        +eliminar(clave)
+        +sucesor(clave)
+        +siguiente(clave)
+        +rango(minimo, maximo)
+        +altura()
+    }
+    class NodoAVL {
+        +clave
+        +valor
+        +izq
+        +der
+        +altura
+    }
+    class IndiceRojoNegro {
+        +raiz: NodoRojoNegro
+        +rotaciones
+        +tamano
+        +comparaciones
+        +insertar(clave, valor)
+        +rango(minimo, maximo)
+        +altura()
+    }
+    class NodoRojoNegro {
+        +clave
+        +valor
+        +izq
+        +der
+        +padre
+        +rojo
+    }
+    class IndiceTemporal {
+        +arbol: IndiceRojoNegro
+        +avl: IndiceAVL opcional
+        +insertar(resultado)
+        +franja(inicio, fin)
+        +estadisticas()
+    }
+
+    %% ============ SIMULACION Y CONTROL ============
+    class SimuladorUnificado {
+        +hotel: Hotel
+        +paso_horas
+        +octree: Octree
+        +grafo: GrafoInfluencia
+        +habitabilidad: dict
+        +estadisticas_reasignacion: dict
+        +temporal: dict
+        +ejecutar(balancear_energia, comparar_arboles)
+    }
+    class Demanda {
+        +zona: ZonaHotel
+        +minimo
+        +objetivo
+        +prioridad
+        +potencia_minima
+        +potencia_objetivo
+        +potencia_emergencia
+    }
+    class BalanceEnergetico {
+        <<modulo>>
+        +horario_modo(hotel, zona, hora)
+        +balancear(hotel, hora, natural, reflejada)
+        +agregar_energia_postorden(hotel)
+    }
+    class EvaluadorHabitabilidad {
+        <<modulo>>
+        +evaluar_zona(zona_id, resultados, limites, peso)
+        +evaluar_hotel(hotel)
+    }
+    class ReasignadorHuespedes {
+        <<modulo>>
+        +leer_restricciones(restricciones)
+        +proponer_reasignaciones(hotel, resumen, veredictos)
+    }
+    class MejorasMedidas {
+        <<modulo>>
+        +medir_mejoras(config, ejecutar)
+    }
+    class Reestructuracion {
+        <<modulo>>
+        +buscar_reestructuracion(config, ejecutar)
+    }
+
+    %% ============ RELACIONES DE COMPOSICION (arbol fisico) ============
     Hotel "1" *-- "2" Torre : contiene
     Torre "1" *-- "1..*" Piso : contiene
     Piso "1" *-- "1..*" ZonaHotel : contiene
     ZonaHotel "1" *-- "0..*" Ventana : contiene
     ZonaHotel "1" *-- "0..*" SuperficiePared : tiene
-    HabitacionHotel --|> ZonaHotel : especializa
-
-    %% ============ ASOCIACIONES ============
-    Ventana "1" --> "1" Vidrio : usa
-    ZonaHotel "1" --> "1" PerfilIluminacion : usa
-    Hotel "1" --> "1" GeneradorEnergia : alimenta iluminacion
-    Hotel "1" --> "0..*" FuenteIluminacion : opera
-    Hotel "1" --> "1" PerfilClimatico : aplica
-    Huesped "1" --> "0..1" Asignacion : tiene
-    Asignacion "1" --> "1" HabitacionHotel : ocupa
     ZonaHotel "1" *-- "0..*" ResultadoIluminacion : produce
+    ZonaHotel <|-- HabitacionHotel : especializa
+    Hotel "1" *-- "1" GeneradorEnergia : alimenta iluminacion
 
-    %% ============ DEPENDENCIAS DE CONTROL (no composicion) ============
-    Hotel ..> Octree : consulta espacio
-    Hotel ..> GrafoInfluencia : propaga reflexion
-    Octree ..> Torre : indexa
-    Octree ..> Ventana : indexa
-    Octree ..> FuenteIluminacion : indexa
-    GrafoInfluencia ..> SuperficiePared : origen
-    GrafoInfluencia ..> Ventana : receptor
+    %% ============ ASOCIACIONES DEL DOMINIO ============
+    Ventana "1" --> "1" Vidrio : usa
+    Torre "1" --> "1" CajaEspacial : caja fija
+    SuperficiePared "1" --> "1" CajaEspacial : caja
+    Hotel "1" --> "4" PerfilIluminacion : uno por actividad
+    Hotel "1" --> "1..*" PerfilClimatico : perfil activo
+    Hotel "1" --> "0..*" FuenteIluminacion : opera
+    Hotel "1" --> "0..*" Huesped : aloja
+    Hotel "1" --> "0..*" Asignacion : registra
+    ZonaHotel "1" --> "0..1" FuenteIluminacion : fuente_id
+    ZonaHotel ..> PerfilIluminacion : se consulta por actividad
+    ZonaHotel --> Actividad
+    ZonaHotel --> ModoOperacion
+    ResultadoIluminacion --> EstadoIluminacion
+    Asignacion "0..*" --> "1" Huesped : huesped_id
+    Asignacion "0..*" --> "1" HabitacionHotel : habitacion_id
+
+    %% ============ ESTRUCTURAS ESPACIALES ============
+    Octree "1" *-- "1" NodoOctree : raiz
+    NodoOctree "1" *-- "0..8" NodoOctree : hijos
+    NodoOctree "1" *-- "0..*" EntradaEspacial : objetos
+    EntradaEspacial --> CajaEspacial
+    EntradaEspacial ..> Torre : indexa
+    EntradaEspacial ..> Ventana : indexa
+    EntradaEspacial ..> SuperficiePared : indexa
+    EntradaEspacial ..> FuenteIluminacion : indexa
+    Octree ..> Rayo : consultar_rayo
+
+    %% ============ GRAFO DE INFLUENCIA ============
+    GrafoInfluencia "1" *-- "0..*" AristaInfluencia : adyacencias y entrantes
+    AristaInfluencia ..> SuperficiePared : origen
+    AristaInfluencia ..> Ventana : destino
+    GrafoInfluencia ..> Octree : consultar_radio 18 m y visibilidad
+
+    %% ============ ARBOLES ============
+    IndiceAVL "1" *-- "0..*" NodoAVL : nodos
+    IndiceRojoNegro "1" *-- "0..*" NodoRojoNegro : nodos
+    IndiceTemporal "1" *-- "1" IndiceRojoNegro : clave hora y zona_id
+    IndiceTemporal "1" o-- "0..1" IndiceAVL : compara rotaciones
+    IndiceTemporal ..> ResultadoIluminacion : indexa
+
+    %% ============ SIMULACION Y CONTROL ============
+    SimuladorUnificado --> Hotel : simula
+    SimuladorUnificado "1" *-- "1" Octree : sombras
+    SimuladorUnificado "1" *-- "1" GrafoInfluencia : reflexion primer orden
+    SimuladorUnificado ..> IndiceTemporal : crea en ejecutar
+    SimuladorUnificado ..> BalanceEnergetico : cada paso
+    SimuladorUnificado ..> EvaluadorHabitabilidad : veredictos
+    SimuladorUnificado ..> ReasignadorHuespedes : propuestas
+    BalanceEnergetico ..> Demanda : cola heapq
     BalanceEnergetico ..> GeneradorEnergia : reparte
-    BalanceEnergetico ..> ZonaHotel : asigna potencia
-    EvaluadorHabitabilidad ..> ResultadoIluminacion : clasifica
-    ReasignadorHuespedes ..> HabitacionHotel : evalua alternativa
-    ReasignadorHuespedes ..> Huesped : recomienda
+    BalanceEnergetico ..> ZonaHotel : asigna modo y potencia
+    EvaluadorHabitabilidad ..> ResultadoIluminacion : puntua
+    ReasignadorHuespedes ..> IndiceAVL : bolsa torre piso calidad id
+    ReasignadorHuespedes ..> HabitacionHotel : candidatas HABITABLE
+    ReasignadorHuespedes ..> Asignacion : revisa
+    ReasignadorHuespedes ..> Huesped : restricciones
+    MejorasMedidas ..> SimuladorUnificado : vuelve a simular
+    Reestructuracion ..> SimuladorUnificado : vuelve a simular
+
+    note for PerfilClimatico "factor_luz = min(1, radiacion / radiacion_cielo_despejado)"
+    note for IndiceAVL "Bolsa de reasignacion: clave (torre, piso, -calidad, id)"
