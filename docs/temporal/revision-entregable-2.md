@@ -1,6 +1,6 @@
 # Revisión del Entregable 2 y plan para AVL y rojo-negro
 
-Estado: **borrador para revisar**. No se ha cambiado código a partir de este documento.
+Estado: **decisiones tomadas; plan pendiente de confirmación**. No se ha cambiado código a partir de este documento.
 
 ## Cómo usar este documento
 
@@ -20,10 +20,8 @@ Todos los documentos están copiados en esta carpeta (`docs/temporal/`). Desde a
 | Plan del proyecto | `plan-proyecto-cc1-iluminacion.md` |
 | Entregable LaTeX | `entregable-arquitectura-iluminacion.tex` |
 | Diagrama de clases (Mermaid) | `diagrama-clases-hotel.mmd` |
-| Enunciado del Entregable 2 | No hay archivo. Solo lo que dijiste en el chat: "implementación completa del edificio, actividades y todas las entradas del sistema, por ejemplo el color de las paredes (luz)". |
+| Enunciado del Entregable 2 | No existe un enunciado oficial (`D1`). El Entregable 2 pedía el código completo sin el balanceo; esta entrega cubre todo, balance incluido. La referencia son los documentos de esta carpeta. |
 | Código revisado | Este repositorio, `main` en `09906de` |
-
-Si existe un enunciado oficial del Entregable 2 (PDF o texto del curso), súbelo. Es la referencia que manda y puede cambiar esta revisión (ver `D1`).
 
 ## 1. Revisión de cumplimiento
 
@@ -165,22 +163,39 @@ Se quita el índice duplicado de `habitabilidad.py`. La lista de casi habitables
 
 ## 4. Decisiones tomadas
 
-Vacía hasta que respondas.
+| Código | Decisión | Detalle |
+|---|---|---|
+| D1 | No existe enunciado oficial | La referencia son los documentos de `docs/temporal/`. Solo cambia la fila "Enunciado" de la tabla de fuentes. |
+| D2 | **A** | `factor_luz = radiación / radiación de cielo despejado`, calculado en el código. Se miden los 7 escenarios después del paso. |
+| D3 | **A** | Snell y transmitancia de Fresnel según el ángulo de incidencia. Se mide después de `D2`; si el escenario base vuelve a cambiar, se anota. |
+| D4 | **A** | **`CERRADA`:** cocina de 23:00 a 05:00 y recreación de 00:00 a 07:00. Habitaciones y parqueadero nunca cierran. Los pasos `CERRADA` no cuentan en el puntaje de habitabilidad. **`EMERGENCIA`:** primero se reserva para todas las zonas abiertas un nivel de emergencia de 10 lux (supuesto, cercano al promedio de 1 pie-candela, 10,8 lux, que pide NFPA 101 para rutas de evacuación). Luego se cubren los mínimos en este orden: seguridad (parqueadero), habitaciones ocupadas y resto. La zona que no alcanza su mínimo queda en `EMERGENCIA` y ese paso cuenta como déficit. Los horarios y el nivel van en el JSON. |
+| D5 | **A** | Mismo radio que el filtro actual. Las salidas deben quedar idénticas; solo cambia el conteo de comparaciones. |
+| D6 | **P1 + P2, uso obligatorio de los dos** | El AVL se construye y se reporta siempre (altura, tamaño, comparaciones), aunque en el escenario base nadie se reasigne. La reasignación se demuestra con `deficit_severo.json`. La comparación de rotaciones AVL contra rojo-negro se hace solo en la simulación principal, no en mejoras ni reestructuración. |
+| P1 | Ajustes | Clave `(torre, piso, −calidad, habitacion_id)`. Busca en las dos torres, salvo que el huésped tenga `MISMA_TORRE`. Se corrige el texto "No existe alternativa en esta torre" de la interfaz. |
+| D7 | **A** | Se reasigna solo si la zona es `NO_HABITABLE`. Se corrigen los documentos. |
+| D8 | **B + leyenda** | Torres `TP` y `TG`, habitaciones `TP-H-101` y `TG-H-101`. El nombre completo queda como campo de presentación y hay una leyenda ("TP = Torre Pequeña, TG = Torre Grande") en la interfaz y en los documentos. |
+| D9 | **A** | Los 10 casos del Plan como pruebas con `unittest` (biblioteca estándar; el proyecto no tiene dependencias). |
+| D10 | **A** | Los documentos pasan a `docs/` y se actualizan al final. Para `R24` se escribe que la geometría de las torres es fija y que el sistema solo cambia variables de luz: actividades, acabados, vidrios, horarios y generador. El LaTeX mantiene el formato ICONTEC y el texto justificado. |
+| R22 | **a** | Restricciones por huésped en el JSON (`huespedes.restricciones_por_huesped`). Duras, filtran candidatos: `MISMA_TORRE` y `PISO_MAXIMO:n`. Preferencia, alimenta `w_actividad`: `ORIENTACION:N/E/S/O` (1 si la habitación coincide, 0 si no). Se agregan restricciones a algunos huéspedes de `deficit_severo.json` para que se usen. |
+| Commits | | Uno por paso, directo en `main`, autor y committer Juan David Quiroga Gomez, sin coautores. |
 
-## 5. Plan (borrador; se ejecuta solo lo aprobado)
+## 5. Plan (pendiente de confirmación)
 
 El orden importa: primero los datos y el modelo, porque cambian los resultados que usan los árboles.
 
-1. **Datos reales** (`D2`): luz base calculada con la radiación de NASA. Volver a medir los 7 escenarios y anotar los cambios.
-2. **Snell y modos** (`D3`, `D4`).
-3. **Grafo espacial** (`D5`) con conteo de comparaciones antes y después.
-4. **AVL en la reasignación** (`P1`): eliminación y sucesor en el AVL, bolsa de habitaciones, reserva de capacidad, candidatos descartados y conteo de comparaciones contra la búsqueda lineal.
-5. **Rojo-negro temporal** (`P2`): índice de resultados, salidas faltantes (`R18`), selector de franja horaria en la interfaz y comparación de rotaciones contra el AVL.
-6. **Quitar el índice duplicado** de `habitabilidad.py` (sección 2.5).
-7. **Pruebas** (`D9`), solo si las autorizas.
-8. **Documentos** (`D10`): README, los cuatro documentos y el diagrama de clases.
+0. **Registrar decisiones:** este documento.
+1. **Radiación real** (`D2`): luz base con la radiación de NASA y medición de los 7 escenarios.
+2. **Snell y Fresnel** (`D3`) y nueva medición.
+3. **Modos `CERRADA` y `EMERGENCIA`** (`D4`, `R9`, `R10`): horarios de cierre, nivel de emergencia, orden del balance y puntaje sin pasos cerrados.
+4. **Grafo espacial** (`D5`, `R12`): construcción con `Octree.consultar_radio`, aristas por destino y conteo de comparaciones antes y después.
+5. **IDs abreviados** (`D8`): `TP` y `TG` en el JSON, el código, los casos de prueba y la interfaz, con leyenda.
+6. **AVL en la reasignación** (`P1`, `R19`–`R22`): eliminación y sucesor en el AVL, bolsa de habitaciones, reserva de capacidad, restricciones, candidatos descartados con motivo y comparaciones contra la búsqueda lineal.
+7. **Rojo-negro temporal** (`P2`, `R18`): índice de resultados, salidas faltantes, selector de franja horaria en la interfaz y comparación de rotaciones contra el AVL.
+8. **Quitar el índice duplicado** de `habitabilidad.py` (sección 2.5) y corregir el límite 0,90.
+9. **Pruebas** (`D9`): los 10 casos del Plan.
+10. **Documentos** (`D10`): README, los cuatro documentos y el diagrama de clases, en `docs/`.
 
-Cada paso va en su propio commit, con tu identidad. Al terminar cada paso actualizo este documento.
+Cada paso va en su propio commit. Al terminar cada paso actualizo este documento.
 
 ## 6. Cierre de la carpeta temporal
 
