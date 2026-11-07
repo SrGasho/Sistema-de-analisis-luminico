@@ -94,7 +94,7 @@ Un huésped se reasigna solo si su habitación queda `NO_HABITABLE`.
 - **Salida.** Cada propuesta trae `descartadas` (habitaciones revisadas, con motivo `MENOR_PUNTAJE`). Si no hay alternativa, `motivo` dice por qué: `SIN_HABITACIONES_HABITABLES_LIBRES`, `SIN_CAPACIDAD` o `RESTRICCIONES`.
 - **Costo.** `O(G · F · log H)` con `G` huéspedes a mover, `F` pisos y `H` habitaciones, contra `O(G · H)` de la búsqueda lineal.
 
-En el escenario base nadie queda en una habitación `NO_HABITABLE`. El AVL se construye igual con las 104 habitaciones (altura 8, 115 rotaciones) y no se consulta. `data/casos_prueba/deficit_severo.json` muestra el caso sin candidata.
+En el escenario base nadie queda en una habitación `NO_HABITABLE`. El AVL se construye igual con las 104 habitaciones (altura 8, 110 rotaciones) y no se consulta. `data/casos_prueba/deficit_severo.json` muestra el caso sin candidata.
 
 ## Índice temporal
 
@@ -163,8 +163,8 @@ Cualquier error al procesar una solicitud devuelve HTTP 400 con un campo `error`
 
 | Campo | Contenido | Escenario base |
 |---|---|---|
-| `grafo` | `superficies`, `ventanas`, `pares_ingenuos`, `pares_evaluados`, `nodos_octree_visitados`, `aristas` | 127 superficies, 154 ventanas, 19.558 pares ingenuos, 7.501 evaluados, 6.247 nodos visitados, 161 aristas |
-| `reasignacion` | `huespedes_a_mover`, `habitaciones`, `comparaciones_lineales` (`G · H`), `comparaciones_avl`, `comparaciones_construccion` y `avl` (`tamano_inicial`, `altura_inicial`, `tamano_final`, `eliminaciones`, `rotaciones`) | 0 huéspedes a mover; AVL de 104 habitaciones, altura 8, 115 rotaciones |
+| `grafo` | `superficies`, `ventanas`, `pares_ingenuos`, `pares_evaluados`, `nodos_octree_visitados`, `aristas` | 127 superficies, 154 ventanas, 19.558 pares ingenuos, 5.581 evaluados, 6.911 nodos visitados, 73 aristas |
+| `reasignacion` | `huespedes_a_mover`, `habitaciones`, `comparaciones_lineales` (`G · H`), `comparaciones_avl`, `comparaciones_construccion` y `avl` (`tamano_inicial`, `altura_inicial`, `tamano_final`, `eliminaciones`, `rotaciones`) | 0 huéspedes a mover; AVL de 104 habitaciones, altura 8, 110 rotaciones |
 | `temporal` | `rojo_negro` (`tamano`, `altura`, `rotaciones`) y, solo en `/api/balancear`, `avl` con los mismos campos | Ver [Índice temporal](#índice-temporal) |
 
 **`temporal`** es una lista con un reporte por franja. Cada reporte trae `etiqueta`, `inicio`, `fin`, `resultados`, `energia_wh`, `energia_kwh`, `energia_por_actividad_wh`, `energia_por_torre_wh`, `hora_pico`, `potencia_pico_w`, `deficit_residual_lux_h`, `energia_no_asignada_wh`, `zonas_con_deficit`, `zonas_criticas`, `horas_deficit_por_zona`, `horas_con_deficit`, `estados_por_zona`, `comparaciones_arbol` y `comparaciones_lineales`.
@@ -203,7 +203,6 @@ web/styles.css              Estilos
 ## Limitaciones conocidas
 
 - La geometría de cada habitación (24 m², una ventana de 2 m²) está fija en `src/io_datos.py`. En la interfaz se edita su orientación, no sus dimensiones.
-- Las zonas comunes de una torre comparten posición entre sí: por ejemplo, `TP-COC-01`, `TP-REC-01` y `TP-PAR-01` están en el mismo punto, y en la Torre Grande también se superponen con `TG-H-108`. Viene de `_zona_comun` en `src/io_datos.py` y no está corregido.
 - La precipitación de los perfiles climáticos es informativa: se carga y se reporta, pero no entra en el cálculo.
 - El nivel de emergencia de 10 lux es un supuesto del proyecto, cercano al promedio de 1 pie-candela (10,8 lux) que pide NFPA 101 para rutas de evacuación.
 - El árbol de energía solo agrega resultados. No decide la distribución de potencia: el reparto lo hace la cola de prioridad en `src/balance.py`.

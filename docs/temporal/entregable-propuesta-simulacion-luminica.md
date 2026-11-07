@@ -278,10 +278,10 @@ La construcción pide al Octree, para cada pared, las ventanas en un radio de 18
 
 | Medida | Comparación ingenua | Con Octree |
 |---|---:|---:|
-| Pares pared–ventana evaluados | 19.558 (127 × 154) | 7.501 |
-| Aristas recorridas por instante en la luz reflejada | 154 × 161 | 161 |
+| Pares pared–ventana evaluados | 19.558 (127 × 154) | 5.581 |
+| Aristas recorridas por instante en la luz reflejada | 154 × 73 | 73 |
 
-El grafo resultante tiene 161 aristas. Las salidas son idénticas a las de la comparación ingenua; solo cambia el número de comparaciones.
+El grafo resultante tiene 73 aristas. Las salidas son idénticas a las de la comparación ingenua; solo cambia el número de comparaciones.
 
 ## 4.4 Árbol AVL: bolsa de habitaciones para la reasignación
 
@@ -301,7 +301,7 @@ Operaciones usadas:
 - `siguiente` (menor clave > x), para seguir dentro del piso cuando el huésped tiene preferencia de orientación;
 - `eliminar` con rebalanceo, cuando una habitación se llena. Así dos huéspedes no reciben la misma cama.
 
-Se eligió AVL porque el trabajo es de lectura: cada huésped hace varias consultas y como máximo una eliminación, y el equilibrio estricto mantiene la altura baja. En el escenario base el AVL tiene 104 habitaciones, altura 8 y 115 rotaciones de construcción. Se construye y se reporta siempre, aunque nadie necesite moverse.
+Se eligió AVL porque el trabajo es de lectura: cada huésped hace varias consultas y como máximo una eliminación, y el equilibrio estricto mantiene la altura baja. En el escenario base el AVL tiene 104 habitaciones, altura 8 y 110 rotaciones de construcción. Se construye y se reporta siempre, aunque nadie necesite moverse.
 
 ## 4.5 Árbol rojo-negro: índice temporal de resultados
 
@@ -443,7 +443,7 @@ Reasignación con AVL:          O(H log H) construcción, O(G × F × log H) con
 Reasignación lineal:           O(G × H)
 ```
 
-Valores medidos en el escenario base: 7.501 pares evaluados en el grafo contra 19.558 ingenuos; 1.029 nodos visitados en la franja 18:00–22:00 contra 6.096 resultados; en la prueba de carga de reasignación, 2.790 comparaciones del AVL contra 6.240 lineales.
+Valores medidos en el escenario base: 5.581 pares evaluados en el grafo contra 19.558 ingenuos; 1.029 nodos visitados en la franja 18:00–22:00 contra 6.096 resultados; en la prueba de carga de reasignación, 2.790 comparaciones del AVL contra 6.240 lineales.
 
 Los 10 casos de prueba están automatizados con `unittest` en `tests/test_casos_plan.py`. Se ejecutan desde la raíz con `python -m unittest` y todos pasan.
 
@@ -472,7 +472,6 @@ Alcance: la geometría de las torres es fija. El sistema mide mejoras y propone 
 
 Limitaciones conocidas:
 
-- Las zonas comunes de una torre comparten posición entre sí (por ejemplo, `TP-COC-01`, `TP-REC-01` y `TP-PAR-01`), y en TG también se superponen con `TG-H-108`. No está corregido.
 - Los resultados son aproximaciones educativas en lux de referencia.
 - La precipitación es informativa y no entra en el cálculo.
 

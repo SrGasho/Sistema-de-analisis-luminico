@@ -316,11 +316,11 @@ Mediciones en el escenario base:
 
 | Medida | Valor |
 |---|---|
-| Pares superficie–ventana del grafo | 7.501 evaluados con el Octree contra 19.558 ingenuos (127 × 154) |
-| Aristas del grafo | 161 |
+| Pares superficie–ventana del grafo | 5.581 evaluados con el Octree contra 19.558 ingenuos (127 × 154) |
+| Aristas del grafo | 73 |
 | Resultados indexados | 6.096 (127 zonas × 48 pasos) |
 | Consulta de la franja 18–22 | 1.029 nodos visitados contra 6.096 de recorrer la lista |
-| Bolsa AVL de reasignación | 104 habitaciones, altura 8, 115 rotaciones; no se consulta porque ninguna habitación ocupada queda `NO_HABITABLE` |
+| Bolsa AVL de reasignación | 104 habitaciones, altura 8, 110 rotaciones; no se consulta porque ninguna habitación ocupada queda `NO_HABITABLE` |
 | Rotaciones rojo-negro / AVL con los mismos resultados | 9.099 / 7.232 |
 | Altura rojo-negro / AVL | 22 / 14 |
 
@@ -328,4 +328,4 @@ El rojo-negro se eligió para el índice temporal porque, en general, rota menos
 
 ## 11. Límites
 
-No se incluyen mallas complejas, óptica espectral, deslumbramiento profesional, consumo total del hotel, reservas reales ni ejecución automática de traslados. La reestructuración es una búsqueda local dentro de rangos fijos: puede no encontrar la mejor combinación posible y nunca cambia la geometría. Las zonas comunes de una torre comparten posición entre sí, y en `TG` también con una habitación; esto no está corregido. La precipitación es informativa. Los resultados son aproximaciones educativas. El documento separa fuentes publicadas, presets educativos y datos sintéticos para evitar confundirlos.
+No se incluyen mallas complejas, óptica espectral, deslumbramiento profesional, consumo total del hotel, reservas reales ni ejecución automática de traslados. La reestructuración es una búsqueda local dentro de rangos fijos: puede no encontrar la mejor combinación posible y nunca cambia la geometría. La precipitación es informativa. Los resultados son aproximaciones educativas. El documento separa fuentes publicadas, presets educativos y datos sintéticos para evitar confundirlos.

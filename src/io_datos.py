@@ -98,10 +98,14 @@ def cargar_hotel_data(data: dict) -> Hotel:
                 zona_id = f"{torre.id}-H-{100 + room_index}"
                 piso.zonas.append(_zona_habitacion(zona_id, torre, piso_numero, room_index, tower_data, data))
             if piso_numero == 1:
+                total_comunes = sum(common["cantidad"] for common in tower_data["zonas_comunes"])
+                posicion = 0
                 for common in tower_data["zonas_comunes"]:
                     for index in range(1, common["cantidad"] + 1):
                         zona_id = f"{torre.id}-{common['codigo']}-{index:02d}"
-                        piso.zonas.append(_zona_comun(zona_id, torre, piso_numero, common, index, data))
+                        center = _common_center(torre.caja, posicion, total_comunes, tower_data["habitaciones_por_piso"])
+                        piso.zonas.append(_zona_comun(zona_id, torre, piso_numero, common, center, data))
+                        posicion += 1
             torre.pisos.append(piso)
         torres.append(torre)
 
@@ -230,11 +234,10 @@ def _zona_habitacion(zona_id: str, torre: Torre, piso: int, index: int, config: 
     return HabitacionHotel(zona_id, Actividad.HABITACION, 24.0, piso, torre.id, ventanas=[ventana], superficies=[superficie], fuente_id=f"L-{zona_id}")
 
 
-def _zona_comun(zona_id: str, torre: Torre, piso: int, config: dict, index: int, data: dict) -> ZonaHotel:
+def _zona_comun(zona_id: str, torre: Torre, piso: int, config: dict, center: Vector3, data: dict) -> ZonaHotel:
     actividad = config["actividad"]
     acabado = _acabado(data, zona_id, actividad)
     _validar_ventanas(zona_id, acabado, config["ventanas"])
-    center = torre.caja.center + Vector3((index - 1) * 2.0, 0, -torre.caja.center.z + 1.5)
     orientaciones = acabado["orientaciones"]
     ventanas = []
     for window_index in range(config["ventanas"]):
@@ -263,6 +266,14 @@ def _room_center(box: CajaEspacial, piso: int, index: int, rooms_per_floor: int)
     width = (box.max_x - box.min_x) / (columns + 1)
     depth = (box.max_y - box.min_y) / (rooms_per_floor // columns + 2)
     return Vector3(box.min_x + (column + 1) * width, box.min_y + (row + 1) * depth, (piso - 0.5) * 3.0)
+
+
+def _common_center(box: CajaEspacial, posicion: int, total: int, rooms_per_floor: int) -> Vector3:
+    columns = max(1, int(rooms_per_floor ** 0.5))
+    rows = -(-rooms_per_floor // columns)
+    depth = (box.max_y - box.min_y) / (rooms_per_floor // columns + 2)
+    width = (box.max_x - box.min_x) / (total + 1)
+    return Vector3(box.min_x + (posicion + 1) * width, box.min_y + (rows + 1) * depth, 1.5)
 
 
 def _zona_center(zona: ZonaHotel) -> Vector3:

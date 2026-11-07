@@ -337,3 +337,16 @@ El diagrama Mermaid se reescribió con los nombres del código y pasa `mermaid.p
 **Hallazgo nuevo (R29), sin corregir.** La reflectancia de la pared se aplica dos veces. `_calcular_reflejadas` da a cada superficie `E_base · ρ`, y el peso de la arista en `influencia.py` vuelve a multiplicar por `ρ`, así que la luz reflejada escala con `ρ²`. Los documentos describen lo que hace el código. Corregirlo cambia los resultados, así que queda como `D13`.
 
 **Corrección D13 (hecha).** La pared recibe `E_base` y la reflectancia entra solo en el peso de la arista. Las aristas del grafo no cambian (161). La luz reflejada sube en un factor `1/ρ` (×1,25 con pared blanca): a las 12:00 llega a 77,5 lux como máximo, contra 62,0 antes. Escenario base: 127/0/0 sin cambio, puntaje 0,9839 → 0,9836 y energía 194.482,4 → 194.093,7 Wh. Los casos de `casos_prueba/` de un piso no cambian (sus aristas no llegan a ninguna ventana). La prueba 4 ahora verifica la regla corregida.
+
+**Corrección R28 (hecha).** `_common_center` reparte todas las zonas comunes de cada torre a lo largo del eje x, en una fila del piso 1 que queda libre después de las filas de habitaciones (y = 26,1 m en TP, 35,8 m en TG). Ya ninguna zona comparte posición con otra y ninguna ventana sale de su torre.
+
+| Medida (escenario base) | Después de D13 | Después de R28 |
+|---|---|---|
+| Veredictos | 127/0/0 | 127/0/0 |
+| Puntaje (día / noche) | 0,9836 | 0,9840 (0,968 / 1,0) |
+| Energía Wh | 194.093,7 | 195.859,9 |
+| Pares evaluados en el grafo / aristas | 7.501 / 161 | 5.581 / 73 |
+| Nodos del octree visitados | 6.247 | 6.911 |
+| AVL de la bolsa | altura 8, 115 rotaciones | altura 8, 110 rotaciones |
+
+Las aristas bajan porque las zonas comunes superpuestas se reflejaban luz entre sí a distancia cero o casi cero. La prueba de carga del AVL (2.790 y 3.451 contra 6.240), la demanda objetivo máxima (18.110,7 W) y las mediciones del rojo-negro no cambian. Las 10 pruebas pasan. Los documentos se actualizaron con estas cifras y ya no listan R28 como limitación.
