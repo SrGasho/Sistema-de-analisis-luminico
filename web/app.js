@@ -1197,7 +1197,7 @@ function renderResult(result) {
   state.reestructuracion = null;
   $("#reestructuracion-resultado").innerHTML = `<p class="muted">Aún no se ha buscado una reestructuración para este balance.</p>`;
   if ($("#plan-view")) $("#plan-view").value = "despues";
-  $("#results-panel").classList.remove("hidden");
+  mostrarResultados(true);
   $("#result-cards").innerHTML = summaryCards(result);
   renderGenerator(result.generador);
   renderFloorSelectors(result.layout);
@@ -1255,6 +1255,7 @@ async function balance() {
     const validation = await request("/api/validar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(state.config) });
     $("#validation-status").textContent = `Entradas válidas · ${validation.zonas_generadas} zonas`;
     renderResult(await request("/api/balancear", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(state.config) }));
+    mostrarPestana("balance");
     cargarMejoras();
   } catch (error) {
     $("#validation-status").textContent = error.message;
@@ -1274,7 +1275,7 @@ function handleUploadConfig(file) {
       return;
     }
     buildForms();
-    $("#results-panel").classList.add("hidden");
+    mostrarResultados(false);
     $("#validation-status").textContent = "Configuración cargada desde archivo";
     loadCurrentCondition();
   };
@@ -1354,7 +1355,7 @@ async function aplicarReestructuracion() {
   if (!state.reestructuracion) return;
   state.config = state.reestructuracion.configuracion_propuesta;
   buildForms();
-  $("#results-panel").classList.add("hidden");
+  mostrarResultados(false);
   await loadCurrentCondition();
   $("#validation-status").textContent = "Propuesta de reestructuración cargada en los formularios. Balancea de nuevo para confirmar el resultado.";
 }
@@ -1364,7 +1365,10 @@ $("#plan-view").addEventListener("change", () => {
   const datos = vistaActiva();
   if (datos) renderFloorSelectors(datos.layout);
 });
-$("#load-scenario-button").addEventListener("click", loadCurrentCondition);
+$("#load-scenario-button").addEventListener("click", async () => {
+  await loadCurrentCondition();
+  mostrarPestana("diagnostico");
+});
 $("#main-balance-button").addEventListener("click", balance);
 $("#download-config").addEventListener("click", () => download("datos_hotel.json", JSON.stringify(state.config, null, 2), "application/json"));
 $("#download-json").addEventListener("click", () => download("resultados.json", JSON.stringify(state.result, null, 2), "application/json"));
@@ -1374,6 +1378,37 @@ $("#upload-config").addEventListener("change", (event) => {
   if (file) handleUploadConfig(file);
   event.target.value = "";
 });
+
+function mostrarResultados(visible) {
+  document.querySelectorAll("[data-requiere-balance]").forEach((el) => el.classList.toggle("hidden", !visible));
+  document.querySelectorAll("[data-espera-balance]").forEach((el) => el.classList.toggle("hidden", visible));
+}
+
+function mostrarPestana(nombre) {
+  document.querySelectorAll(".tab").forEach((boton) => {
+    const activa = boton.dataset.tab === nombre;
+    boton.classList.toggle("active", activa);
+    boton.setAttribute("aria-selected", String(activa));
+  });
+  document.querySelectorAll(".tab-panel").forEach((panel) => { panel.hidden = panel.dataset.tab !== nombre; });
+  if (nombre === "plano") renderFloorPlan();
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+document.querySelectorAll(".tab").forEach((boton) => boton.addEventListener("click", () => mostrarPestana(boton.dataset.tab)));
+
+function aplicarTema(tema) {
+  if (tema === "claro") document.documentElement.dataset.theme = "claro";
+  else delete document.documentElement.dataset.theme;
+  $("#theme-toggle").textContent = tema === "claro" ? "Modo oscuro" : "Modo claro";
+  try { localStorage.setItem("tema", tema); } catch (error) { /* almacenamiento no disponible */ }
+}
+
+let temaGuardado = "oscuro";
+try { temaGuardado = localStorage.getItem("tema") || "oscuro"; } catch (error) { /* almacenamiento no disponible */ }
+aplicarTema(temaGuardado);
+$("#theme-toggle").addEventListener("click", () => aplicarTema(document.documentElement.dataset.theme === "claro" ? "oscuro" : "claro"));
+mostrarPestana("configurar");
 
 async function loadScenario() {
   try {
