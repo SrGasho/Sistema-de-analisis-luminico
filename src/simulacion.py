@@ -3,7 +3,7 @@ from __future__ import annotations
 from .balance import balancear, horario_modo
 from .clima import direccion_solar, luz_base, periodo
 from .evaluacion import clasificar, datos_zona_completos, resumen_zonas
-from .geometria import CajaEspacial, Rayo, Vector3
+from .geometria import CajaEspacial, Rayo, Vector3, factor_angular_vidrio
 from .habitabilidad import evaluar_hotel
 from .influencia import GrafoInfluencia
 from .modelo import EstadoIluminacion, Hotel, ModoOperacion, ResultadoIluminacion
@@ -95,9 +95,10 @@ class SimuladorUnificado:
                 continue
             aportes = []
             for ventana in zona.ventanas:
-                directa = max(0.0, ventana.normal.normalized().dot(direccion))
+                coseno = max(0.0, ventana.normal.normalized().dot(direccion))
                 if self._sombreada(ventana, zona.torre_id, direccion):
-                    directa = 0.0
+                    coseno = 0.0
+                directa = coseno * factor_angular_vidrio(coseno, ventana.vidrio.indice_refraccion)
                 aporte = base * ventana.vidrio.transmitancia_visible * (directa * f_directa + f_difusa)
                 aportes.append(aporte)
             naturales[zona.id] = sum(aportes) / len(aportes)

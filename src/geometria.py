@@ -101,3 +101,23 @@ class Rayo:
             if t_min > t_max:
                 return False
         return t_max >= max(0.0, t_min)
+
+
+def angulo_refraccion(cos_incidencia: float, indice: float) -> float:
+    seno_i = math.sqrt(max(0.0, 1.0 - cos_incidencia * cos_incidencia))
+    return math.asin(min(1.0, seno_i / indice))
+
+
+def transmitancia_fresnel(cos_incidencia: float, indice: float) -> float:
+    cos_i = min(1.0, max(0.0, cos_incidencia))
+    if cos_i == 0.0:
+        return 0.0
+    cos_t = math.cos(angulo_refraccion(cos_i, indice))
+    rs = ((cos_i - indice * cos_t) / (cos_i + indice * cos_t)) ** 2
+    rp = ((cos_t - indice * cos_i) / (cos_t + indice * cos_i)) ** 2
+    return 1.0 - (rs + rp) / 2.0
+
+
+def factor_angular_vidrio(cos_incidencia: float, indice: float) -> float:
+    normal = transmitancia_fresnel(1.0, indice)
+    return (transmitancia_fresnel(cos_incidencia, indice) / normal) ** 2

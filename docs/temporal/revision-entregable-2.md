@@ -228,3 +228,17 @@ La carpeta seguirá en el historial de git. Eso es esperado.
 - Cambiar la geometría de las habitaciones o agregar torres.
 - Cambiar los umbrales de habitabilidad (0,90 y 0,75).
 - Usar árboles en el balance de energía por instante (ver 2.6).
+
+**Paso 2, Snell y Fresnel (hecho).** Para la luz directa, cada ventana calcula el ángulo de refracción con Snell (`indice_refraccion` del vidrio, 1,5) y la transmitancia de Fresnel no polarizada en las dos caras del vidrio. El resultado se normaliza con la incidencia perpendicular, así que la VLT del catálogo se conserva a 0°. La luz difusa sigue usando la VLT del catálogo. Factor angular: 30° → 0,997; 45° → 0,979; 60° → 0,900; 75° → 0,605; 85° → 0,163.
+
+| Escenario | Habitables / casi / no | Puntaje (paso 1 → paso 2) | Energía Wh (paso 1 → paso 2) |
+|---|---|---|---|
+| `datos_hotel` | 127/0/0 sin cambio | 0,9829 → 0,9839 | 207.215,2 → 208.001,3 |
+| `confortable_base` | 127/0/0 sin cambio | 0,9829 → 0,9839 | 207.215,2 → 208.001,3 |
+| `deficit_leve` | 8/2/0 sin cambio | 0,9367 → 0,9340 | 43.160,1 → 43.184,2 |
+| `deficit_severo` | 0/0/10 sin cambio | 0,2812 → 0,2812 | 0 → 0 |
+| `exceso_leve` | 8/2/0 sin cambio | 0,9583 → 0,9636 | 51.105,5 → 51.725,6 |
+| `exceso_severo` | 6/0/4 sin cambio | 0,5000 → 0,5000 | 51.105,5 → 51.725,6 |
+| `generador_alta_demanda` | 10/0/0 sin cambio | 0,9818 → 0,9818 | 53.357,0 → 53.482,4 |
+
+El escenario base no cambia de veredictos. Snell baja un poco la luz directa con incidencia oblicua y el balance lo compensa con algo más de energía.
