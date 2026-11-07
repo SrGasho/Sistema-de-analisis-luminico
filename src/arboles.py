@@ -175,12 +175,14 @@ class IndiceRojoNegro:
         self.raiz: Optional[NodoRojoNegro] = None
         self.rotaciones = 0
         self.tamano = 0
+        self.comparaciones = 0
 
     def insertar(self, clave: Hashable, valor: Any) -> None:
         nuevo = NodoRojoNegro(clave, valor)
         padre = None
         actual = self.raiz
         while actual is not None:
+            self.comparaciones += 1
             padre = actual
             actual = actual.izq if clave < actual.clave else actual.der
         nuevo.padre = padre
@@ -204,6 +206,7 @@ class IndiceRojoNegro:
         def visitar(nodo: Optional[NodoRojoNegro]) -> None:
             if nodo is None:
                 return
+            self.comparaciones += 1
             if minimo < nodo.clave:
                 visitar(nodo.izq)
             if minimo <= nodo.clave <= maximo:

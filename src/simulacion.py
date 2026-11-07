@@ -9,6 +9,7 @@ from .influencia import GrafoInfluencia
 from .modelo import EstadoIluminacion, Hotel, ModoOperacion, ResultadoIluminacion
 from .octree import EntradaEspacial, Octree
 from .reasignacion import proponer_reasignaciones
+from .temporal import IndiceTemporal, reporte_temporal
 
 
 class SimuladorUnificado:
@@ -19,12 +20,14 @@ class SimuladorUnificado:
         self._lux_por_irradiancia = float(hotel.parametros.get("luz", {}).get("lux_por_irradiancia", 900.0))
         self.habitabilidad: dict = {}
         self.estadisticas_reasignacion: dict = {}
+        self.temporal: dict = {}
         self.octree = self._crear_octree()
         self.grafo = GrafoInfluencia()
         self.grafo.construir(hotel, self.octree)
 
-    def ejecutar(self, balancear_energia: bool = True) -> tuple[list[ResultadoIluminacion], dict, list[dict]]:
+    def ejecutar(self, balancear_energia: bool = True, comparar_arboles: bool = False) -> tuple[list[ResultadoIluminacion], dict, list[dict]]:
         resultados: list[ResultadoIluminacion] = []
+        indice = IndiceTemporal(comparar_arboles)
         hora = 0.0
         while hora < 24.0:
             naturales = self._calcular_naturales(hora)
@@ -44,8 +47,10 @@ class SimuladorUnificado:
                 resultado = ResultadoIluminacion(zona.id, hora, periodo(hora), zona.modo, naturales.get(zona.id, 0.0), reflejadas.get(zona.id, 0.0), artificial, total, asignadas.get(zona.id, 0.0), estado)
                 zona.resultados.append(resultado)
                 resultados.append(resultado)
+                indice.insertar(resultado)
             hora += self.paso_horas
         resumen = resumen_zonas(resultados)
+        self.temporal = reporte_temporal(self.hotel, indice, self.paso_horas)
         self.habitabilidad = evaluar_hotel(self.hotel)
         veredictos = {e["zona_id"]: e for e in self.habitabilidad["zonas"]}
         propuestas: list[dict] = []

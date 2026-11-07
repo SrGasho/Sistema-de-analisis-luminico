@@ -76,9 +76,71 @@ function stateInfo(estado) {
   return STATE_META[estado] || STATE_META.DATOS_INSUFICIENTES;
 }
 
+function franjaActiva() {
+  const datos = vistaActiva();
+  const selector = $("#plan-franja");
+  if (!datos || !datos.temporal || !selector || selector.value === "") return null;
+  return datos.temporal[Number(selector.value)] || null;
+}
+
 function claveVisual(zone) {
+  const franja = franjaActiva();
+  if (franja) return franja.estados_por_zona[zone.id] || "DATOS_INSUFICIENTES";
   const modo = $("#plan-color-mode") ? $("#plan-color-mode").value : "habitabilidad";
   return modo === "habitabilidad" ? (zone.veredicto || "DATOS_INSUFICIENTES") : zone.estado;
+}
+
+function renderFranjaSelector() {
+  const selector = $("#plan-franja");
+  if (!selector) return;
+  const datos = vistaActiva();
+  const anterior = selector.value;
+  const franjas = (datos && datos.temporal) || [];
+  selector.innerHTML = `<option value="">Veredicto del día (sin franja)</option>` + franjas.map((franja, index) => `<option value="${index}">${escapeHtml(franja.etiqueta)}</option>`).join("");
+  if ([...selector.options].some((option) => option.value === anterior)) selector.value = anterior;
+}
+
+function renderFranjaReport() {
+  const container = $("#franja-report");
+  if (!container) return;
+  const franja = franjaActiva();
+  if (!franja) {
+    container.innerHTML = "";
+    return;
+  }
+  const filas = (objeto) => Object.entries(objeto).map(([clave, valor]) => `<tr><td>${escapeHtml(clave)}</td><td>${(valor / 1000).toFixed(2)}</td></tr>`).join("");
+  const criticas = franja.zonas_criticas.length
+    ? franja.zonas_criticas.map((zona) => `<li><code>${escapeHtml(zona.zona_id)}</code>: ${zona.horas_deficit.toFixed(1)} h en déficit</li>`).join("")
+    : "<li>Ninguna zona con déficit en la franja.</li>";
+  const horas = franja.horas_con_deficit.length ? franja.horas_con_deficit.map((hora) => hora.toFixed(1)).join(", ") : "ninguna";
+  container.innerHTML = `
+    <div class="output-block">
+      <h3>${escapeHtml(franja.etiqueta)}</h3>
+      <p class="muted">Energía: <b>${franja.energia_kwh.toFixed(2)} kWh</b> · Pico del generador: <b>${franja.potencia_pico_w.toFixed(0)} W</b>${franja.hora_pico !== null ? ` a las ${franja.hora_pico.toFixed(1)} h` : ""} · Déficit residual: <b>${franja.deficit_residual_lux_h.toFixed(1)} lux·h</b> · Energía no asignada: <b>${franja.energia_no_asignada_wh.toFixed(1)} Wh</b></p>
+      <p class="muted">Horas con déficit: ${horas}</p>
+      <table><thead><tr><th>Actividad</th><th>kWh</th></tr></thead><tbody>${filas(franja.energia_por_actividad_wh)}</tbody></table>
+      <table><thead><tr><th>Torre</th><th>kWh</th></tr></thead><tbody>${filas(franja.energia_por_torre_wh)}</tbody></table>
+      <p class="muted">Zonas críticas:</p><ul>${criticas}</ul>
+      <p class="muted">Consulta en el rojo-negro: ${franja.comparaciones_arbol} nodos visitados para ${franja.resultados} resultados, contra ${franja.comparaciones_lineales} de recorrer la lista.</p>
+    </div>
+  `;
+}
+
+function renderComplexity(result) {
+  const container = $("#complexity-report");
+  if (!container || !result.complejidad) return;
+  const { grafo, reasignacion, temporal } = result.complejidad;
+  const filas = [];
+  if (grafo) filas.push(`<tr><td>Grafo de influencia (octree)</td><td>${grafo.pares_ingenuos}</td><td>${grafo.pares_evaluados}</td><td>${grafo.aristas} aristas</td></tr>`);
+  if (reasignacion && reasignacion.avl) filas.push(`<tr><td>Reasignación (AVL)</td><td>${reasignacion.comparaciones_lineales}</td><td>${reasignacion.comparaciones_avl}</td><td>${reasignacion.huespedes_a_mover} huéspedes, ${reasignacion.avl.tamano_inicial} habitaciones en la bolsa, ${reasignacion.avl.eliminaciones} eliminaciones</td></tr>`);
+  const arboles = temporal && temporal.avl ? `<p class="muted">Mismos ${temporal.rojo_negro.tamano} resultados insertados en los dos árboles: rojo-negro ${temporal.rojo_negro.rotaciones} rotaciones y altura ${temporal.rojo_negro.altura}; AVL ${temporal.avl.rotaciones} rotaciones y altura ${temporal.avl.altura}.</p>` : "";
+  container.innerHTML = `
+    <div class="output-block">
+      <h3>Estructuras de datos y comparaciones</h3>
+      <table><thead><tr><th>Operación</th><th>Ingenua</th><th>Con estructura</th><th>Detalle</th></tr></thead><tbody>${filas.join("")}</tbody></table>
+      ${arboles}
+    </div>
+  `;
 }
 
 function vistaActiva() {
@@ -493,9 +555,11 @@ function renderGenerator(generator) {
 function renderFloorSelectors(layout) {
   $("#floor-tower").innerHTML = layout.torres.map((tower) => `<option value="${escapeHtml(tower.id)}">${escapeHtml(towerLabel(tower))}</option>`).join("");
   $("#tower-legend").textContent = "Abreviaturas: " + layout.torres.map((tower) => `${tower.id} = ${tower.nombre || tower.id}`).join(", ") + ". Los IDs de zona usan la abreviatura (por ejemplo, " + layout.torres[0].id + "-H-101).";
+  renderFranjaSelector();
   updateFloorOptions();
   $("#floor-tower").onchange = updateFloorOptions;
   $("#floor-number").onchange = renderFloorPlan;
+  if ($("#plan-franja")) $("#plan-franja").onchange = renderFloorPlan;
   if ($("#plan-color-mode")) $("#plan-color-mode").onchange = renderFloorPlan;
   renderFloorPlan();
 }
@@ -566,6 +630,7 @@ function renderSuggestions(containerId, suggestions, isCurrent = false) {
 
 function renderFloorPlan() {
   if (!vistaActiva() || !vistaActiva().layout) return;
+  renderFranjaReport();
   const tower = vistaActiva().layout.torres.find((item) => item.id === $("#floor-tower").value) || vistaActiva().layout.torres[0];
   const floor = tower.pisos.find((item) => item.numero === Number($("#floor-number").value)) || tower.pisos[0];
   const colorMode = $("#plan-color-mode") ? $("#plan-color-mode").value : "synergy";
@@ -1144,6 +1209,7 @@ function renderResult(result) {
 
   renderVeredictos("#results-verdicts", result.habitabilidad);
   renderSuggestions("#results-suggestions", result.sugerencias_habitabilidad, false);
+  renderComplexity(result);
 
   const recommendations = result.reasignaciones.length ? result.reasignaciones.map((item) => `
     <div class="recommendation">

@@ -287,3 +287,18 @@ Resultados:
 - `deficit_severo` tiene ahora restricciones en sus dos huéspedes. Como sus 4 habitaciones son `NO_HABITABLE`, el motivo es `SIN_HABITACIONES_HABITABLES_LIBRES`: el caso demuestra "sin candidata", pero no "con candidata". Ningún caso de prueba actual tiene a la vez habitaciones ocupadas no habitables y habitaciones libres habitables.
 - En el escenario base el AVL se construye con las 104 habitaciones (altura 8, 109 rotaciones, 622 comparaciones de construcción) y no se consulta, porque nadie está en una habitación `NO_HABITABLE`.
 - Prueba de carga fuera del repo, sobre el escenario base con 60 de las 78 habitaciones ocupadas marcadas `NO_HABITABLE`: 2.790 comparaciones del AVL contra 6.240 lineales; 39 eliminaciones; ninguna habitación con sobrecupo. Con restricciones mezcladas: 3.451 contra 6.240, 51 propuestas y 9 `SIN_CAPACIDAD`. En las dos corridas la habitación elegida coincide, huésped por huésped, con una búsqueda lineal que descuenta capacidad.
+
+**Paso 7, rojo-negro temporal (hecho).**
+
+- `src/temporal.py`: cada resultado se inserta en un `IndiceRojoNegro` con clave `(hora, zona_id)` apenas se calcula. Las franjas se consultan con `rango((inicio, ""), (fin, ""))`, que es un intervalo semiabierto `[inicio, fin)`.
+- Franjas fijas: día completo, 00–06, 06–12, 12–18, 18–22 y 22–24. Para cada una, la API (`temporal`) devuelve las salidas que faltaban (`R18`): energía en Wh y kWh, energía por actividad y por torre, hora y potencia pico del generador, déficit residual (lux·h bajo el mínimo), energía no asignada (Wh que habrían cerrado ese déficit), zonas críticas (top 10 por horas en déficit), horas con déficit por zona, instantes con déficit y estado predominante de cada zona.
+- Interfaz: selector "Franja horaria" en el plano. Con una franja elegida, cada zona se colorea con su estado en esa franja y aparece el reporte debajo del plano. En resultados hay una tabla "Estructuras de datos y comparaciones" con el grafo, el AVL de reasignación y la comparación de rotaciones.
+- Solo en la simulación principal (`/api/balancear`) los mismos resultados se insertan también en un AVL para comparar rotaciones.
+
+| Medida | Escenario base (6.096 resultados) | `deficit_leve` (480) |
+|---|---|---|
+| Rotaciones rojo-negro / AVL | **9.099 / 7.232** | 465 / 564 |
+| Altura rojo-negro / AVL | 22 / 14 | 15 / 10 |
+| Nodos visitados en la franja 18–22 contra recorrer la lista | 1.029 contra 6.096 | 89 contra 480 |
+
+**Hallazgo: en el escenario base el rojo-negro rota más que el AVL.** La sección 2.4 justificaba el rojo-negro porque rota menos al insertar. Con claves aleatorias eso se cumple (prueba aparte con 6.096 claves: 3.511 contra 4.176). Pero aquí los resultados llegan casi en orden: hora ascendente y, dentro de cada hora, tramos largos de IDs ascendentes. Con esa entrada, el rojo-negro hace 9.099 rotaciones contra 7.232 del AVL. Se verificó que el árbol cumple las propiedades de rojo-negro, así que no es un error de implementación. El índice funciona y cumple su papel en las consultas, pero el argumento de las rotaciones no se sostiene con estos datos. Queda pendiente como `D12`.

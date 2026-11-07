@@ -134,7 +134,7 @@ def _generador_resultado(hotel, resultados, resumen, balanceado: bool = True):
 def ejecutar_balance(data: dict, balancear_energia: bool = True, incluir_resultados: bool = True) -> dict:
     hotel = cargar_hotel_data(data)
     simulador = SimuladorUnificado(hotel)
-    resultados, resumen, reasignaciones = simulador.ejecutar(balancear_energia=balancear_energia)
+    resultados, resumen, reasignaciones = simulador.ejecutar(balancear_energia=balancear_energia, comparar_arboles=incluir_resultados)
     habitabilidad = simulador.habitabilidad
     serializados = []
     for resultado in resultados:
@@ -167,7 +167,8 @@ def ejecutar_balance(data: dict, balancear_energia: bool = True, incluir_resulta
         "generador": generador_resultado,
         "layout": _layout_hotel(hotel, resumen, {e["zona_id"]: e for e in habitabilidad["zonas"]}),
         "habitabilidad": habitabilidad,
-        "complejidad": {"grafo": simulador.grafo.estadisticas, "reasignacion": simulador.estadisticas_reasignacion},
+        "complejidad": {"grafo": simulador.grafo.estadisticas, "reasignacion": simulador.estadisticas_reasignacion, "temporal": simulador.temporal["indices"]},
+        "temporal": simulador.temporal["franjas"],
         "energia_arbol": agregar_energia_postorden(hotel),
         "resultados": serializados if incluir_resultados else [],
         "resumen_zonas": resumen,
