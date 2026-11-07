@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from collections import Counter
 
-from .arboles import IndiceAVL, IndiceRojoNegro
 from .modelo import EstadoIluminacion, Hotel, ResultadoIluminacion
 
 CAUSA_RECOMENDACION = {
@@ -113,15 +112,6 @@ def evaluar_hotel(hotel: Hotel) -> dict:
         peso = hotel.perfiles_iluminacion[zona.actividad].prioridad * (1.0 + 0.10 * (zona.piso - 1))
         evaluaciones.append(evaluar_zona(zona.id, zona.resultados, limites, peso))
 
-    indice_avl = IndiceAVL()
-    indice_rn = IndiceRojoNegro()
-    for evaluacion in evaluaciones:
-        if evaluacion["puntaje"] is None:
-            continue
-        clave = (evaluacion["puntaje"], evaluacion["zona_id"])
-        indice_avl.insertar(clave, evaluacion["zona_id"])
-        indice_rn.insertar(clave, evaluacion["zona_id"])
-
     return {
         "zonas": evaluaciones,
         "conteo": dict(Counter(e["veredicto"] for e in evaluaciones)),
@@ -131,9 +121,5 @@ def evaluar_hotel(hotel: Hotel) -> dict:
             "noche": _promedio_ponderado(evaluaciones, "puntaje_noche"),
         },
         "umbrales": limites,
-        "casi_habitables": indice_avl.rango((limites["umbral_casi"], ""), (limites["umbral_habitable"], "\U0010ffff")),
-        "indices": {
-            "avl": {"altura": indice_avl.altura(), "rotaciones": indice_avl.rotaciones, "tamano": indice_avl.tamano},
-            "rojo_negro": {"altura": indice_rn.altura(), "rotaciones": indice_rn.rotaciones, "tamano": indice_rn.tamano},
-        },
+        "casi_habitables": [e["zona_id"] for e in evaluaciones if e["veredicto"] == "CASI_HABITABLE"],
     }

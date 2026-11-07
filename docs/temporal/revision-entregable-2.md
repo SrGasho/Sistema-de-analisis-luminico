@@ -302,3 +302,5 @@ Resultados:
 | Nodos visitados en la franja 18–22 contra recorrer la lista | 1.029 contra 6.096 | 89 contra 480 |
 
 **Hallazgo: en el escenario base el rojo-negro rota más que el AVL.** La sección 2.4 justificaba el rojo-negro porque rota menos al insertar. Con claves aleatorias eso se cumple (prueba aparte con 6.096 claves: 3.511 contra 4.176). Pero aquí los resultados llegan casi en orden: hora ascendente y, dentro de cada hora, tramos largos de IDs ascendentes. Con esa entrada, el rojo-negro hace 9.099 rotaciones contra 7.232 del AVL. Se verificó que el árbol cumple las propiedades de rojo-negro, así que no es un error de implementación. El índice funciona y cumple su papel en las consultas, pero el argumento de las rotaciones no se sostiene con estos datos. Queda pendiente como `D12`.
+
+**Paso 8, índice duplicado (hecho).** `evaluar_hotel` ya no construye el AVL ni el rojo-negro de puntajes. `casi_habitables` sale directo de los veredictos, así que una zona con puntaje exacto 0,90 queda como habitable, igual que en la regla. Se quitó `habitabilidad.indices`, que ninguna parte de la interfaz leía. Veredictos y resultados no cambian.
