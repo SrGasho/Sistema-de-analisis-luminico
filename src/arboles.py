@@ -19,6 +19,8 @@ class IndiceAVL:
         self.raiz: Optional[NodoAVL] = None
         self.rotaciones = 0
         self.tamano = 0
+        self.comparaciones = 0
+        self.eliminaciones = 0
 
     def insertar(self, clave: Hashable, valor: Any) -> None:
         self.raiz = self._insertar(self.raiz, clave, valor)
@@ -26,6 +28,70 @@ class IndiceAVL:
 
     def altura(self) -> int:
         return _altura_avl(self.raiz)
+
+    def sucesor(self, clave: Hashable) -> Optional[tuple[Hashable, Any]]:
+        mejor = None
+        nodo = self.raiz
+        while nodo is not None:
+            self.comparaciones += 1
+            if nodo.clave < clave:
+                nodo = nodo.der
+            else:
+                mejor = nodo
+                nodo = nodo.izq
+        return (mejor.clave, mejor.valor) if mejor else None
+
+    def siguiente(self, clave: Hashable) -> Optional[tuple[Hashable, Any]]:
+        mejor = None
+        nodo = self.raiz
+        while nodo is not None:
+            self.comparaciones += 1
+            if nodo.clave <= clave:
+                nodo = nodo.der
+            else:
+                mejor = nodo
+                nodo = nodo.izq
+        return (mejor.clave, mejor.valor) if mejor else None
+
+    def eliminar(self, clave: Hashable) -> bool:
+        tamano = self.tamano
+        self.raiz = self._eliminar(self.raiz, clave)
+        if self.tamano < tamano:
+            self.eliminaciones += 1
+            return True
+        return False
+
+    def _eliminar(self, nodo: Optional[NodoAVL], clave: Hashable) -> Optional[NodoAVL]:
+        if nodo is None:
+            return None
+        self.comparaciones += 1
+        if clave < nodo.clave:
+            nodo.izq = self._eliminar(nodo.izq, clave)
+        elif nodo.clave < clave:
+            nodo.der = self._eliminar(nodo.der, clave)
+        else:
+            if nodo.izq is None or nodo.der is None:
+                self.tamano -= 1
+                return nodo.izq or nodo.der
+            minimo = nodo.der
+            while minimo.izq is not None:
+                minimo = minimo.izq
+            nodo.clave, nodo.valor = minimo.clave, minimo.valor
+            nodo.der = self._eliminar(nodo.der, minimo.clave)
+        return self._rebalancear(nodo)
+
+    def _rebalancear(self, nodo: NodoAVL) -> NodoAVL:
+        _actualizar_avl(nodo)
+        balance = _altura_avl(nodo.izq) - _altura_avl(nodo.der)
+        if balance > 1:
+            if _altura_avl(nodo.izq.izq) < _altura_avl(nodo.izq.der):
+                nodo.izq = self._rotar_izq(nodo.izq)
+            return self._rotar_der(nodo)
+        if balance < -1:
+            if _altura_avl(nodo.der.der) < _altura_avl(nodo.der.izq):
+                nodo.der = self._rotar_der(nodo.der)
+            return self._rotar_izq(nodo)
+        return nodo
 
     def rango(self, minimo: Hashable, maximo: Hashable) -> list[Any]:
         salida: list[Any] = []
@@ -46,6 +112,7 @@ class IndiceAVL:
     def _insertar(self, nodo: Optional[NodoAVL], clave: Hashable, valor: Any) -> NodoAVL:
         if nodo is None:
             return NodoAVL(clave, valor)
+        self.comparaciones += 1
         if clave < nodo.clave:
             nodo.izq = self._insertar(nodo.izq, clave, valor)
         else:

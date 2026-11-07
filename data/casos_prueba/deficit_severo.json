@@ -221,7 +221,11 @@
   "huespedes": {
     "total": 2,
     "actividad": "HABITACION",
-    "prioridad": 1.0
+    "prioridad": 1.0,
+    "restricciones_por_huesped": {
+      "H-001": ["MISMA_TORRE", "PISO_MAXIMO:1"],
+      "H-002": ["ORIENTACION:ESTE"]
+    }
   },
   "asignaciones": []
 }

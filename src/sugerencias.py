@@ -50,7 +50,7 @@ def generar_sugerencias_habitabilidad(
         sugerencias.append(_sugerencia(
             "REASIGNACION_OPERATIVA", "capacidad", "CRITICA",
             f"Sin habitación alternativa para {len(sin_alternativa)} huéspedes",
-            f"{len(sin_alternativa)} habitaciones ocupadas no son habitables y no hay habitaciones libres habitables en su torre.",
+            f"{len(sin_alternativa)} habitaciones ocupadas no son habitables y no hay habitaciones habitables con cama libre que cumplan sus restricciones.",
             "Revisar la capacidad del generador o la asignación de zonas comunes en horario nocturno.",
             [f"Huésped {p['huesped_id']} en {p['habitacion_actual']}" for p in sin_alternativa[:6]],
         ))

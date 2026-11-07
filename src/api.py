@@ -167,7 +167,7 @@ def ejecutar_balance(data: dict, balancear_energia: bool = True, incluir_resulta
         "generador": generador_resultado,
         "layout": _layout_hotel(hotel, resumen, {e["zona_id"]: e for e in habitabilidad["zonas"]}),
         "habitabilidad": habitabilidad,
-        "complejidad": {"grafo": simulador.grafo.estadisticas},
+        "complejidad": {"grafo": simulador.grafo.estadisticas, "reasignacion": simulador.estadisticas_reasignacion},
         "energia_arbol": agregar_energia_postorden(hotel),
         "resultados": serializados if incluir_resultados else [],
         "resumen_zonas": resumen,

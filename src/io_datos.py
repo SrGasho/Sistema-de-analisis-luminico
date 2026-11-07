@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 
 from .geometria import CajaEspacial, Vector3
+from .reasignacion import leer_restricciones
 from .modelo import (
     Actividad,
     Asignacion,
@@ -140,23 +141,26 @@ def cargar_hotel_data(data: dict) -> Hotel:
     guest_config = data["huespedes"]
     if isinstance(guest_config, dict):
         total_huespedes = guest_config["total"]
+        por_huesped = guest_config.get("restricciones_por_huesped", {})
         guest_data_list = [
             {
                 "id": f"H-{index:03d}",
                 "actividad": guest_config["actividad"],
                 "prioridad": guest_config.get("prioridad", 1.0),
-                "restricciones": guest_config.get("restricciones", []),
+                "restricciones": por_huesped.get(f"H-{index:03d}", guest_config.get("restricciones", [])),
             }
             for index in range(1, total_huespedes + 1)
         ]
     else:
         guest_data_list = guest_config
     for guest_data in guest_data_list:
+        restricciones = list(guest_data.get("restricciones", []))
+        leer_restricciones(restricciones)
         guest = Huesped(
             id=guest_data["id"],
             actividad=Actividad(guest_data["actividad"]),
             prioridad=guest_data.get("prioridad", 1.0),
-            restricciones=guest_data.get("restricciones", []),
+            restricciones=restricciones,
         )
         hotel.huespedes[guest.id] = guest
 

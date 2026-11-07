@@ -18,6 +18,7 @@ class SimuladorUnificado:
         self.hotel.generador.demanda_objetivo_maxima = 0.0
         self._lux_por_irradiancia = float(hotel.parametros.get("luz", {}).get("lux_por_irradiancia", 900.0))
         self.habitabilidad: dict = {}
+        self.estadisticas_reasignacion: dict = {}
         self.octree = self._crear_octree()
         self.grafo = GrafoInfluencia()
         self.grafo.construir(hotel, self.octree)
@@ -47,7 +48,10 @@ class SimuladorUnificado:
         resumen = resumen_zonas(resultados)
         self.habitabilidad = evaluar_hotel(self.hotel)
         veredictos = {e["zona_id"]: e for e in self.habitabilidad["zonas"]}
-        propuestas = proponer_reasignaciones(self.hotel, resumen, veredictos) if balancear_energia else []
+        propuestas: list[dict] = []
+        self.estadisticas_reasignacion = {}
+        if balancear_energia:
+            propuestas, self.estadisticas_reasignacion = proponer_reasignaciones(self.hotel, resumen, veredictos)
         return resultados, resumen, propuestas
 
     def _estado(self, zona, total: float, perfil, hora: float, balanceado: bool) -> EstadoIluminacion:

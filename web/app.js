@@ -187,6 +187,12 @@ function zoneLabel(zone, tower) {
   return zone.id.replace(`${tower.id}-`, "");
 }
 
+const MOTIVOS_REASIGNACION = {
+  SIN_HABITACIONES_HABITABLES_LIBRES: "No hay habitaciones habitables con cama libre en el hotel",
+  SIN_CAPACIDAD: "Las habitaciones habitables permitidas ya se asignaron a otros huéspedes",
+  RESTRICCIONES: "Sus restricciones excluyen todas las habitaciones habitables libres",
+};
+
 function towerLabel(tower) {
   return tower.nombre && tower.nombre !== tower.id ? `${tower.id} · ${tower.nombre}` : tower.id;
 }
@@ -1144,8 +1150,10 @@ function renderResult(result) {
       <strong>${escapeHtml(item.estado)}</strong><br>
       Huésped: <code>${escapeHtml(item.huesped_id)}</code><br>
       Habitación actual: <b>${escapeHtml(item.habitacion_actual)}</b><br>
-      Propuesta alternativa: <b>${escapeHtml(item.habitacion_propuesta || "No existe alternativa en esta torre")}</b>
-      ${item.score !== null ? `<br><small>Score de compatibilidad: ${item.score.toFixed(1)}</small>` : ""}
+      Propuesta alternativa: <b>${escapeHtml(item.habitacion_propuesta || MOTIVOS_REASIGNACION[item.motivo] || "No existe alternativa")}</b>
+      ${item.score !== null ? `<br><small>Score de compatibilidad: ${item.score.toFixed(3)}</small>` : ""}
+      ${item.restricciones && item.restricciones.length ? `<br><small>Restricciones: ${escapeHtml(item.restricciones.join(", "))}</small>` : ""}
+      ${item.descartadas && item.descartadas.length ? `<br><small>Descartadas (menor puntaje): ${item.descartadas.map((d) => `${escapeHtml(d.habitacion_id)} (${d.score.toFixed(3)})`).join(", ")}</small>` : ""}
     </div>
   `).join("") : `<p class="muted">No se requirieron reasignaciones de huéspedes en este escenario (todas las habitaciones ocupadas alcanzaron niveles conformes).</p>`;
   $("#recommendations").innerHTML = `<div class="output-block"><h3>Reasignaciones operativas de huéspedes</h3>${recommendations}</div>`;
