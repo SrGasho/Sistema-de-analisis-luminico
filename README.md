@@ -65,14 +65,14 @@ Después abre `http://127.0.0.1:8000`. El servidor acepta `--host` y `--port`. P
 python3 -m src.api --check
 ```
 
-El flujo de la interfaz es:
+La interfaz se organiza en seis pestañas. Un botón en el encabezado cambia entre modo oscuro y claro; el plano conserva su aspecto en los dos.
 
-1. **Cargar escenario.** Muestra la condición actual antes del balance, con el plano por torre y piso y los veredictos provisionales. Una leyenda bajo el plano explica las abreviaturas (`TP` = Torre Pequeña, `TG` = Torre Grande).
-2. **Editar entradas.** Los formularios generan el JSON internamente. Se pueden cambiar pisos, habitaciones, perfiles, horarios (incluido el cierre), vidrios, paredes y acabados por actividad. Cada zona del plano permite editar su pared, su vidrio y su orientación (una sola para habitaciones, varias para zonas comunes).
-3. **Balancear energía.** Ejecuta el balance y compara el estado antes y después. Muestra veredictos, sugerencias, reasignaciones (con restricciones, habitaciones descartadas y motivo) y la tabla "Estructuras de datos y comparaciones".
-4. **Franja horaria.** El selector del plano colorea cada zona con su estado en la franja elegida y muestra el reporte de esa franja.
-5. **Mejoras medidas.** Prueba cuatro cambios fijos sobre la configuración actual.
-6. **Buscar reestructuración.** Ver la sección siguiente.
+1. **Configurar.** Los formularios generan el JSON internamente. Se pueden cambiar pisos, habitaciones, perfiles, horarios (incluido el cierre), vidrios, paredes y acabados por actividad. Desde aquí se carga un JSON propio, se descarga la configuración, se carga el escenario y se balancea la energía.
+2. **Diagnóstico.** La condición antes del balance: veredictos provisionales y sugerencias.
+3. **Plano.** El plano por torre y piso, con los selectores de franja horaria, vista (antes o después del balance) y capa de color, y la leyenda de abreviaturas (`TP` = Torre Pequeña, `TG` = Torre Grande). Cada zona permite editar su pared, su vidrio y su orientación.
+4. **Balance.** Generador, comparación antes y después, veredictos, sugerencias y reasignaciones (con restricciones, habitaciones descartadas y motivo). Al balancear, la interfaz abre esta pestaña.
+5. **Mejoras.** Las cuatro mejoras medidas y la búsqueda de reestructuración.
+6. **Detalle técnico.** Estructuras de datos y comparaciones, estados calculados, resumen de zonas y rangos de confort.
 
 ### Pruebas
 
@@ -82,7 +82,27 @@ Desde la raíz del repositorio:
 python3 -m unittest
 ```
 
-`tests/test_casos_plan.py` cubre los 10 casos de prueba del plan del proyecto: ventana al sol sin obstáculo, ventana sombreada por la otra torre, transmisión con cada vidrio (incluye Snell y Fresnel), reflexión de primer orden, noche, generador que alcanza para mínimos pero no para objetivos, reasignación con y sin candidata, zona cerrada y cielo nublado contra despejado. Las 10 pruebas pasan en pocos segundos.
+Son 21 pruebas en dos archivos y tardan unos 11 segundos:
+
+- `tests/test_casos_plan.py` cubre los 10 casos de prueba del plan del proyecto: ventana al sol sin obstáculo, ventana sombreada por la otra torre, transmisión con cada vidrio (incluye Snell y Fresnel), reflexión de primer orden, noche, generador que alcanza para mínimos pero no para objetivos, reasignación con y sin candidata, zona cerrada y cielo nublado contra despejado.
+- `tests/test_casos_json.py` ejecuta el escenario base y cada caso de `data/casos_prueba/`. Comprueba que el resultado coincida con el bloque `caso.resultado_esperado` del JSON, que se cumplan las reglas comunes (de noche no hay luz natural, una zona cerrada no consume, un paso en emergencia cuenta como déficit, el generador no se pasa de su capacidad, ninguna habitación recibe más huéspedes que camas libres) y el comportamiento propio de cada caso.
+
+### Casos de prueba
+
+Todos parten del hotel completo de `datos_hotel.json` (dos torres y 78 huéspedes). Cada archivo tiene un bloque `caso` con la historia, lo que se espera ver y los números esperados, para poder leer el resultado.
+
+| Caso | Situación | Qué muestra |
+|---|---|---|
+| `temporada_lluvias` | Abril, cielo cubierto | Todo habitable; la energía sube porque hay menos luz natural. |
+| `generador_alta_demanda` | Generador de 17 kW | Todo habitable, pero el generador queda en `ALTA_DEMANDA`. |
+| `deficit_leve` | Generador de 10 kW | 30 zonas casi habitables por déficit nocturno; solo las recreaciones entran en `EMERGENCIA`; el parqueadero nunca queda en déficit. |
+| `deficit_severo` | Generador de 4 kW | 68 zonas no habitables; 22 huéspedes sin alternativa porque solo los parqueaderos quedan habitables. |
+| `apagon_generador` | Generador de 0 kW | Las 127 zonas no habitables y los 78 huéspedes sin alternativa. |
+| `exceso_leve` | Cielo despejado | 26 zonas casi habitables por exceso solar. |
+| `exceso_severo` | Cielo despejado y 24 habitaciones de TP con vidrio claro al norte | 18 habitaciones no habitables; los 18 huéspedes se mueven, y H-001 (`MISMA_TORRE`), H-002 (`PISO_MAXIMO:2`) y H-003 (`ORIENTACION:ESTE`) reciben habitaciones que cumplen su pedido. |
+| `reasignacion_restringida` | El mismo exceso, con un grupo que pidió quedarse en TP | 12 huéspedes llenan las 12 camas libres de TP; 2 reciben `SIN_CAPACIDAD`, 2 `RESTRICCIONES` y 2 se mueven a TG. |
+
+Al cargar un escenario, cada perfil de actividad debe cumplir `0 ≤ mínimo ≤ objetivo ≤ máximo`; si no, la carga falla con un mensaje de error.
 
 ## Reasignación de huéspedes
 
@@ -94,7 +114,7 @@ Un huésped se reasigna solo si su habitación queda `NO_HABITABLE`.
 - **Salida.** Cada propuesta trae `descartadas` (habitaciones revisadas, con motivo `MENOR_PUNTAJE`). Si no hay alternativa, `motivo` dice por qué: `SIN_HABITACIONES_HABITABLES_LIBRES`, `SIN_CAPACIDAD` o `RESTRICCIONES`.
 - **Costo.** `O(G · F · log H)` con `G` huéspedes a mover, `F` pisos y `H` habitaciones, contra `O(G · H)` de la búsqueda lineal.
 
-En el escenario base nadie queda en una habitación `NO_HABITABLE`. El AVL se construye igual con las 104 habitaciones (altura 8, 110 rotaciones) y no se consulta. `data/casos_prueba/deficit_severo.json` muestra el caso sin candidata.
+En el escenario base nadie queda en una habitación `NO_HABITABLE`. El AVL se construye igual con las 104 habitaciones (altura 8, 110 rotaciones) y no se consulta. `data/casos_prueba/exceso_severo.json` muestra huéspedes que sí se mueven y `reasignacion_restringida.json` los tres motivos de falta de alternativa.
 
 ## Índice temporal
 
@@ -175,7 +195,7 @@ Cualquier error al procesar una solicitud devuelve HTTP 400 con un campo `error`
 
 ```text
 data/datos_hotel.json       Escenario de referencia con torres TP y TG
-data/casos_prueba/          Casos para déficit, exceso y alta demanda
+data/casos_prueba/          Ocho casos sobre el hotel completo, cada uno con su historia y resultado esperado
 src/modelo.py               Entidades, enumeraciones y factor de luz del perfil climático
 src/geometria.py            Vectores, cajas, rayos, Snell y Fresnel
 src/octree.py               Índice espacial con consultas de rayo y de radio
@@ -195,6 +215,7 @@ src/sugerencias.py          Recomendaciones calculadas con datos del modelo
 src/api.py                  Servidor HTTP y endpoints JSON
 src/main.py                 Ejecución por línea de comandos y reportes
 tests/test_casos_plan.py    Los 10 casos de prueba del plan con unittest
+tests/test_casos_json.py    Ejecuta y verifica cada caso de data/casos_prueba/
 web/index.html              Estructura de la interfaz
 web/app.js                  Formularios, plano, franjas, resultados y búsquedas
 web/styles.css              Estilos

@@ -232,6 +232,13 @@ Pedido aparte de la revisión original, aprobado en el chat.
 
 Pasos, un commit cada uno: (a) validación de perfiles; (b) casos JSON y prueba P1; (c) pestañas; (d) paleta, fuentes y modo claro; (e) documentos.
 
+### 5.3 Avance de la ampliación
+
+- **(a) Validación (hecho).** `_validar` rechaza perfiles que no cumplan `0 ≤ mínimo ≤ objetivo ≤ máximo`. El `exceso_severo` anterior tenía máximo 100 y objetivo 200, y por eso su exceso era artificial.
+- **(b) Casos (hecho).** Ocho casos sobre el hotel completo: `temporada_lluvias`, `generador_alta_demanda`, `deficit_leve` (10 kW), `deficit_severo` (4 kW), `apagon_generador` (0 kW), `exceso_leve`, `exceso_severo` (exceso solar con 18 huéspedes reasignados) y `reasignacion_restringida` (motivos `SIN_CAPACIDAD` y `RESTRICCIONES`). Se borró `confortable_base`. `tests/test_casos_json.py` agrega 11 pruebas; en total son 21 y tardan unos 11 s.
+- **(c, d) Interfaz (hecho, en un solo commit).** Seis pestañas: Configurar, Diagnóstico, Plano, Balance, Mejoras y Detalle técnico. El plano quedó en su propia pestaña porque se usa antes y después del balance. Los bloques se movieron sin cambiar sus `id` ni su contenido. El plano conserva sus colores y fuentes (variables propias en `.floor-plan`) y se ve igual en modo claro; solo creció de 686 a 709 px de ancho. Paleta y fuentes aplicadas al resto. Se probó en un navegador sin errores en la consola. Los pasos (c) y (d) quedaron en un mismo commit porque tocan los mismos tres archivos.
+- **(e) Documentos (hecho).** README (pestañas, pruebas, tabla de casos), plan y arquitectura.
+
 ## 6. Cierre de la carpeta temporal
 
 Cuando digas "cierra la revisión", se hace esto, en un solo commit:

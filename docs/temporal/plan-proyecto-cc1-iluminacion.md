@@ -329,7 +329,7 @@ Las demandas de emergencia, mínima y objetivo se calculan después de descontar
 
 El peso sólo determina prioridad. No convierte una zona oscura en confortable.
 
-En el escenario base el generador de 22 kW alcanza: el pico es 15.933,7 W a las 18:00 y ninguna zona entra en `EMERGENCIA`. Con un generador de 1,8 kW (`deficit_leve.json`) el parqueadero deja de tener déficit nocturno por su prioridad de seguridad, y una recreación queda en `EMERGENCIA` de 18:00 a 22:00.
+En el escenario base el generador de 22 kW alcanza: el pico es 15.933,7 W a las 18:00 y ninguna zona entra en `EMERGENCIA`. Con un generador de 10 kW (`deficit_leve.json`) solo las recreaciones entran en `EMERGENCIA`, el parqueadero nunca queda en déficit por su prioridad de seguridad y las habitaciones ocupadas siguen habitables.
 
 ## 11. Métricas y complejidad
 
