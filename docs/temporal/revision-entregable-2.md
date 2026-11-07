@@ -242,3 +242,21 @@ La carpeta seguirá en el historial de git. Eso es esperado.
 | `generador_alta_demanda` | 10/0/0 sin cambio | 0,9818 → 0,9818 | 53.357,0 → 53.482,4 |
 
 El escenario base no cambia de veredictos. Snell baja un poco la luz directa con incidencia oblicua y el balance lo compensa con algo más de energía.
+
+**Paso 3, modos `CERRADA` y `EMERGENCIA` (hecho).**
+
+- `horarios` en los JSON tiene `cierre_inicio` y `cierre_fin` para cocina (23 → 5) y recreación (0 → 7). La franja activa manda sobre la de cierre, para que la reestructuración pueda abrir la cocina hasta las 24. La interfaz permite editar el cierre.
+- Los pasos `CERRADA` no reciben energía y quedan como `DATOS_INSUFICIENTES`, así que no cuentan en el puntaje. Es lo que la leyenda de la interfaz ya decía de ese estado.
+- `parametros_evaluacion.emergencia.nivel_lux = 10` (si falta, 10). El balance reserva primero ese nivel para todas las zonas abiertas, luego cubre mínimos en el orden parqueadero → habitaciones ocupadas → resto, y por último los objetivos. La zona que no alcanza su mínimo porque el generador se agotó queda en `EMERGENCIA` y se clasifica contra el mínimo de su modo de horario, por lo que cuenta como déficit.
+
+| Escenario | Habitables / casi / no (paso 2 → paso 3) | Puntaje | Energía Wh | Pasos `CERRADA` / `EMERGENCIA` |
+|---|---|---|---|---|
+| `datos_hotel` | 127/0/0 → 127/0/0 | 0,9839 → 0,9839 | 208.001,3 → 194.729,7 | 260 / 0 |
+| `confortable_base` | 127/0/0 → 127/0/0 | 0,9839 → 0,9839 | 208.001,3 → 194.729,7 | 260 / 0 |
+| `deficit_leve` | 8/2/0 → 7/3/0 | 0,9340 → 0,9277 | 43.184,2 → 41.791,3 | 52 / 8 |
+| `deficit_severo` | 0/0/10 → 0/0/10 | 0,2812 → 0,3145 | 0 → 0 | 52 / 328 |
+| `exceso_leve` | 8/2/0 → 8/2/0 | 0,9636 → 0,9636 | 51.725,6 → 49.076,5 | 52 / 0 |
+| `exceso_severo` | 6/0/4 → 6/0/4 | 0,5000 → 0,5000 | 51.725,6 → 49.076,5 | 52 / 0 |
+| `generador_alta_demanda` | 10/0/0 → 10/0/0 | 0,9818 → 0,9818 | 53.482,4 → 50.827,5 | 52 / 0 |
+
+La energía baja porque las zonas cerradas ya no consumen. En `deficit_leve` (generador de 1,8 kW) el parqueadero pasa a tener prioridad de seguridad: deja de tener déficit nocturno y la recreación de la torre B queda en `EMERGENCIA` de 18:00 a 22:00 (habitable → casi habitable). El escenario base nunca entra en `EMERGENCIA` porque su generador alcanza. En `deficit_severo` el generador es de 0 kW: el puntaje sube un poco porque los pasos cerrados ya no cuentan como déficit.

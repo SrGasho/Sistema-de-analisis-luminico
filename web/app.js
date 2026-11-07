@@ -268,9 +268,14 @@ function renderActivityForms() {
 function renderScheduleForms() {
   $("#schedule-forms").innerHTML = Object.entries(state.config.horarios).map(([name, schedule]) => `
     <div class="schedule-row">
-      <strong>${activityLabel(name)} ${infoIcon("Horas de inicio y fin del modo ACTIVO (fuera de horario pasa a modo REDUCIDO: 30% de luz).")}</strong>
+      <strong>${activityLabel(name)} ${infoIcon("Horas de inicio y fin del modo ACTIVO. Fuera de ese horario la zona pasa a REDUCIDO (30% de luz), salvo en la franja de cierre, donde queda CERRADA y no consume energía.")}</strong>
       ${input(`horarios.${name}.inicio_activa`, schedule.inicio_activa, "number", "1")}
       ${input(`horarios.${name}.fin_activa`, schedule.fin_activa, "number", "1")}
+      ${"cierre_inicio" in schedule ? `
+        <span class="muted">Cierre</span>
+        ${input(`horarios.${name}.cierre_inicio`, schedule.cierre_inicio, "number", "1")}
+        ${input(`horarios.${name}.cierre_fin`, schedule.cierre_fin, "number", "1")}
+      ` : ""}
     </div>
   `).join("");
 }

@@ -173,11 +173,15 @@
     },
     "COCINA": {
       "inicio_activa": 6,
-      "fin_activa": 22
+      "fin_activa": 22,
+      "cierre_inicio": 23,
+      "cierre_fin": 5
     },
     "RECREACION": {
       "inicio_activa": 8,
-      "fin_activa": 23
+      "fin_activa": 23,
+      "cierre_inicio": 0,
+      "cierre_fin": 7
     },
     "PARQUEADERO": {
       "inicio_activa": 0,

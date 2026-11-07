@@ -39,7 +39,7 @@ class SimuladorUnificado:
                 artificial = self._luz_artificial(zona.id, asignadas.get(zona.id, 0.0))
                 total = naturales.get(zona.id, 0.0) + reflejadas.get(zona.id, 0.0) + artificial
                 perfil = self.hotel.perfiles_iluminacion.get(zona.actividad)
-                estado = self._estado(zona, total, perfil, periodo(hora), balancear_energia)
+                estado = self._estado(zona, total, perfil, hora, balancear_energia)
                 resultado = ResultadoIluminacion(zona.id, hora, periodo(hora), zona.modo, naturales.get(zona.id, 0.0), reflejadas.get(zona.id, 0.0), artificial, total, asignadas.get(zona.id, 0.0), estado)
                 zona.resultados.append(resultado)
                 resultados.append(resultado)
@@ -50,12 +50,13 @@ class SimuladorUnificado:
         propuestas = proponer_reasignaciones(self.hotel, resumen, veredictos) if balancear_energia else []
         return resultados, resumen, propuestas
 
-    def _estado(self, zona, total: float, perfil, periodo_actual: str, balanceado: bool) -> EstadoIluminacion:
-        if perfil is None or not datos_zona_completos(zona):
+    def _estado(self, zona, total: float, perfil, hora: float, balanceado: bool) -> EstadoIluminacion:
+        if perfil is None or not datos_zona_completos(zona) or zona.modo == ModoOperacion.CERRADA:
             return EstadoIluminacion.DATOS_INSUFICIENTES
-        if not balanceado and periodo_actual == "NOCHE":
+        if not balanceado and periodo(hora) == "NOCHE":
             return EstadoIluminacion.DATOS_INSUFICIENTES
-        return clasificar(total, perfil, zona.modo)
+        modo = horario_modo(self.hotel, zona, hora) if zona.modo == ModoOperacion.EMERGENCIA else zona.modo
+        return clasificar(total, perfil, modo)
 
     def _crear_octree(self) -> Octree:
         cajas = [torre.caja for torre in self.hotel.torres]

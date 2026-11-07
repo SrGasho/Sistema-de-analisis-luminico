@@ -14,19 +14,44 @@ class Demanda:
     prioridad: float
     potencia_minima: float
     potencia_objetivo: float
+    potencia_emergencia: float
+
+
+def _en_intervalo(hora: float, inicio: float, fin: float) -> bool:
+    if inicio <= fin:
+        return inicio <= hora < fin
+    return hora >= inicio or hora < fin
 
 
 def horario_modo(hotel: Hotel, zona: ZonaHotel, hora: float) -> ModoOperacion:
-    horario = hotel.horarios.get(zona.actividad.value, {})
-    inicio = float(horario.get("inicio_activa", 0.0))
-    fin = float(horario.get("fin_activa", 24.0))
     if zona.actividad == Actividad.PARQUEADERO:
         return ModoOperacion.ACTIVA
-    return ModoOperacion.ACTIVA if inicio <= hora < fin else ModoOperacion.REDUCIDA
+    horario = hotel.horarios.get(zona.actividad.value, {})
+    if _en_intervalo(hora, float(horario.get("inicio_activa", 0.0)), float(horario.get("fin_activa", 24.0))):
+        return ModoOperacion.ACTIVA
+    if "cierre_inicio" in horario and "cierre_fin" in horario:
+        if _en_intervalo(hora, float(horario["cierre_inicio"]), float(horario["cierre_fin"])):
+            return ModoOperacion.CERRADA
+    return ModoOperacion.REDUCIDA
+
+
+def _categoria(hotel: Hotel, zona: ZonaHotel) -> int:
+    if zona.actividad == Actividad.PARQUEADERO:
+        return 0
+    if zona.id in hotel.habitaciones and hotel.habitaciones[zona.id].ocupacion > 0:
+        return 1
+    return 2
+
+
+def _en_orden(cola: list) -> list[Demanda]:
+    cola = list(cola)
+    heapq.heapify(cola)
+    return [heapq.heappop(cola)[-1] for _ in range(len(cola))]
 
 
 def balancear(hotel: Hotel, hora: float, natural: dict[str, float], reflejada: dict[str, float]) -> dict[str, float]:
     hotel.generador.iniciar_instante()
+    nivel_emergencia = float(hotel.parametros.get("emergencia", {}).get("nivel_lux", 10.0))
     demandas: list[Demanda] = []
     for zona in hotel.zonas.values():
         zona.modo = horario_modo(hotel, zona, hora)
@@ -37,34 +62,36 @@ def balancear(hotel: Hotel, hora: float, natural: dict[str, float], reflejada: d
         base = natural.get(zona.id, 0.0) + reflejada.get(zona.id, 0.0)
         potencia_minima = _demanda(minimo, base, conversion)
         potencia_objetivo = _demanda(objetivo, base, conversion)
+        potencia_emergencia = _demanda(min(nivel_emergencia, minimo), base, conversion)
         peso_piso = 1.0 + 0.10 * (zona.piso - 1)
         ocupacion = 1.4 if zona.id in hotel.habitaciones and hotel.habitaciones[zona.id].ocupacion > 0 else 1.0
         prioridad = perfil.prioridad * peso_piso * ocupacion
-        demandas.append(Demanda(zona, minimo, objetivo, prioridad, potencia_minima, potencia_objetivo))
+        demandas.append(Demanda(zona, minimo, objetivo, prioridad, potencia_minima, potencia_objetivo, potencia_emergencia))
 
     demanda_objetivo_total = sum(d.potencia_objetivo for d in demandas if d.zona.modo != ModoOperacion.CERRADA)
     hotel.generador.demanda_objetivo_maxima = max(hotel.generador.demanda_objetivo_maxima, demanda_objetivo_total)
 
     asignadas: dict[str, float] = {demanda.zona.id: 0.0 for demanda in demandas}
+    abiertas = [(_categoria(hotel, d.zona), -d.prioridad, i, d) for i, d in enumerate(demandas) if d.zona.modo != ModoOperacion.CERRADA]
+    orden = _en_orden(abiertas)
 
-    cola_minimos = []
-    for indice, demanda in enumerate(demandas):
-        ocupada = demanda.zona.id in hotel.habitaciones and hotel.habitaciones[demanda.zona.id].ocupacion > 0
-        cola_minimos.append((0 if ocupada else 1, -demanda.prioridad, indice, demanda))
-    heapq.heapify(cola_minimos)
-    while cola_minimos:
-        *_, demanda = heapq.heappop(cola_minimos)
-        if demanda.zona.modo == ModoOperacion.CERRADA:
-            continue
-        potencia = min(demanda.potencia_minima, _potencia_maxima(hotel, demanda.zona))
+    for demanda in orden:
+        potencia = min(demanda.potencia_emergencia, _potencia_maxima(hotel, demanda.zona))
         asignadas[demanda.zona.id] = _asignar(hotel, potencia, asignadas)
+
+    for demanda in orden:
+        alcanzable = min(demanda.potencia_minima, _potencia_maxima(hotel, demanda.zona))
+        restante = max(0.0, alcanzable - asignadas[demanda.zona.id])
+        asignadas[demanda.zona.id] += _asignar(hotel, restante, asignadas)
+        if asignadas[demanda.zona.id] < alcanzable - 1e-6:
+            demanda.zona.modo = ModoOperacion.EMERGENCIA
 
     cola_objetivos = [(-d.prioridad, indice, d) for indice, d in enumerate(demandas)]
     heapq.heapify(cola_objetivos)
     while cola_objetivos:
         *_, demanda = heapq.heappop(cola_objetivos)
         restante = max(0.0, demanda.potencia_objetivo - asignadas[demanda.zona.id])
-        if restante == 0 or demanda.zona.modo == ModoOperacion.CERRADA:
+        if restante == 0 or demanda.zona.modo in (ModoOperacion.CERRADA, ModoOperacion.EMERGENCIA):
             continue
         potencia = min(restante, _potencia_maxima(hotel, demanda.zona) - asignadas[demanda.zona.id])
         asignadas[demanda.zona.id] += _asignar(hotel, potencia, asignadas)
