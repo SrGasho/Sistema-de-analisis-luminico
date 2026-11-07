@@ -187,6 +187,10 @@ function zoneLabel(zone, tower) {
   return zone.id.replace(`${tower.id}-`, "");
 }
 
+function towerLabel(tower) {
+  return tower.nombre && tower.nombre !== tower.id ? `${tower.id} · ${tower.nombre}` : tower.id;
+}
+
 function input(path, value, type = "number", step = "0.1") {
   return `<input data-path="${path}" type="${type}" value="${escapeHtml(value)}" ${type === "number" ? `step="${step}"` : ""}>`;
 }
@@ -215,7 +219,7 @@ function renderScenario(payload) {
 function renderTowerForms() {
   $("#tower-forms").innerHTML = state.config.torres.map((tower, index) => `
     <div class="tower-form">
-      <strong>${escapeHtml(tower.id)}</strong>
+      <strong>${escapeHtml(towerLabel(tower))}</strong>
       <div class="mini-grid">
         <label>
           <span>Pisos ${infoIcon("Número de pisos de la torre (3m por nivel). La prioridad de iluminación aumenta con la altura: 1 + 0.10·(piso - 1).")}</span>
@@ -481,7 +485,8 @@ function renderGenerator(generator) {
 }
 
 function renderFloorSelectors(layout) {
-  $("#floor-tower").innerHTML = layout.torres.map((tower) => `<option value="${tower.id}">${tower.id}</option>`).join("");
+  $("#floor-tower").innerHTML = layout.torres.map((tower) => `<option value="${escapeHtml(tower.id)}">${escapeHtml(towerLabel(tower))}</option>`).join("");
+  $("#tower-legend").textContent = "Abreviaturas: " + layout.torres.map((tower) => `${tower.id} = ${tower.nombre || tower.id}`).join(", ") + ". Los IDs de zona usan la abreviatura (por ejemplo, " + layout.torres[0].id + "-H-101).";
   updateFloorOptions();
   $("#floor-tower").onchange = updateFloorOptions;
   $("#floor-number").onchange = renderFloorPlan;
@@ -559,9 +564,8 @@ function renderFloorPlan() {
   const floor = tower.pisos.find((item) => item.numero === Number($("#floor-number").value)) || tower.pisos[0];
   const colorMode = $("#plan-color-mode") ? $("#plan-color-mode").value : "synergy";
 
-  const isTorrePequena = tower.id.toLowerCase().includes("pequena");
-  const dimX = isTorrePequena ? "32.00 m" : "44.00 m";
-  const dimY = isTorrePequena ? "31.35 m" : "43.00 m";
+  const dimX = `${(tower.caja.max_x - tower.caja.min_x).toFixed(2)} m`;
+  const dimY = `${(tower.caja.max_y - tower.caja.min_y).toFixed(2)} m`;
 
   const rooms = floor.zonas.filter((zone) => zone.actividad === "HABITACION");
   const kitchens = floor.zonas.filter((zone) => zone.actividad === "COCINA");

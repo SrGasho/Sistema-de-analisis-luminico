@@ -36,6 +36,7 @@ def resumen_inicial(data: dict) -> dict:
         "torres": [
             {
                 "id": torre["id"],
+                "nombre": torre.get("nombre", torre["id"]),
                 "pisos": torre["pisos"],
                 "habitaciones": torre["pisos"] * torre["habitaciones_por_piso"],
                 "habitaciones_ocupadas": torre.get("habitaciones_ocupadas", 0),
@@ -93,6 +94,7 @@ def _layout_hotel(hotel, resumen, veredictos=None):
             pisos.append({"numero": piso.numero, "zonas": zonas})
         torres.append({
             "id": torre.id,
+            "nombre": torre.nombre,
             "caja": {
                 "min_x": torre.caja.min_x,
                 "max_x": torre.caja.max_x,

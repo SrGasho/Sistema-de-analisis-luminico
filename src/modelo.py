@@ -159,6 +159,7 @@ class Torre:
     area_referencia: float
     caja: CajaEspacial
     pisos: list[Piso] = field(default_factory=list)
+    nombre: str = ""
 
 
 @dataclass

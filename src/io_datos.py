@@ -87,6 +87,7 @@ def cargar_hotel_data(data: dict) -> Hotel:
             id=tower_data["id"],
             area_referencia=tower_data["area_referencia"],
             caja=_box(tower_data["caja"]),
+            nombre=tower_data.get("nombre", tower_data["id"]),
         )
         room_index = 0
         for piso_numero in range(1, tower_data["pisos"] + 1):

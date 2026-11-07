@@ -5,7 +5,8 @@
   },
   "torres": [
     {
-      "id": "TorrePequena",
+      "id": "TP",
+      "nombre": "Torre Pequeña",
       "area_referencia": 4013,
       "pisos": 4,
       "habitaciones_por_piso": 8,
@@ -46,7 +47,8 @@
       ]
     },
     {
-      "id": "TorreGrande",
+      "id": "TG",
+      "nombre": "Torre Grande",
       "area_referencia": 11346,
       "pisos": 6,
       "habitaciones_por_piso": 12,
