@@ -90,7 +90,11 @@ class CasosDelPlan(unittest.TestCase):
     def test_04_reflexion_de_primer_orden_sin_cascada(self):
         perfil = self.sim.hotel.perfiles_climaticos[self.sim.hotel.perfil_climatico_activo]
         base = luz_base(12.0, perfil, self.sim._lux_por_irradiancia)
-        luz = {s.id: base * s.reflectancia for z in self.sim.hotel.zonas.values() for s in z.superficies}
+        luz = {s.id: base for z in self.sim.hotel.zonas.values() for s in z.superficies}
+        for aristas in self.sim.grafo.adyacencias.values():
+            for arista in aristas:
+                superficie = next(s for z in self.sim.hotel.zonas.values() for s in z.superficies if s.id == arista.origen)
+                self.assertLessEqual(arista.peso, superficie.reflectancia)
         reflejadas = self.sim._calcular_reflejadas(12.0)
         con_aristas = 0
         for zona in self.sim.hotel.zonas.values():

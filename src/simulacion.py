@@ -122,7 +122,7 @@ class SimuladorUnificado:
     def _calcular_reflejadas(self, hora: float) -> dict[str, float]:
         perfil = self.hotel.perfiles_climaticos[self.hotel.perfil_climatico_activo]
         base = luz_base(hora, perfil, self._lux_por_irradiancia)
-        superficies = {superficie.id: base * superficie.reflectancia for zona in self.hotel.zonas.values() for superficie in zona.superficies}
+        superficies = {superficie.id: base for zona in self.hotel.zonas.values() for superficie in zona.superficies}
         ventanas_por_zona = {zona.id: zona.ventanas for zona in self.hotel.zonas.values()}
         reflejadas = {}
         for zona_id, ventanas in ventanas_por_zona.items():

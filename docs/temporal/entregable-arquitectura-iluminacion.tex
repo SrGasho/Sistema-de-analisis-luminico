@@ -350,7 +350,7 @@ En el código, \clase{BalanceEnergetico}, \clase{EvaluadorHabitabilidad} y \clas
  E_{reflejada}(j,t)=\sum_{i\rightarrow j}w_{ij}E_i(t).
  \label{eq:influencia}
 \end{equation}
-donde $E_i(t)=\rho_iE_{base}(t)$ es la luz de la superficie $i$, $V_{ij}$ vale 1 si ninguna torre tapa la línea entre $i$ y $j$ y 0 si la tapa, y solo se guardan aristas con $d_{ij}\leq18$ m y $w_{ij}>0,0001$. La luz reflejada de una zona es el promedio de la que llega a sus ventanas. La reflexión se ejecuta una sola vez; la luz reflejada no vuelve a propagarse.
+donde $E_i(t)=E_{base}(t)$ es la luz que recibe la superficie $i$ (la reflectancia $\rho_i$ entra una sola vez, en el peso), $V_{ij}$ vale 1 si ninguna torre tapa la línea entre $i$ y $j$ y 0 si la tapa, y solo se guardan aristas con $d_{ij}\leq18$ m y $w_{ij}>0,0001$. La luz reflejada de una zona es el promedio de la que llega a sus ventanas. La reflexión se ejecuta una sola vez; la luz reflejada no vuelve a propagarse.
 
 El grafo se construye con \codigo{Octree.consultar\_radio}: para cada superficie se piden solo las ventanas a 18 m o menos, en vez de compararla con todas. Las aristas se guardan en dos diccionarios, por origen y por destino; así, en cada instante, el cálculo de la luz reflejada de una ventana solo recorre las aristas que llegan a ella. En el escenario base hay 127 superficies y 154 ventanas: la versión ingenua evaluaría 19.558 pares y la versión con Octree evalúa 7.501. El grafo resultante tiene 161 aristas, y por instante se recorren 161 aristas en lugar de recorrer todas las aristas una vez por cada una de las 154 ventanas. Los resultados de iluminación son idénticos a los de la construcción ingenua; solo cambia el número de comparaciones.
 

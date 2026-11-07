@@ -238,7 +238,7 @@ El grafo crea relaciones como:
 SuperficiePared → Ventana
 ```
 
-Cada pared recibe `E_base × ρ`, con `ρ` su reflectancia. El peso de la arista es:
+Cada pared recibe `E_base`. La reflectancia `ρ` entra una sola vez, en el peso de la arista:
 
 ```text
 peso = ρ × cos(origen) × cos(destino) / (1 + d²)
