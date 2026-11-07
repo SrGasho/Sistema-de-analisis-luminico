@@ -38,10 +38,10 @@
     "PARQUEADERO": {"minimo": 50, "objetivo": 100, "maximo": 150, "prioridad": 1}
   },
   "perfiles_climaticos": {
-    "NUBES_PARCIALES": {"radiacion": 4.863, "nubosidad": 0.7089, "precipitacion": 2.51, "factor_luz": 0.85},
-    "NUBLADO": {"radiacion": 4.477, "nubosidad": 0.8582, "precipitacion": 6.68, "factor_luz": 0.60},
-    "LLUVIOSO": {"radiacion": 4.454, "nubosidad": 0.8487, "precipitacion": 6.97, "factor_luz": 0.50},
-    "CIELO_DESPEJADO": {"radiacion": 7.063, "nubosidad": 0.0, "precipitacion": 0.0, "factor_luz": 1.0}
+    "NUBES_PARCIALES": {"radiacion": 4.863, "nubosidad": 0.7089, "precipitacion": 2.51},
+    "NUBLADO": {"radiacion": 4.477, "nubosidad": 0.8582, "precipitacion": 6.68},
+    "LLUVIOSO": {"radiacion": 4.454, "nubosidad": 0.8487, "precipitacion": 6.97},
+    "CIELO_DESPEJADO": {"radiacion": 7.063, "nubosidad": 0.0, "precipitacion": 0.0}
   },
   "vidrios": {
     "VIDRIO_CLARO": {"transmitancia_visible": 0.82, "indice_refraccion": 1.5},

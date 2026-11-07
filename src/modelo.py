@@ -78,7 +78,13 @@ class PerfilClimatico:
     radiacion: float
     nubosidad: float
     precipitacion: float
-    factor_luz: float
+    radiacion_cielo_despejado: float
+
+    @property
+    def factor_luz(self) -> float:
+        if self.radiacion_cielo_despejado <= 0:
+            return 0.0
+        return min(1.0, self.radiacion / self.radiacion_cielo_despejado)
 
 
 @dataclass

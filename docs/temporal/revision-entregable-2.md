@@ -197,6 +197,22 @@ El orden importa: primero los datos y el modelo, porque cambian los resultados q
 
 Cada paso va en su propio commit. Al terminar cada paso actualizo este documento.
 
+### 5.1 Avance
+
+**Paso 1, radiación real (hecho).** `factor_luz` ya no está en los JSON: se calcula como `radiación / radiacion_cielo_despejado` (7,063 kWh/m²/día, en `parametros_evaluacion.luz`; si falta, se usa la mayor radiación de los perfiles). Factores resultantes: nubes parciales 0,689, nublado 0,634, lluvioso 0,631, despejado 1,000.
+
+| Escenario | Habitables / casi / no (antes → después) | Puntaje | Energía Wh |
+|---|---|---|---|
+| `datos_hotel` | 101/26/0 → 127/0/0 | 0,9346 → 0,9829 | 192.883,5 → 207.215,2 |
+| `confortable_base` | 101/26/0 → 127/0/0 | 0,9346 → 0,9829 | 192.883,5 → 207.215,2 |
+| `deficit_leve` | 6/2/2 → 8/2/0 | 0,8950 → 0,9367 | 42.192,2 → 43.160,1 |
+| `deficit_severo` | 0/0/10 → 0/0/10 | 0,2734 → 0,2812 | 0 → 0 |
+| `exceso_leve` | 8/2/0 → 8/2/0 | 0,9583 → 0,9583 | 51.105,5 → 51.105,5 |
+| `exceso_severo` | 6/0/4 → 6/0/4 | 0,5000 → 0,5000 | 51.105,5 → 51.105,5 |
+| `generador_alta_demanda` | 8/2/0 → 10/0/0 | 0,9401 → 0,9818 | 51.363,6 → 53.357,0 |
+
+Los dos casos de exceso usan cielo despejado (factor 1,0 antes y después), por eso no cambian. La luz natural baja (0,85 → 0,69 en el perfil base), pero las zonas que antes quedaban en exceso de día ahora quedan confortables y el balance compensa con más energía artificial.
+
 ## 6. Cierre de la carpeta temporal
 
 Cuando digas "cierra la revisión", se hace esto, en un solo commit:

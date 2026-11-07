@@ -74,8 +74,11 @@ def cargar_hotel_data(data: dict) -> Hotel:
         Actividad(nombre): PerfilIluminacion(Actividad(nombre), **valores)
         for nombre, valores in data["perfiles_iluminacion"].items()
     }
+    referencia = data.get("parametros_evaluacion", {}).get("luz", {}).get("radiacion_cielo_despejado")
+    if referencia is None:
+        referencia = max(valores["radiacion"] for valores in data["perfiles_climaticos"].values())
     climas = {
-        nombre: PerfilClimatico(nombre, **valores)
+        nombre: PerfilClimatico(nombre, valores["radiacion"], valores["nubosidad"], valores["precipitacion"], float(referencia))
         for nombre, valores in data["perfiles_climaticos"].items()
     }
     torres: list[Torre] = []

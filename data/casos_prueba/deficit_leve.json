@@ -117,26 +117,22 @@
     "NUBES_PARCIALES": {
       "radiacion": 4.863,
       "nubosidad": 0.7089,
-      "precipitacion": 2.51,
-      "factor_luz": 0.85
+      "precipitacion": 2.51
     },
     "NUBLADO": {
       "radiacion": 4.477,
       "nubosidad": 0.8582,
-      "precipitacion": 6.68,
-      "factor_luz": 0.6
+      "precipitacion": 6.68
     },
     "LLUVIOSO": {
       "radiacion": 4.454,
       "nubosidad": 0.8487,
-      "precipitacion": 6.97,
-      "factor_luz": 0.5
+      "precipitacion": 6.97
     },
     "CIELO_DESPEJADO": {
       "radiacion": 7.063,
       "nubosidad": 0.0,
-      "precipitacion": 0.0,
-      "factor_luz": 1.0
+      "precipitacion": 0.0
     }
   },
   "vidrios": {
