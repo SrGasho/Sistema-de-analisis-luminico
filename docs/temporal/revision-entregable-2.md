@@ -260,3 +260,13 @@ El escenario base no cambia de veredictos. Snell baja un poco la luz directa con
 | `generador_alta_demanda` | 10/0/0 → 10/0/0 | 0,9818 → 0,9818 | 53.482,4 → 50.827,5 | 52 / 0 |
 
 La energía baja porque las zonas cerradas ya no consumen. En `deficit_leve` (generador de 1,8 kW) el parqueadero pasa a tener prioridad de seguridad: deja de tener déficit nocturno y la recreación de la torre B queda en `EMERGENCIA` de 18:00 a 22:00 (habitable → casi habitable). El escenario base nunca entra en `EMERGENCIA` porque su generador alcanza. En `deficit_severo` el generador es de 0 kW: el puntaje sube un poco porque los pasos cerrados ya no cuentan como déficit.
+
+**Paso 4, grafo espacial (hecho).** `GrafoInfluencia.construir` pide a `Octree.consultar_radio` las ventanas a 18 m de cada superficie, en vez de recorrer todas. Las aristas también se indexan por destino, así que `reflejada_para` solo recorre las aristas que llegan a la ventana. La API devuelve `complejidad.grafo` con los conteos. Los resultados de los 7 escenarios son idénticos bit a bit a los del paso 3 (misma huella SHA-256 de resultados, reasignaciones y veredictos).
+
+| Medida (escenario base) | Antes | Después |
+|---|---|---|
+| Pares superficie–ventana evaluados al construir | 19.558 | 2.516 (6.047 nodos del octree visitados) |
+| Aristas recorridas por instante en `reflejada_para` | 154 × 183 = 28.182 | 183 |
+| Tiempo de `ejecutar()` (48 pasos) | 0,98 s | 0,50 s |
+
+**Hallazgo nuevo (R27), sin corregir.** Al probar el octree apareció que 75 habitaciones (20 de la torre pequeña y 55 de la grande) tienen su ventana y su pared fuera de la caja de su torre. Por ejemplo, `TorreGrande-H-172` está en `y = 172`, y la caja de la torre llega a `y = 43`. La causa está en `_room_center` de `io_datos.py`: reparte las habitaciones de toda la torre en filas como si fueran de un solo piso. El octree original usaba como raíz la caja de las torres y por eso no encontraba esas ventanas. Ahora la raíz cubre todos los objetos, lo que conserva los resultados actuales. Corregir la posición cambia la geometría de las habitaciones, que está fuera de alcance (sección 7), así que queda pendiente como `D11`.

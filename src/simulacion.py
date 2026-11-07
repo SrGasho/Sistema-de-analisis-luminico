@@ -59,28 +59,29 @@ class SimuladorUnificado:
         return clasificar(total, perfil, modo)
 
     def _crear_octree(self) -> Octree:
-        cajas = [torre.caja for torre in self.hotel.torres]
-        min_x = min(caja.min_x for caja in cajas) - 2
-        max_x = max(caja.max_x for caja in cajas) + 2
-        min_y = min(caja.min_y for caja in cajas) - 2
-        max_y = max(caja.max_y for caja in cajas) + 2
-        min_z = min(caja.min_z for caja in cajas) - 2
-        max_z = max(caja.max_z for caja in cajas) + 2
-        octree = Octree(CajaEspacial(min_x, max_x, min_y, max_y, min_z, max_z))
+        entradas = []
         for torre in self.hotel.torres:
-            octree.insertar(EntradaEspacial(torre.id, torre.caja, torre))
+            entradas.append(EntradaEspacial(torre.id, torre.caja, torre))
             for piso in torre.pisos:
                 for zona in piso.zonas:
                     for ventana in zona.ventanas:
                         point = ventana.posicion
                         box = CajaEspacial(point.x - 0.05, point.x + 0.05, point.y - 0.05, point.y + 0.05, point.z - 0.05, point.z + 0.05)
-                        octree.insertar(EntradaEspacial(ventana.id, box, ventana))
+                        entradas.append(EntradaEspacial(ventana.id, box, ventana))
                     for superficie in zona.superficies:
-                        octree.insertar(EntradaEspacial(superficie.id, superficie.caja, superficie))
+                        entradas.append(EntradaEspacial(superficie.id, superficie.caja, superficie))
         for fuente in self.hotel.fuentes.values():
             point = fuente.posicion
             box = CajaEspacial(point.x - 0.05, point.x + 0.05, point.y - 0.05, point.y + 0.05, point.z - 0.05, point.z + 0.05)
-            octree.insertar(EntradaEspacial(fuente.id, box, fuente))
+            entradas.append(EntradaEspacial(fuente.id, box, fuente))
+        cajas = [entrada.caja for entrada in entradas]
+        octree = Octree(CajaEspacial(
+            min(caja.min_x for caja in cajas) - 2, max(caja.max_x for caja in cajas) + 2,
+            min(caja.min_y for caja in cajas) - 2, max(caja.max_y for caja in cajas) + 2,
+            min(caja.min_z for caja in cajas) - 2, max(caja.max_z for caja in cajas) + 2,
+        ))
+        for entrada in entradas:
+            octree.insertar(entrada)
         return octree
 
     def _calcular_naturales(self, hora: float) -> dict[str, float]:

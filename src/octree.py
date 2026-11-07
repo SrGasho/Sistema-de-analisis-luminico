@@ -26,6 +26,7 @@ class Octree:
         self.raiz = NodoOctree(caja, 0)
         self.capacidad = capacidad
         self.profundidad_maxima = profundidad_maxima
+        self.nodos_visitados = 0
 
     def insertar(self, entrada: EntradaEspacial) -> None:
         self._insertar(self.raiz, entrada)
@@ -87,6 +88,7 @@ class Octree:
         return list(encontrados.values())
 
     def _consultar_radio(self, nodo: NodoOctree, centro: Vector3, radio: float, encontrados: dict[str, EntradaEspacial]) -> None:
+        self.nodos_visitados += 1
         if _distancia_caja(centro, nodo.caja) > radio:
             return
         for objeto in nodo.objetos:
