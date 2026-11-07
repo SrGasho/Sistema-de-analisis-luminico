@@ -1,28 +1,52 @@
 {
+  "caso": {
+    "nombre": "deficit_leve",
+    "historia": "Falla parcial: el generador solo entrega 10 kW. Hay energía para los mínimos de casi todo el hotel, pero no para los objetivos de la noche.",
+    "que_se_espera": [
+      "Aparecen zonas CASI_HABITABLE por déficit nocturno.",
+      "Las recreaciones, con la prioridad más baja entre las zonas con ventanas, son las únicas que entran en EMERGENCIA; una de ellas (TG-REC-06) queda NO_HABITABLE.",
+      "El parqueadero, que es seguridad, nunca queda en déficit.",
+      "Las habitaciones ocupadas siguen habitables, así que nadie se reasigna."
+    ],
+    "resultado_esperado": {
+      "conteo_veredictos": {
+        "CASI_HABITABLE": 30,
+        "HABITABLE": 96,
+        "NO_HABITABLE": 1
+      },
+      "puntaje_hotel": 0.9059,
+      "energia_wh": 165429.1,
+      "estado_generador": "CAPACIDAD_LIMITADA",
+      "pasos_emergencia": 16,
+      "pasos_cerrada": 260,
+      "reasignaciones": {}
+    }
+  },
   "hotel": {
-    "id": "HOTEL-PRUEBA-DEFICIT-LEVE",
+    "id": "HOTEL-BOGOTA-DEFICIT-LEVE",
     "perfil_climatico": "NUBES_PARCIALES"
   },
   "torres": [
     {
-      "id": "TorreA",
-      "area_referencia": 500,
-      "pisos": 1,
-      "habitaciones_por_piso": 2,
-      "habitaciones_ocupadas": 1,
+      "id": "TP",
+      "nombre": "Torre Pequeña",
+      "area_referencia": 4013,
+      "pisos": 4,
+      "habitaciones_por_piso": 8,
+      "habitaciones_ocupadas": 24,
       "caja": {
         "min_x": 0,
-        "max_x": 16,
+        "max_x": 32,
         "min_y": 0,
-        "max_y": 15,
+        "max_y": 31.35,
         "min_z": 0,
-        "max_z": 4
+        "max_z": 12
       },
       "zonas_comunes": [
         {
           "codigo": "COC",
           "actividad": "COCINA",
-          "cantidad": 1,
+          "cantidad": 4,
           "area": 35,
           "ventanas": 2,
           "area_ventana": 1.5
@@ -30,7 +54,7 @@
         {
           "codigo": "REC",
           "actividad": "RECREACION",
-          "cantidad": 1,
+          "cantidad": 4,
           "area": 80,
           "ventanas": 3,
           "area_ventana": 2.0
@@ -46,24 +70,25 @@
       ]
     },
     {
-      "id": "TorreB",
-      "area_referencia": 500,
-      "pisos": 1,
-      "habitaciones_por_piso": 2,
-      "habitaciones_ocupadas": 1,
+      "id": "TG",
+      "nombre": "Torre Grande",
+      "area_referencia": 11346,
+      "pisos": 6,
+      "habitaciones_por_piso": 12,
+      "habitaciones_ocupadas": 54,
       "caja": {
-        "min_x": 25,
-        "max_x": 41,
+        "min_x": 45,
+        "max_x": 89,
         "min_y": 0,
-        "max_y": 15,
+        "max_y": 43,
         "min_z": 0,
-        "max_z": 4
+        "max_z": 18
       },
       "zonas_comunes": [
         {
           "codigo": "COC",
           "actividad": "COCINA",
-          "cantidad": 1,
+          "cantidad": 6,
           "area": 35,
           "ventanas": 2,
           "area_ventana": 1.5
@@ -71,7 +96,7 @@
         {
           "codigo": "REC",
           "actividad": "RECREACION",
-          "cantidad": 1,
+          "cantidad": 6,
           "area": 80,
           "ventanas": 3,
           "area_ventana": 2.0
@@ -79,7 +104,7 @@
         {
           "codigo": "PAR",
           "actividad": "PARQUEADERO",
-          "cantidad": 1,
+          "cantidad": 2,
           "area": 450,
           "ventanas": 0,
           "area_ventana": 0
@@ -215,13 +240,132 @@
     }
   },
   "generador": {
-    "capacidad_kw": 1.8,
+    "capacidad_kw": 10.0,
     "reserva": 0.2
   },
+  "parametros_evaluacion": {
+    "luz": {
+      "lux_por_irradiancia": 900.0,
+      "radiacion_cielo_despejado": 7.063
+    },
+    "emergencia": {
+      "nivel_lux": 10.0
+    },
+    "puntaje": {
+      "q_confortable": 1.0,
+      "q_leve": 0.5,
+      "q_severo": 0.0
+    },
+    "habitabilidad": {
+      "umbral_habitable": 0.9,
+      "umbral_casi": 0.75,
+      "maximo_deficit_severo": 0.05
+    },
+    "reasignacion": {
+      "w_luz": 0.5,
+      "w_actividad": 0.2,
+      "w_energia": 0.2,
+      "w_cambio": 0.1
+    },
+    "reestructuracion": {
+      "presupuesto_evaluaciones": 30,
+      "rondas_maximas": 3,
+      "paredes": [
+        "BLANCO",
+        "CREMA",
+        "GRIS_CLARO"
+      ],
+      "vidrios": [
+        "VIDRIO_CLARO",
+        "VIDRIO_LOW_E",
+        "VIDRIO_CONTROL_SOLAR"
+      ],
+      "orientaciones": [
+        [
+          "ESTE",
+          "NORTE",
+          "OESTE",
+          "SUR"
+        ],
+        [
+          "ESTE",
+          "NORTE",
+          "OESTE"
+        ],
+        [
+          "NORTE",
+          "SUR"
+        ]
+      ],
+      "fracciones_objetivo": [
+        0.0,
+        0.5,
+        1.0
+      ],
+      "horarios": {
+        "COCINA": {
+          "inicio_activa": [
+            6,
+            8
+          ],
+          "fin_activa": [
+            22,
+            24
+          ]
+        },
+        "RECREACION": {
+          "inicio_activa": [
+            8,
+            10
+          ],
+          "fin_activa": [
+            22,
+            23
+          ]
+        }
+      }
+    }
+  },
   "huespedes": {
-    "total": 2,
+    "total": 78,
     "actividad": "HABITACION",
     "prioridad": 1.0
   },
-  "asignaciones": []
+  "asignaciones": [],
+  "acabados": {
+    "HABITACION": {
+      "pared": "BLANCO",
+      "vidrio": "VIDRIO_CLARO",
+      "orientaciones": [
+        "ESTE",
+        "NORTE",
+        "OESTE",
+        "SUR"
+      ]
+    },
+    "COCINA": {
+      "pared": "BLANCO",
+      "vidrio": "VIDRIO_LOW_E",
+      "orientaciones": [
+        "ESTE",
+        "NORTE",
+        "OESTE"
+      ]
+    },
+    "RECREACION": {
+      "pared": "BLANCO",
+      "vidrio": "VIDRIO_LOW_E",
+      "orientaciones": [
+        "ESTE",
+        "NORTE",
+        "OESTE"
+      ]
+    },
+    "PARQUEADERO": {
+      "pared": "BLANCO",
+      "vidrio": null,
+      "orientaciones": []
+    }
+  },
+  "zonas_personalizadas": {}
 }
