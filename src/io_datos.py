@@ -215,7 +215,8 @@ def _validar_ventanas(zona_id: str, acabado: dict, cantidad: int) -> None:
 def _zona_habitacion(zona_id: str, torre: Torre, piso: int, index: int, config: dict, data: dict) -> HabitacionHotel:
     acabado = _acabado(data, zona_id, "HABITACION")
     _validar_ventanas(zona_id, acabado, 1)
-    center = _room_center(torre.caja, piso, index, config["habitaciones_por_piso"])
+    por_piso = config["habitaciones_por_piso"]
+    center = _room_center(torre.caja, piso, (index - 1) % por_piso + 1, por_piso)
     orientaciones = acabado["orientaciones"]
     orientation = VECTORES_ORIENTACION[orientaciones[(index - 1) % len(orientaciones)]]
     ventana = Ventana(f"{zona_id}-V1", center + orientation * 0.5, orientation, 2.0, _vidrio(data, acabado["vidrio"]))

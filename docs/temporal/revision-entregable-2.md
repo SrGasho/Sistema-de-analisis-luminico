@@ -177,6 +177,8 @@ Se quita el índice duplicado de `habitabilidad.py`. La lista de casi habitables
 | D9 | **A** | Los 10 casos del Plan como pruebas con `unittest` (biblioteca estándar; el proyecto no tiene dependencias). |
 | D10 | **A** | Los documentos pasan a `docs/` y se actualizan al final. Para `R24` se escribe que la geometría de las torres es fija y que el sistema solo cambia variables de luz: actividades, acabados, vidrios, horarios y generador. El LaTeX mantiene el formato ICONTEC y el texto justificado. |
 | R22 | **a** | Restricciones por huésped en el JSON (`huespedes.restricciones_por_huesped`). Duras, filtran candidatos: `MISMA_TORRE` y `PISO_MAXIMO:n`. Preferencia, alimenta `w_actividad`: `ORIENTACION:N/E/S/O` (1 si la habitación coincide, 0 si no). Se agregan restricciones a algunos huéspedes de `deficit_severo.json` para que se usen. |
+| D11 | **A** | Corregir `_room_center` para que cada piso reparta solo sus habitaciones (`R27`). No cambian los IDs, la cantidad ni la orientación de las habitaciones. Va en su propio commit antes del paso 10 y se vuelven a medir los escenarios. |
+| D12 | **A** | Se mantiene el rojo-negro y los documentos reportan la medición tal cual: rota menos con claves desordenadas, pero no con el orden casi ascendente en que llegan los resultados. |
 | Commits | | Uno por paso, directo en `main`, autor y committer Juan David Quiroga Gomez, sin coautores. |
 
 ## 5. Plan (pendiente de confirmación)
@@ -306,3 +308,19 @@ Resultados:
 **Paso 8, índice duplicado (hecho).** `evaluar_hotel` ya no construye el AVL ni el rojo-negro de puntajes. `casi_habitables` sale directo de los veredictos, así que una zona con puntaje exacto 0,90 queda como habitable, igual que en la regla. Se quitó `habitabilidad.indices`, que ninguna parte de la interfaz leía. Veredictos y resultados no cambian.
 
 **Paso 9, pruebas (hecho).** `tests/test_casos_plan.py` cubre con `unittest` los 10 casos de la sección 12 del Plan. Se ejecutan con `python -m unittest` desde la raíz: 10 pruebas en unos 1,2 s, todas pasan. El caso 7 (con candidata) se arma con veredictos modificados sobre el escenario base, porque ningún JSON de prueba lo produce. Una sola habitación con una cama libre queda habitable: el primer huésped la recibe, la habitación sale del AVL y los demás reciben `SIN_CAPACIDAD`. El caso 8 usa `deficit_severo.json` y, aparte, una restricción `MISMA_TORRE` con la única candidata en la otra torre (`RESTRICCIONES`).
+
+**Corrección D11 (hecha, antes del paso 10).** `_room_center` recibe el índice de la habitación dentro de su piso, `(índice − 1) mod habitaciones_por_piso + 1`, en vez del índice dentro de la torre. Los IDs, la cantidad y la orientación de las habitaciones no cambian. Ahora ninguna ventana ni pared de habitación queda fuera de la caja de su torre (antes eran 75 habitaciones).
+
+| Medida (escenario base) | Antes de D11 | Después de D11 |
+|---|---|---|
+| Veredictos | 127/0/0 | 127/0/0 |
+| Puntaje | 0,9839 | 0,9839 |
+| Energía Wh | 194.729,7 | 194.482,4 |
+| Habitables con causa `EXCESO_SOLAR` | — | 27 (el resto sin causa) |
+| Pares evaluados en el grafo | 2.516 | 7.501 (las habitaciones ahora están juntas) |
+| Aristas del grafo | 183 | 161 |
+| Rotaciones AVL de la bolsa | 109 | 115 |
+
+Los casos de prueba de `casos_prueba/` (salvo `confortable_base`, que es igual al base) tienen un piso, así que no cambian. Las 10 pruebas siguen pasando.
+
+**Hallazgo nuevo (R28), sin corregir.** Las zonas comunes comparten posición entre sí: `TP-COC-01`, `TP-REC-01` y `TP-PAR-01` están en el mismo punto, y en la torre grande también se superponen con `TG-H-108`. Viene de `_zona_comun`, que ubica todas las zonas comunes desde el centro de la torre con el mismo desplazamiento por índice. No lo causó D11 (ya pasaba antes) y no se corrige sin decisión.
