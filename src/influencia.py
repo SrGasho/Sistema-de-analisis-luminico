@@ -33,6 +33,11 @@ class GrafoInfluencia:
             for zona in hotel.zonas.values()
             for superficie in zona.superficies
         ]
+        torre_de = {
+            elemento.id: zona.torre_id
+            for zona in hotel.zonas.values()
+            for elemento in (*zona.superficies, *zona.ventanas)
+        }
         pares_evaluados = 0
         octree.nodos_visitados = 0
         for superficie in superficies:
@@ -47,7 +52,8 @@ class GrafoInfluencia:
                 orientacion_destino = max(0.0, ventana.normal.normalized().dot(direccion * -1))
                 if orientacion_origen == 0 or orientacion_destino == 0:
                     continue
-                if not self._visible(superficie.posicion, ventana.posicion, octree, superficie.id, ventana.id):
+                misma_torre = torre_de[superficie.id] == torre_de[ventana.id]
+                if not self._visible(superficie.posicion, ventana.posicion, octree, {torre_de[superficie.id]} if misma_torre else set()):
                     continue
                 peso = superficie.reflectancia * orientacion_origen * orientacion_destino / (1 + distancia * distancia)
                 if peso > 0.0001:
@@ -61,12 +67,12 @@ class GrafoInfluencia:
             "aristas": sum(len(aristas) for aristas in self.adyacencias.values()),
         }
 
-    def _visible(self, origen: Vector3, destino: Vector3, octree: Octree, origen_id: str, destino_id: str) -> bool:
+    def _visible(self, origen: Vector3, destino: Vector3, octree: Octree, torres_excluidas: set[str]) -> bool:
         direccion = destino - origen
         distancia = direccion.length()
         rayo = Rayo(origen + direccion.normalized() * 0.01, direccion.normalized())
         for entrada in octree.consultar_rayo(rayo):
-            if entrada.id not in {origen_id, destino_id} and entrada.objeto.__class__.__name__ == "Torre":
+            if entrada.id not in torres_excluidas and entrada.objeto.__class__.__name__ == "Torre":
                 if entrada.caja.center.distance_to(origen) < distancia:
                     return False
         return True

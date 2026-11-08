@@ -3,20 +3,23 @@
     "nombre": "exceso_leve",
     "historia": "Febrero con cielo despejado (7,063 kWh/m²/día). El resto es el escenario base.",
     "que_se_espera": [
-      "Aparecen zonas CASI_HABITABLE por exceso solar de día.",
-      "Ninguna zona queda NO_HABITABLE, así que nadie se reasigna."
+      "Aparecen zonas CASI_HABITABLE y algunas NO_HABITABLE, todas por exceso solar de día.",
+      "Las habitaciones ocupadas que quedan NO_HABITABLE tienen alternativa: sus huéspedes se mueven a otra habitación habitable."
     ],
     "resultado_esperado": {
       "conteo_veredictos": {
-        "CASI_HABITABLE": 26,
-        "HABITABLE": 101
+        "CASI_HABITABLE": 22,
+        "HABITABLE": 101,
+        "NO_HABITABLE": 4
       },
-      "puntaje_hotel": 0.9223,
-      "energia_wh": 203018.2,
+      "puntaje_hotel": 0.9216,
+      "energia_wh": 201488.8,
       "estado_generador": "OPERACION_NORMAL",
       "pasos_emergencia": 0,
       "pasos_cerrada": 260,
-      "reasignaciones": {}
+      "reasignaciones": {
+        "PROPUESTA:PROPUESTA": 3
+      }
     }
   },
   "hotel": {

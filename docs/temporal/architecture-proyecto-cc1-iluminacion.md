@@ -317,10 +317,10 @@ Mediciones en el escenario base:
 | Medida | Valor |
 |---|---|
 | Pares superficie–ventana del grafo | 5.581 evaluados con el Octree contra 19.558 ingenuos (127 × 154) |
-| Aristas del grafo | 73 |
+| Aristas del grafo | 521 |
 | Resultados indexados | 6.096 (127 zonas × 48 pasos) |
 | Consulta de la franja 18–22 | 1.029 nodos visitados contra 6.096 de recorrer la lista |
-| Bolsa AVL de reasignación | 104 habitaciones, altura 8, 110 rotaciones; no se consulta porque ninguna habitación ocupada queda `NO_HABITABLE` |
+| Bolsa AVL de reasignación | 100 habitaciones, altura 8, 79 rotaciones; no se consulta porque ninguna habitación ocupada queda `NO_HABITABLE` |
 | Rotaciones rojo-negro / AVL con los mismos resultados | 9.099 / 7.232 |
 | Altura rojo-negro / AVL | 22 / 14 |
 

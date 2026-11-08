@@ -93,13 +93,13 @@ Todos parten del hotel completo de `datos_hotel.json` (dos torres y 78 huéspede
 
 | Caso | Situación | Qué muestra |
 |---|---|---|
-| `temporada_lluvias` | Abril, cielo cubierto | Todo habitable; la energía sube porque hay menos luz natural. |
-| `generador_alta_demanda` | Generador de 17 kW | Todo habitable, pero el generador queda en `ALTA_DEMANDA`. |
-| `deficit_leve` | Generador de 10 kW | 30 zonas casi habitables por déficit nocturno; solo las recreaciones entran en `EMERGENCIA`; el parqueadero nunca queda en déficit. |
+| `temporada_lluvias` | Abril, cielo cubierto | Las 127 zonas habitables (el sol fuerte del escenario base deja 4 casi habitables); la energía sube porque hay menos luz natural. |
+| `generador_alta_demanda` | Generador de 17 kW | Los mismos veredictos del escenario base, pero el generador queda en `ALTA_DEMANDA`. |
+| `deficit_leve` | Generador de 10 kW | 31 zonas casi habitables; las nuevas frente al escenario base empeoran por la noche; solo las recreaciones entran en `EMERGENCIA`; el parqueadero nunca queda en déficit. |
 | `deficit_severo` | Generador de 4 kW | 68 zonas no habitables; 22 huéspedes sin alternativa porque solo los parqueaderos quedan habitables. |
 | `apagon_generador` | Generador de 0 kW | Las 127 zonas no habitables y los 78 huéspedes sin alternativa. |
-| `exceso_leve` | Cielo despejado | 26 zonas casi habitables por exceso solar. |
-| `exceso_severo` | Cielo despejado y 24 habitaciones de TP con vidrio claro al norte | 18 habitaciones no habitables; los 18 huéspedes se mueven, y H-001 (`MISMA_TORRE`), H-002 (`PISO_MAXIMO:2`) y H-003 (`ORIENTACION:ESTE`) reciben habitaciones que cumplen su pedido. |
+| `exceso_leve` | Cielo despejado | 22 zonas casi habitables y 4 no habitables por exceso solar; los 3 huéspedes afectados se mueven. |
+| `exceso_severo` | Cielo despejado y 24 habitaciones de TP con vidrio claro al norte | 20 habitaciones no habitables (18 ocupadas); los 18 huéspedes se mueven, y H-001 (`MISMA_TORRE`), H-002 (`PISO_MAXIMO:2`) y H-003 (`ORIENTACION:ESTE`) reciben habitaciones que cumplen su pedido. |
 | `reasignacion_restringida` | El mismo exceso, con un grupo que pidió quedarse en TP | 12 huéspedes llenan las 12 camas libres de TP; 2 reciben `SIN_CAPACIDAD`, 2 `RESTRICCIONES` y 2 se mueven a TG. |
 
 Al cargar un escenario, cada perfil de actividad debe cumplir `0 ≤ mínimo ≤ objetivo ≤ máximo`; si no, la carga falla con un mensaje de error.
@@ -114,7 +114,7 @@ Un huésped se reasigna solo si su habitación queda `NO_HABITABLE`.
 - **Salida.** Cada propuesta trae `descartadas` (habitaciones revisadas, con motivo `MENOR_PUNTAJE`). Si no hay alternativa, `motivo` dice por qué: `SIN_HABITACIONES_HABITABLES_LIBRES`, `SIN_CAPACIDAD` o `RESTRICCIONES`.
 - **Costo.** `O(G · F · log H)` con `G` huéspedes a mover, `F` pisos y `H` habitaciones, contra `O(G · H)` de la búsqueda lineal.
 
-En el escenario base nadie queda en una habitación `NO_HABITABLE`. El AVL se construye igual con las 104 habitaciones (altura 8, 110 rotaciones) y no se consulta. `data/casos_prueba/exceso_severo.json` muestra huéspedes que sí se mueven y `reasignacion_restringida.json` los tres motivos de falta de alternativa.
+En el escenario base nadie queda en una habitación `NO_HABITABLE`. El AVL se construye igual con las 100 habitaciones habitables (altura 8, 79 rotaciones) y no se consulta. `data/casos_prueba/exceso_severo.json` muestra huéspedes que sí se mueven y `reasignacion_restringida.json` los tres motivos de falta de alternativa.
 
 ## Índice temporal
 
@@ -183,8 +183,8 @@ Cualquier error al procesar una solicitud devuelve HTTP 400 con un campo `error`
 
 | Campo | Contenido | Escenario base |
 |---|---|---|
-| `grafo` | `superficies`, `ventanas`, `pares_ingenuos`, `pares_evaluados`, `nodos_octree_visitados`, `aristas` | 127 superficies, 154 ventanas, 19.558 pares ingenuos, 5.581 evaluados, 6.911 nodos visitados, 73 aristas |
-| `reasignacion` | `huespedes_a_mover`, `habitaciones`, `comparaciones_lineales` (`G · H`), `comparaciones_avl`, `comparaciones_construccion` y `avl` (`tamano_inicial`, `altura_inicial`, `tamano_final`, `eliminaciones`, `rotaciones`) | 0 huéspedes a mover; AVL de 104 habitaciones, altura 8, 110 rotaciones |
+| `grafo` | `superficies`, `ventanas`, `pares_ingenuos`, `pares_evaluados`, `nodos_octree_visitados`, `aristas` | 127 superficies, 154 ventanas, 19.558 pares ingenuos, 5.581 evaluados, 6.911 nodos visitados, 521 aristas |
+| `reasignacion` | `huespedes_a_mover`, `habitaciones`, `comparaciones_lineales` (`G · H`), `comparaciones_avl`, `comparaciones_construccion` y `avl` (`tamano_inicial`, `altura_inicial`, `tamano_final`, `eliminaciones`, `rotaciones`) | 0 huéspedes a mover; AVL de 100 habitaciones, altura 8, 79 rotaciones |
 | `temporal` | `rojo_negro` (`tamano`, `altura`, `rotaciones`) y, solo en `/api/balancear`, `avl` con los mismos campos | Ver [Índice temporal](#índice-temporal) |
 
 **`temporal`** es una lista con un reporte por franja. Cada reporte trae `etiqueta`, `inicio`, `fin`, `resultados`, `energia_wh`, `energia_kwh`, `energia_por_actividad_wh`, `energia_por_torre_wh`, `hora_pico`, `potencia_pico_w`, `deficit_residual_lux_h`, `energia_no_asignada_wh`, `zonas_con_deficit`, `zonas_criticas`, `horas_deficit_por_zona`, `horas_con_deficit`, `estados_por_zona`, `comparaciones_arbol` y `comparaciones_lineales`.

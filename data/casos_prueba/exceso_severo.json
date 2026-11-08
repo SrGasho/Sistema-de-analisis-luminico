@@ -3,19 +3,19 @@
     "nombre": "exceso_severo",
     "historia": "Cielo despejado y las 24 habitaciones ocupadas de la Torre Pequeña (TP-H-101 a TP-H-124) con vidrio claro y ventana al norte, de cara al sol. Tres huéspedes tienen pedidos: H-001 viaja con su familia y quiere seguir en la Torre Pequeña (MISMA_TORRE); H-002 es una persona mayor que no quiere subir del piso 2 (PISO_MAXIMO:2); H-003 prefiere el sol de la mañana (ORIENTACION:ESTE).",
     "que_se_espera": [
-      "Las habitaciones con vidrio claro al norte quedan NO_HABITABLE por exceso solar.",
-      "Todos los huéspedes de esas habitaciones reciben una habitación habitable.",
+      "Las habitaciones ocupadas con vidrio claro al norte quedan NO_HABITABLE por exceso solar; también dos habitaciones vacías de TP piso 4.",
+      "Todos los huéspedes de habitaciones no habitables reciben una habitación habitable.",
       "H-001 se queda en TP, H-002 baja a un piso ≤ 2 y H-003 recibe una habitación con ventana al este.",
       "Ninguna habitación recibe más huéspedes que camas libres."
     ],
     "resultado_esperado": {
       "conteo_veredictos": {
-        "CASI_HABITABLE": 26,
+        "CASI_HABITABLE": 24,
         "HABITABLE": 83,
-        "NO_HABITABLE": 18
+        "NO_HABITABLE": 20
       },
-      "puntaje_hotel": 0.8886,
-      "energia_wh": 198068.0,
+      "puntaje_hotel": 0.8865,
+      "energia_wh": 197031.8,
       "estado_generador": "OPERACION_NORMAL",
       "pasos_emergencia": 0,
       "pasos_cerrada": 260,

@@ -13,10 +13,10 @@
         "HABITABLE": 3,
         "NO_HABITABLE": 68
       },
-      "puntaje_hotel": 0.7854,
-      "energia_wh": 95795.5,
+      "puntaje_hotel": 0.783,
+      "energia_wh": 95696.6,
       "estado_generador": "CAPACIDAD_LIMITADA",
-      "pasos_emergencia": 674,
+      "pasos_emergencia": 672,
       "pasos_cerrada": 260,
       "reasignaciones": {
         "NO_HAY_ALTERNATIVA:SIN_HABITACIONES_HABITABLES_LIBRES": 22

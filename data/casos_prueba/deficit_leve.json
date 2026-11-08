@@ -3,19 +3,19 @@
     "nombre": "deficit_leve",
     "historia": "Falla parcial: el generador solo entrega 10 kW. Hay energía para los mínimos de casi todo el hotel, pero no para los objetivos de la noche.",
     "que_se_espera": [
-      "Aparecen zonas CASI_HABITABLE por déficit nocturno.",
+      "Aparecen zonas CASI_HABITABLE nuevas frente al escenario base; todas empeoran porque baja su puntaje nocturno.",
       "Las recreaciones, con la prioridad más baja entre las zonas con ventanas, son las únicas que entran en EMERGENCIA; una de ellas (TG-REC-06) queda NO_HABITABLE.",
       "El parqueadero, que es seguridad, nunca queda en déficit.",
       "Las habitaciones ocupadas siguen habitables, así que nadie se reasigna."
     ],
     "resultado_esperado": {
       "conteo_veredictos": {
-        "CASI_HABITABLE": 30,
-        "HABITABLE": 96,
+        "CASI_HABITABLE": 31,
+        "HABITABLE": 95,
         "NO_HABITABLE": 1
       },
-      "puntaje_hotel": 0.9059,
-      "energia_wh": 165429.1,
+      "puntaje_hotel": 0.9029,
+      "energia_wh": 164831.6,
       "estado_generador": "CAPACIDAD_LIMITADA",
       "pasos_emergencia": 16,
       "pasos_cerrada": 260,

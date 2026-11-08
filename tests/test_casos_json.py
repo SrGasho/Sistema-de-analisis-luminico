@@ -82,25 +82,29 @@ class CasosJson(unittest.TestCase):
                     self.assertEqual(self.veredictos(nombre)[habitacion_id]["veredicto"], "HABITABLE")
 
     def test_base_operacion_normal(self):
-        self.assertEqual(self.r("base")["habitabilidad"]["conteo"], {"HABITABLE": 127})
+        v = self.veredictos("base")
+        self.assertNotIn("NO_HABITABLE", self.r("base")["habitabilidad"]["conteo"])
+        self.assertTrue(all(z["causa"] == "EXCESO_SOLAR" for z in v.values() if z["veredicto"] == "CASI_HABITABLE"))
         self.assertEqual(self.r("base")["reasignaciones"], [])
         self.assertEqual(self.pasos("base", lambda x: x["modo"] == "EMERGENCIA"), [])
 
     def test_temporada_lluvias(self):
         self.assertEqual(self.r("temporada_lluvias")["habitabilidad"]["conteo"], {"HABITABLE": 127})
+        self.assertGreaterEqual(self.r("temporada_lluvias")["habitabilidad"]["conteo"]["HABITABLE"], self.r("base")["habitabilidad"]["conteo"]["HABITABLE"])
         self.assertGreater(self.r("temporada_lluvias")["resumen"]["energia_total_wh"], self.r("base")["resumen"]["energia_total_wh"])
 
     def test_generador_alta_demanda(self):
         r = self.r("generador_alta_demanda")
         self.assertEqual(r["generador"]["estado"], "ALTA_DEMANDA")
         self.assertGreater(r["generador"]["porcentaje_usado"], 80.0)
-        self.assertEqual(r["habitabilidad"]["conteo"], {"HABITABLE": 127})
+        self.assertEqual(r["habitabilidad"]["conteo"], self.r("base")["habitabilidad"]["conteo"])
 
     def test_deficit_leve(self):
         v = self.veredictos("deficit_leve")
-        casi = [z for z in v.values() if z["veredicto"] == "CASI_HABITABLE"]
-        self.assertTrue(casi)
-        self.assertTrue(all(z["causa"] == "DEFICIT_NOCTURNO" for z in casi))
+        base = self.veredictos("base")
+        empeoran = [z for z in v.values() if z["veredicto"] != "HABITABLE" and base[z["zona_id"]]["veredicto"] == "HABITABLE"]
+        self.assertTrue(empeoran)
+        self.assertTrue(all(z["puntaje_noche"] < base[z["zona_id"]]["puntaje_noche"] for z in empeoran))
         emergencia = {x["zona_id"].split("-")[1] for x in self.pasos("deficit_leve", lambda x: x["modo"] == "EMERGENCIA")}
         self.assertEqual(emergencia, {"REC"})
         self.assertEqual(self.pasos("deficit_leve", lambda x: "-PAR-" in x["zona_id"] and x["estado"].startswith("DEFICIT")), [])
@@ -124,16 +128,20 @@ class CasosJson(unittest.TestCase):
 
     def test_exceso_leve(self):
         v = self.veredictos("exceso_leve")
-        casi = [z for z in v.values() if z["veredicto"] == "CASI_HABITABLE"]
-        self.assertTrue(casi)
-        self.assertTrue(all(z["causa"] == "EXCESO_SOLAR" for z in casi))
-        self.assertEqual(self.r("exceso_leve")["reasignaciones"], [])
+        afectadas = [z for z in v.values() if z["veredicto"] != "HABITABLE"]
+        self.assertTrue(afectadas)
+        self.assertTrue(all(z["causa"] == "EXCESO_SOLAR" for z in afectadas))
+        ocupadas_no_habitables = {z for z in v if v[z]["veredicto"] == "NO_HABITABLE"} & self.ocupadas("exceso_leve")
+        propuestas = self.r("exceso_leve")["reasignaciones"]
+        self.assertEqual({p["habitacion_actual"] for p in propuestas}, ocupadas_no_habitables)
+        self.assertEqual({p["estado"] for p in propuestas}, {"PROPUESTA"})
 
     def test_exceso_severo_mueve_huespedes_respetando_sus_pedidos(self):
         r = self.r("exceso_severo")
         v = self.veredictos("exceso_severo")
         no_habitables = {z for z in v if v[z]["veredicto"] == "NO_HABITABLE"}
-        self.assertTrue(no_habitables <= {f"TP-H-{n}" for n in range(101, 125)})
+        self.assertTrue(all(z.startswith("TP-H-") for z in no_habitables))
+        self.assertTrue(no_habitables & self.ocupadas("exceso_severo") <= {f"TP-H-{n}" for n in range(101, 125)})
         self.assertTrue(all(v[z]["causa"] == "EXCESO_SOLAR" for z in no_habitables))
         propuestas = {p["huesped_id"]: p for p in r["reasignaciones"]}
         self.assertEqual({p["estado"] for p in propuestas.values()}, {"PROPUESTA"})

@@ -10,12 +10,12 @@
     ],
     "resultado_esperado": {
       "conteo_veredictos": {
-        "CASI_HABITABLE": 26,
+        "CASI_HABITABLE": 24,
         "HABITABLE": 83,
-        "NO_HABITABLE": 18
+        "NO_HABITABLE": 20
       },
-      "puntaje_hotel": 0.8886,
-      "energia_wh": 198068.0,
+      "puntaje_hotel": 0.8865,
+      "energia_wh": 197031.8,
       "estado_generador": "OPERACION_NORMAL",
       "pasos_emergencia": 0,
       "pasos_cerrada": 260,

@@ -244,7 +244,7 @@ Cada pared recibe `E_base`. La reflectancia `ρ` entra una sola vez, en el peso 
 peso = ρ × cos(origen) × cos(destino) / (1 + d²)
 ```
 
-donde `cos(origen)` y `cos(destino)` miden si la pared y la ventana se miran, y `d` es la distancia. Solo se crean aristas con distancia de hasta 18 m, línea de visión libre (ninguna torre en medio) y peso mayor que 0,0001. La luz reflejada de una ventana es la suma de `luz_pared × peso` de sus aristas entrantes, y la de la zona es el promedio de sus ventanas. La luz reflejada no vuelve a ser origen de una segunda reflexión.
+donde `cos(origen)` y `cos(destino)` miden si la pared y la ventana se miran, y `d` es la distancia. Solo se crean aristas con distancia de hasta 18 m, línea de visión libre (ninguna torre en medio; si la pared y la ventana están en la misma torre, esa torre no cuenta como obstáculo) y peso mayor que 0,0001. La luz reflejada de una ventana es la suma de `luz_pared × peso` de sus aristas entrantes, y la de la zona es el promedio de sus ventanas. La luz reflejada no vuelve a ser origen de una segunda reflexión.
 
 # 4. Estructuras de datos
 
@@ -279,9 +279,9 @@ La construcción pide al Octree, para cada pared, las ventanas en un radio de 18
 | Medida | Comparación ingenua | Con Octree |
 |---|---:|---:|
 | Pares pared–ventana evaluados | 19.558 (127 × 154) | 5.581 |
-| Aristas recorridas por instante en la luz reflejada | 154 × 73 | 73 |
+| Aristas recorridas por instante en la luz reflejada | 154 × 521 | 521 |
 
-El grafo resultante tiene 73 aristas. Las salidas son idénticas a las de la comparación ingenua; solo cambia el número de comparaciones.
+El grafo resultante tiene 521 aristas. Las salidas son idénticas a las de la comparación ingenua; solo cambia el número de comparaciones.
 
 ## 4.4 Árbol AVL: bolsa de habitaciones para la reasignación
 
@@ -301,7 +301,7 @@ Operaciones usadas:
 - `siguiente` (menor clave > x), para seguir dentro del piso cuando el huésped tiene preferencia de orientación;
 - `eliminar` con rebalanceo, cuando una habitación se llena. Así dos huéspedes no reciben la misma cama.
 
-Se eligió AVL porque el trabajo es de lectura: cada huésped hace varias consultas y como máximo una eliminación, y el equilibrio estricto mantiene la altura baja. En el escenario base el AVL tiene 104 habitaciones, altura 8 y 110 rotaciones de construcción. Se construye y se reporta siempre, aunque nadie necesite moverse.
+Se eligió AVL porque el trabajo es de lectura: cada huésped hace varias consultas y como máximo una eliminación, y el equilibrio estricto mantiene la altura baja. En el escenario base el AVL tiene 100 habitaciones, altura 8 y 79 rotaciones de construcción. Se construye y se reporta siempre, aunque nadie necesite moverse.
 
 ## 4.5 Árbol rojo-negro: índice temporal de resultados
 
@@ -398,9 +398,9 @@ para cada huésped en una habitación NO_HABITABLE:
 
 Sin preferencia de orientación, `coincide_orientación` vale 1. Los pesos son `w_luz = 0,5`, `w_actividad = 0,2`, `w_energia = 0,2` y `w_cambio = 0,1`.
 
-El costo es `O(G × F × log H)`, con `G` huéspedes a mover, `F` pisos permitidos y `H` habitaciones en el AVL, contra `O(G × H)` de revisar todas las habitaciones por huésped. En una prueba de carga sobre el escenario base, con 60 de las 78 habitaciones ocupadas marcadas `NO_HABITABLE`, el AVL hizo 2.790 comparaciones contra 6.240 de la búsqueda lineal, con 39 eliminaciones y ninguna habitación con sobrecupo. La habitación elegida coincidió, huésped por huésped, con una búsqueda lineal que descuenta capacidad.
+El costo es `O(G × F × log H)`, con `G` huéspedes a mover, `F` pisos permitidos y `H` habitaciones en el AVL, contra `O(G × H)` de revisar todas las habitaciones por huésped. En una prueba de carga sobre el escenario base, con 60 de las 78 habitaciones ocupadas marcadas `NO_HABITABLE`, el AVL hizo 2.725 comparaciones contra 6.240 de la búsqueda lineal, con 39 eliminaciones y ninguna habitación con sobrecupo. La habitación elegida coincidió, huésped por huésped, con una búsqueda lineal que descuenta capacidad.
 
-La estrategia es greedy en el orden de las asignaciones y no garantiza un óptimo global. En el escenario base nadie se reasigna porque las 127 zonas son habitables. `deficit_severo.json` muestra el caso sin candidata (`SIN_HABITACIONES_HABITABLES_LIBRES`).
+La estrategia es greedy en el orden de las asignaciones y no garantiza un óptimo global. En el escenario base nadie se reasigna porque ninguna habitación ocupada queda `NO_HABITABLE`. `deficit_severo.json` muestra el caso sin candidata (`SIN_HABITACIONES_HABITABLES_LIBRES`).
 
 ## 5.4 Mejoras medidas y reestructuración
 
@@ -443,7 +443,7 @@ Reasignación con AVL:          O(H log H) construcción, O(G × F × log H) con
 Reasignación lineal:           O(G × H)
 ```
 
-Valores medidos en el escenario base: 5.581 pares evaluados en el grafo contra 19.558 ingenuos; 1.029 nodos visitados en la franja 18:00–22:00 contra 6.096 resultados; en la prueba de carga de reasignación, 2.790 comparaciones del AVL contra 6.240 lineales.
+Valores medidos en el escenario base: 5.581 pares evaluados en el grafo contra 19.558 ingenuos; 1.029 nodos visitados en la franja 18:00–22:00 contra 6.096 resultados; en la prueba de carga de reasignación, 2.725 comparaciones del AVL contra 6.240 lineales.
 
 Los 10 casos de prueba están automatizados con `unittest` en `tests/test_casos_plan.py`. Se ejecutan desde la raíz con `python -m unittest` y todos pasan.
 

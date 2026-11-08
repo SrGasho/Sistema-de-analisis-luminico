@@ -11,8 +11,8 @@
       "conteo_veredictos": {
         "HABITABLE": 127
       },
-      "puntaje_hotel": 0.9932,
-      "energia_wh": 198709.5,
+      "puntaje_hotel": 0.9925,
+      "energia_wh": 198052.5,
       "estado_generador": "OPERACION_NORMAL",
       "pasos_emergencia": 0,
       "pasos_cerrada": 260,

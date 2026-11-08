@@ -239,6 +239,8 @@ Pasos, un commit cada uno: (a) validación de perfiles; (b) casos JSON y prueba 
 - **(c, d) Interfaz (hecho, en un solo commit).** Seis pestañas: Configurar, Diagnóstico, Plano, Balance, Mejoras y Detalle técnico. El plano quedó en su propia pestaña porque se usa antes y después del balance. Los bloques se movieron sin cambiar sus `id` ni su contenido. El plano conserva sus colores y fuentes (variables propias en `.floor-plan`) y se ve igual en modo claro; solo creció de 686 a 709 px de ancho. Paleta y fuentes aplicadas al resto. Se probó en un navegador sin errores en la consola. Los pasos (c) y (d) quedaron en un mismo commit porque tocan los mismos tres archivos.
 - **(e) Documentos (hecho).** README (pestañas, pruebas, tabla de casos), plan y arquitectura.
 
+**Corrección D14 (hecha).** `GrafoInfluencia._visible` contaba la torre propia como obstáculo: el rayo de una pared a una ventana de su misma torre siempre cruza esa torre, así que se perdían 468 reflexiones internas. Ahora, si pared y ventana están en la misma torre, esa torre no cuenta (igual que en las sombras). Escenario base: aristas 73 → 521; veredictos 127/0/0 → 123/4/0 (4 casi habitables por exceso solar); puntaje 0,9840 → 0,9819; energía 195.859,9 → 195.152,2 Wh. Se regeneraron los resultados esperados de los 8 casos y se ajustaron sus descripciones y pruebas; la prueba de carga del AVL queda en 2.725 y 2.830 comparaciones contra 6.240.
+
 ## 6. Cierre de la carpeta temporal
 
 Cuando digas "cierra la revisión", se hace esto, en un solo commit:

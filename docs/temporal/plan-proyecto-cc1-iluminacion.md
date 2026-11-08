@@ -335,7 +335,7 @@ En el escenario base el generador de 22 kW alcanza: el pico es 15.933,7 W a las 
 
 El sistema reporta estado por zona e instante, puntuación diurna/nocturna, veredicto por zona, energía por torre y actividad, potencia máxima, déficit residual, energía no asignada, zonas críticas, horas con déficit, huéspedes reasignados, candidatos descartados y conteos de las estructuras de datos.
 
-Resultado del escenario base: 127 zonas habitables, 0 casi habitables y 0 no habitables; puntaje ponderado 0,9840 (día 0,968, noche 1,0); energía 195.859,9 Wh.
+Resultado del escenario base: 123 zonas habitables, 4 casi habitables por exceso solar y 0 no habitables; puntaje ponderado 0,9819 (día 0,9639, noche 1,0); energía 195.152,2 Wh.
 
 Costes:
 
@@ -359,9 +359,9 @@ Conteos medidos en el escenario base:
 | Medida | Versión ingenua | Con estructura |
 |---|---:|---:|
 | Pares superficie–ventana al construir el grafo (127 superficies, 154 ventanas) | 19.558 | 5.581 |
-| Aristas del grafo | — | 73 |
+| Aristas del grafo | — | 521 |
 | Nodos visitados para la franja 18–22 (6.096 resultados) | 6.096 | 1.029 |
-| AVL de reasignación (104 habitaciones) | — | altura 8, 110 rotaciones |
+| AVL de reasignación (100 habitaciones habitables) | — | altura 8, 79 rotaciones |
 
 En el escenario base nadie está en una habitación `NO_HABITABLE`, así que el AVL se construye y se reporta pero no se consulta. La prueba del caso 7 (sección 12) verifica que el AVL hace menos comparaciones que la búsqueda lineal.
 

@@ -3,15 +3,16 @@
     "nombre": "generador_alta_demanda",
     "historia": "El generador trabaja con 17 kW en vez de 22 kW (una unidad en mantenimiento). Alcanza, pero con poco margen.",
     "que_se_espera": [
-      "Todas las zonas siguen habitables y ninguna entra en EMERGENCIA.",
+      "Los veredictos son los mismos del escenario base y ninguna zona entra en EMERGENCIA.",
       "El generador queda en ALTA_DEMANDA: el pico usa más del 80 % de la capacidad."
     ],
     "resultado_esperado": {
       "conteo_veredictos": {
-        "HABITABLE": 127
+        "CASI_HABITABLE": 4,
+        "HABITABLE": 123
       },
-      "puntaje_hotel": 0.984,
-      "energia_wh": 195859.9,
+      "puntaje_hotel": 0.9819,
+      "energia_wh": 195152.2,
       "estado_generador": "ALTA_DEMANDA",
       "pasos_emergencia": 0,
       "pasos_cerrada": 260,
