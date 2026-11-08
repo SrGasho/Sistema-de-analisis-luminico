@@ -232,6 +232,38 @@ Comprobación del primero: 0,80 × 1,000 × 1,000 / (1 + 9,95²) = 0,80 / 100,0 
 
 En el paso 3, en cada media hora, cada ventana suma `luz de la pared × peso` de sus entrantes (`reflejada_para`). Es un solo rebote: las ventanas nunca son origen de aristas.
 
+### 2.4 Qué guarda el grafo y cómo se usa
+
+| Parte | Qué es |
+|---|---|
+| Nodos | Las paredes, que originan la luz rebotada, y las ventanas, que la reciben |
+| Arista | Una flecha pared → ventana: «esta pared le pasa luz a esta ventana» |
+| Peso | Qué fracción de la luz de esa pared llega a esa ventana |
+
+El radio se mira desde la pared: cada pared busca sus ventanas cercanas, y estas solo son candidatas. Cada par recibe su propio peso, o se descarta. No hay una reflexión igual para todas: más cerca y más de frente pesa más.
+
+En el escenario base hay 521 aristas. 85 de las 154 ventanas reciben al menos una (la que más recibe tiene 12). Las otras 69 no reciben luz reflejada porque ninguna pared cercana las mira.
+
+**Uso en cada media hora (paso 3).** `reflejada_para` calcula:
+
+```
+luz reflejada de la ventana = suma de (luz que recibe cada pared × peso de su arista)
+```
+
+La luz reflejada de la zona es el promedio de sus ventanas.
+
+**Ejemplo real: `TP-H-101`.** Tiene una ventana con 4 aristas entrantes, cuyos pesos suman 0,00595.
+
+| Hora | Luz que recibe cada pared | Luz reflejada en `TP-H-101` |
+|---|---|---|
+| 09:00 | 438,2 lux | 438,2 × 0,00595 ≈ 2,6 lux |
+| 12:00 | 619,7 lux | 619,7 × 0,00595 ≈ 3,7 lux |
+| 20:00 | 0 (noche) | 0 lux |
+
+Los pesos no cambian durante el día; cambia la luz que reciben las paredes. Por eso el grafo se arma una vez.
+
+Como referencia de tamaño: a las 12:00 esa habitación recibe 238,3 lux de luz natural (directa y difusa) y solo 3,7 lux reflejados. En este modelo la reflexión es un aporte pequeño. A mediodía, la zona del hotel con más luz reflejada recibe 20,5 lux.
+
 ### Resultado y costo del paso
 
 | Medida (escenario base) | Valor |
