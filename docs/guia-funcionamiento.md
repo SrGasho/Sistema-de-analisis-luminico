@@ -262,4 +262,17 @@ La mayoría no se miran porque cada pared mira hacia la ventana de su propio rec
 
 Las dos estructuras se arman una vez y sirven para los 48 pasos del día.
 
+### Ideas clave del paso
+
+- **La partición del Octree solo sirve para buscar más rápido; no cambia ningún resultado.** Es como ordenar una biblioteca por estantes: una búsqueda descarta estantes completos sin mirar sus libros. Con o sin Octree los resultados son idénticos; solo cambia cuántos pares se revisan (5.581 en vez de 19.558).
+- **Un objeto que queda entre dos cajas se queda en la caja de arriba.** No se pierde ni se duplica: lo revisa toda búsqueda que pase por esa caja. Solo cuesta que se revise más seguido, por eso conviene que sean pocos (44 de 410 objetos, incluidas las 2 torres).
+- **El rayo responde sí o no:** ¿la línea de la ventana hacia el sol choca con la otra torre? Si choca, no llega luz directa, pero la ventana sigue recibiendo luz difusa del cielo y luz reflejada. Solo las torres cuentan como obstáculo. El rayo no calcula reflexión ni de dónde viene la luz; la dirección del sol se calcula según la hora.
+- **El radio responde qué ventanas están cerca de una pared**, para comparar cada pared solo con sus vecinas. No revisa cuántas ventanas tiene cada habitación ni sus medidas; eso se define en el paso 1. El límite de 18 m se debe a que a esa distancia el peso ya se divide entre 1 + 18² = 325.
+- **Cada archivo tiene un papel distinto:**
+  - `octree.py` es la herramienta de búsqueda.
+  - `influencia.py` guarda qué pared le refleja luz a qué ventana, y cuánta, y en cada media hora suma la luz reflejada de cada ventana.
+  - `simulacion.py` crea las dos estructuras y las usa en cada paso: el Octree para las sombras y el grafo para la luz reflejada.
+- **El Octree descarta por espacio** (lejos o fuera de la línea) y **`influencia.py` descarta por física** (no se miran, hay una torre en medio o el peso es despreciable).
+- **El grafo existe para no repetir trabajo.** Como la geometría no cambia durante el día, se calcula una vez; en cada media hora solo se multiplica la luz de las paredes por los pesos guardados.
+
 **Corrección hecha.** Una versión anterior contaba la torre propia como obstáculo en `_visible` y perdía 468 reflexiones dentro de la misma torre (solo quedaban 73 aristas). Ahora la regla coincide con la de las sombras, que tampoco cuenta la torre propia.
