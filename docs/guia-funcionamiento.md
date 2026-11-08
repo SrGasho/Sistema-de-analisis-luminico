@@ -26,12 +26,22 @@ Resumen del recorrido:
 
 ### 1.2 Validar los acabados
 
-`_validar_acabados` comprueba que cada actividad y cada recinto personalizado usen una pared y un vidrio que existan, y una orientación válida (norte, sur, este u oeste). Si hay un error, como escribir `"BLANKO"`, la carga se detiene con un mensaje claro.
+`_validar_acabados` comprueba que cada actividad y cada recinto personalizado usen una pared y un vidrio que existan, y una orientación válida (norte, sur, este u oeste). También revisa que `luminaria_w`, si un recinto lo trae, sea un número mayor o igual a 0. Si hay un error, como escribir `"BLANKO"`, la carga se detiene con un mensaje claro.
 
 ### 1.3 Crear los perfiles
 
 - **Iluminación:** un perfil por actividad, con mínimo, objetivo, máximo y prioridad.
-- **Clima:** cada perfil recibe la radiación de cielo despejado de referencia (7,063 kWh/m²/día). Con ella calcula su `factor_luz` = radiación / referencia, que es la fracción de luz que deja pasar ese clima.
+- **Clima:** cada perfil recibe la radiación de cielo despejado de referencia (7,063 kWh/m²/día). Con ella calcula su `factor_luz` = radiación / referencia, que es la fracción de luz que deja pasar ese clima. Cada perfil trae además `dia_del_anio`, el día que representa, porque la posición del sol cambia con la fecha (paso 3):
+
+  | Perfil | `dia_del_anio` | Fecha | Radiación (kWh/m²/día) | `factor_luz` |
+  |---|---|---|---|---|
+  | `NUBES_PARCIALES` (base) | 46 | 15 de febrero | 4,863 | 0,689 |
+  | `NUBLADO` | 135 | 15 de mayo | 4,477 | 0,634 |
+  | `LLUVIOSO` | 105 | 15 de abril | 4,454 | 0,631 |
+  | `CIELO_DESPEJADO` | 46 | 15 de febrero | 7,063 | 1,000 |
+
+  Si un perfil no trae `dia_del_anio`, se usa 46.
+- **Ubicación y suelo:** `parametros_evaluacion.ubicacion.latitud` (4,711° N, Bogotá) y `parametros_evaluacion.luz.reflectancia_suelo` (0,20) no se guardan en un objeto propio. Los lee el simulador al crearse ([`src/simulacion.py` líneas 23–24](../src/simulacion.py#L23)) y los usa para el sol y la luz que rebota en el suelo (paso 3).
 
 ### 1.4 Construir el edificio
 
@@ -65,7 +75,7 @@ El tercer número, la altura, es 0 porque las ventanas miran al horizonte. Con e
 - indica hacia dónde mira la ventana, que es hacia afuera;
 - orienta la superficie interior al revés (flecha × −1). Esa dirección ya no se usa en ningún cálculo de luz; quedó del modelo anterior.
 
-Más adelante, al calcular la luz, la flecha de la ventana se compara con la dirección del sol. Si apuntan parecido, el sol pega de frente y entra mucha luz directa. Si quedan de lado, entra poca, y si el sol está detrás, solo entra la luz difusa del cielo. La misma comparación decide si una pared y una ventana "se miran" para que haya reflexión.
+Más adelante, al calcular la luz, la flecha de la ventana se compara con la dirección del sol. Si apuntan parecido, el sol pega de frente y entra mucha luz directa. Si quedan de lado, entra poca, y si el sol está detrás, solo entra la luz difusa del cielo y la que rebota en el suelo. La misma comparación decide si una pared y una ventana "se miran" para que haya reflexión.
 
 ### 1.5 Indexar
 
@@ -73,7 +83,7 @@ Más adelante, al calcular la luz, la flecha de la ventana se compara con la dir
 
 ### 1.6 Luminarias
 
-Cada zona recibe una `FuenteIluminacion` con la potencia, la eficacia, el CU y el MF de su actividad.
+Cada zona recibe una `FuenteIluminacion` con la potencia, la eficacia, el CU y el MF de su actividad. La potencia de la actividad (72 W en una habitación) se puede cambiar por recinto con `luminaria_w` en `zonas_personalizadas`. Con `luminaria_w = 0` la luminaria está dañada: la zona no recibe luz artificial y de noche queda a oscuras. Así se prueba la reasignación de huéspedes en el caso `luminarias_danadas`. Este campo no se edita desde la interfaz; se escribe en el JSON.
 
 ### 1.7 Huéspedes, asignaciones y ocupación
 
@@ -106,17 +116,17 @@ Cada zona recibe una `FuenteIluminacion` con la potencia, la eficacia, el CU y e
 |---|---|
 | Entrada del paso | [`cargar_hotel_data`, `src/io_datos.py` línea 73](../src/io_datos.py#L73) |
 | Valores por defecto | [`_completar_defaults`, línea 57](../src/io_datos.py#L57) |
-| Validar acabados | [`_validar_acabados`, línea 307](../src/io_datos.py#L307) |
-| Perfiles de iluminación y clima | [línea 76](../src/io_datos.py#L76) |
+| Validar acabados y `luminaria_w` | [`_validar_acabados`, línea 308](../src/io_datos.py#L308); `luminaria_w` en [línea 330](../src/io_datos.py#L330) |
+| Perfiles de iluminación y clima | [línea 76](../src/io_datos.py#L76); `dia_del_anio` en [línea 84](../src/io_datos.py#L84) y [`class PerfilClimatico`, `src/modelo.py` línea 87](../src/modelo.py#L87) |
 | Bucle de torres, pisos y zonas | [línea 87](../src/io_datos.py#L87) |
-| Habitación | [`_zona_habitacion`, línea 222](../src/io_datos.py#L222) y [`_room_center`, línea 265](../src/io_datos.py#L265) |
-| Zona común | [`_zona_comun`, línea 240](../src/io_datos.py#L240) y [`_common_center`, línea 274](../src/io_datos.py#L274) |
-| Fachadas de cada torre | [`_fachadas`, línea 282](../src/io_datos.py#L282) y [`class Fachada`, `src/modelo.py` línea 59](../src/modelo.py#L59) |
-| Acabado de cada zona | [`_acabado`, línea 196](../src/io_datos.py#L196) |
-| Índices por ID | [`Hotel.indexar`, `src/modelo.py` línea 219](../src/modelo.py#L219) |
-| Luminarias | [línea 130](../src/io_datos.py#L130) |
-| Huéspedes y asignaciones | [línea 148](../src/io_datos.py#L148) y [línea 174](../src/io_datos.py#L174) |
-| Validación final | [`_validar`, línea 331](../src/io_datos.py#L331) |
+| Habitación | [`_zona_habitacion`, línea 223](../src/io_datos.py#L223) y [`_room_center`, línea 266](../src/io_datos.py#L266) |
+| Zona común | [`_zona_comun`, línea 241](../src/io_datos.py#L241) y [`_common_center`, línea 275](../src/io_datos.py#L275) |
+| Fachadas de cada torre | [`_fachadas`, línea 283](../src/io_datos.py#L283) y [`class Fachada`, `src/modelo.py` línea 59](../src/modelo.py#L59) |
+| Acabado de cada zona | [`_acabado`, línea 197](../src/io_datos.py#L197) |
+| Índices por ID | [`Hotel.indexar`, `src/modelo.py` línea 220](../src/modelo.py#L220) |
+| Luminarias | [línea 130](../src/io_datos.py#L130); potencia por recinto en [línea 138](../src/io_datos.py#L138) |
+| Huéspedes y asignaciones | [línea 149](../src/io_datos.py#L149) y [línea 175](../src/io_datos.py#L175) |
+| Validación final | [`_validar`, línea 336](../src/io_datos.py#L336) |
 
 ### Resultado y costo del paso
 
@@ -141,8 +151,8 @@ La reflexión **dentro** de cada cuarto no usa el grafo: se calcula en el paso 3
 
 | Qué | Dónde |
 |---|---|
-| Se arma todo al crear el simulador | [`SimuladorUnificado.__init__`, `src/simulacion.py` líneas 26–28](../src/simulacion.py#L26) |
-| Llenar el Octree con los objetos del hotel | [`_crear_octree`, `src/simulacion.py` línea 73](../src/simulacion.py#L73) |
+| Se arma todo al crear el simulador | [`SimuladorUnificado.__init__`, `src/simulacion.py` líneas 28–30](../src/simulacion.py#L28) |
+| Llenar el Octree con los objetos del hotel | [`_crear_octree`, `src/simulacion.py` línea 75](../src/simulacion.py#L75) |
 | La estructura Octree | [`class Octree`, `src/octree.py` línea 24](../src/octree.py#L24) |
 | Insertar y dividir | [`_insertar`, línea 34](../src/octree.py#L34); [`_dividir`, línea 53](../src/octree.py#L53); [`_hijo_contenedor`, línea 61](../src/octree.py#L61) |
 | Consulta de rayo | [`consultar_rayo`, línea 71](../src/octree.py#L71) |
@@ -151,10 +161,10 @@ La reflexión **dentro** de cada cuarto no usa el grafo: se calcula en el paso 3
 | Punto donde la ventana sale a la fachada | [`punto_en_fachada`, `src/influencia.py` línea 18](../src/influencia.py#L18) |
 | Punto más cercano de una fachada | [`punto_mas_cercano`, `src/influencia.py` línea 26](../src/influencia.py#L26) |
 | Revisar si algo tapa la línea | [`_visible`, `src/influencia.py` línea 89](../src/influencia.py#L89) |
-| Uso del rayo para sombras (paso 3) | [`_sombreada`, `src/simulacion.py` línea 129](../src/simulacion.py#L129) |
+| Uso del rayo para sombras (paso 3) | [`_sombreada`, `src/simulacion.py` línea 130](../src/simulacion.py#L130) |
 | Uso del grafo en cada media hora (paso 3) | [`reflejada_para`, `src/influencia.py` línea 99](../src/influencia.py#L99) |
 
-`GrafoInfluencia.construir` significa «el método `construir` de la clase `GrafoInfluencia`». Está en `src/influencia.py` y se llama desde `src/simulacion.py` línea 28.
+`GrafoInfluencia.construir` significa «el método `construir` de la clase `GrafoInfluencia`». Está en `src/influencia.py` y se llama desde `src/simulacion.py` línea 30.
 
 ### 2.1 Qué es el Octree y cómo se arma
 
@@ -190,7 +200,7 @@ Las dos consultas recorren el árbol desde la raíz y **descartan cajas completa
 
 Recibe un punto de partida y una dirección. En cada nodo revisa si la línea atraviesa la caja; si no, descarta ese nodo y todo lo que tiene debajo. Se usa para:
 
-- **Sombras** (`_sombreada`, paso 3): una línea desde la ventana hacia el sol. Si cruza **la otra torre**, el sol directo no llega. Ejemplo medido: a las 7:00 el sol sale por el este; la ventana `TP-REC-03-V1` (planta baja de TP, mirando al este) lanza la línea y esta cruza `TG`. Esa ventana queda en sombra a esa hora.
+- **Sombras** (`_sombreada`, paso 3): una línea desde la ventana hacia el sol. Si cruza **la otra torre**, el sol directo no llega. Ejemplo medido: a las 7:00 el sol está bajo (13,4° de altura) hacia el este-sureste; la ventana `TP-COC-01-V1` (cocina en la planta baja de TP, mirando al este) lanza la línea y esta cruza `TG`. Esa ventana queda en sombra a esa hora. A las 7:00 quedan en sombra 19 de las 72 ventanas que tienen el sol delante; a las 9:00, con el sol a 41,8°, ninguna, porque el rayo pasa por encima de TG (18 m de alto).
 - **Visibilidad para el grafo** (`_visible`): una línea de la fachada a la ventana, para revisar que nada se interponga.
 
 **`consultar_radio` (radio): «¿qué cosas hay cerca de este punto?»**
@@ -257,9 +267,9 @@ En el escenario base hay 46 aristas:
 
 Las demás fachadas no tienen ventanas de la otra torre de frente. La fachada oeste de TG es más grande que la este de TP (774 m² contra 376 m²), por eso sus aristas pesan más.
 
-**Uso en cada media hora (paso 3).** La luz que recibe una fachada depende de la hora: `E_base × (qué tan de frente le da el sol × f_directa + f_difusa)`. `reflejada_para` suma, para cada ventana, `luz de la fachada × peso`, y esa luz se multiplica por la transmitancia del vidrio al entrar.
+**Uso en cada media hora (paso 3).** La luz que recibe una fachada depende de la hora: es la luz directa del sol sobre esa cara vertical más la difusa del cielo y del suelo (fórmulas en el paso 3.2). `reflejada_para` suma, para cada ventana, `luz de la fachada × peso`, y esa luz se multiplica por la transmitancia del vidrio al entrar.
 
-Ejemplo: a las 12:00 `TG-F-OESTE` recibe 290,6 lux. A `TP-H-101` le entran 290,6 × 0,356 × 0,82 ≈ 84,8 lux reflejados desde la otra torre. Esa misma ventana recibe solo 97,0 lux de luz natural directa y difusa, porque TG le tapa más de la mitad del cielo. Para las ventanas que tienen la otra torre enfrente, la luz reflejada exterior es tan importante como la natural.
+Ejemplo: a las 12:00 el sol está casi encima y algo al sur, así que no le pega a la cara oeste de TG; `TG-F-OESTE` recibe solo luz difusa, 190,0 lux. A `TP-H-101` le entran 190,0 × 0,356 × 0,82 ≈ 55,4 lux reflejados desde la otra torre. Esa misma ventana recibe 92,0 lux de luz natural, porque TG le tapa más de la mitad del cielo. A las 15:00, cuando el sol ya pega en la cara oeste de TG (370,0 lux), la reflexión exterior sube a 370,0 × 0,356 × 0,82 ≈ 108 lux y supera la luz natural de la ventana (64,6 lux). Para las ventanas que tienen la otra torre enfrente, la luz reflejada exterior pesa tanto como la natural.
 
 ### Resultado y costo del paso
 
@@ -315,18 +325,22 @@ Las dos estructuras se arman una vez y sirven para los 48 pasos del día.
 
 | Qué | Dónde |
 |---|---|
-| Bucle de las 48 medias horas | [`SimuladorUnificado.ejecutar`, `src/simulacion.py` línea 30](../src/simulacion.py#L30) |
-| Luz base y dirección del sol | [`luz_base`, `src/clima.py` línea 9](../src/clima.py#L9); [`direccion_solar`, línea 16](../src/clima.py#L16); [`periodo`, línea 21](../src/clima.py#L21); [`_cielo`, `src/simulacion.py` línea 101](../src/simulacion.py#L101) |
-| Factor del clima | [`PerfilClimatico.factor_luz`, `src/modelo.py` línea 95](../src/modelo.py#L95) |
-| Luz natural por ventana | [`_aportes_naturales`, `src/simulacion.py` línea 106](../src/simulacion.py#L106) y [`_calcular_naturales`, línea 122](../src/simulacion.py#L122) |
-| Sombra | [`_sombreada`, línea 129](../src/simulacion.py#L129) |
+| Bucle de las 48 medias horas | [`SimuladorUnificado.ejecutar`, `src/simulacion.py` línea 32](../src/simulacion.py#L32) |
+| Estado del cielo en esa media hora | [`class Cielo`, `src/clima.py` línea 16](../src/clima.py#L16); [`cielo`, línea 81](../src/clima.py#L81); [`_cielo`, `src/simulacion.py` línea 103](../src/simulacion.py#L103) |
+| Posición del sol | [`declinacion_solar`, `src/clima.py` línea 33](../src/clima.py#L33); [`direccion_solar`, línea 38](../src/clima.py#L38) |
+| Luz global horizontal | [`luz_base`, `src/clima.py` línea 73](../src/clima.py#L73); [`PerfilClimatico.factor_luz`, `src/modelo.py` línea 96](../src/modelo.py#L96) |
+| Fracción difusa | [`radiacion_extraterrestre_diaria`, `src/clima.py` línea 50](../src/clima.py#L50); [`fraccion_difusa_diaria`, línea 61](../src/clima.py#L61) |
+| Periodo del día | [`periodo`, `src/clima.py` línea 107](../src/clima.py#L107) |
+| Luz natural por ventana | [`_aportes_naturales`, `src/simulacion.py` línea 107](../src/simulacion.py#L107) y [`_calcular_naturales`, línea 123](../src/simulacion.py#L123) |
+| Luz sobre una superficie vertical | [`coseno_incidencia`, `src/clima.py` línea 91](../src/clima.py#L91); [`directa_en_vertical`, línea 95](../src/clima.py#L95); [`difusa_en_vertical`, línea 102](../src/clima.py#L102) |
+| Sombra | [`_sombreada`, `src/simulacion.py` línea 130](../src/simulacion.py#L130) |
 | Snell y Fresnel | [`factor_angular_vidrio`, `src/geometria.py` línea 121](../src/geometria.py#L121) |
-| Luz que recibe cada fachada | [`luz_fachadas`, `src/simulacion.py` línea 133](../src/simulacion.py#L133) |
-| Luz reflejada (exterior + interior) | [`_calcular_reflejadas`, línea 140](../src/simulacion.py#L140); [`area_interior`, línea 164](../src/simulacion.py#L164); [`reflexion_interior`, línea 169](../src/simulacion.py#L169) |
+| Luz que recibe cada fachada | [`luz_fachadas`, `src/simulacion.py` línea 134](../src/simulacion.py#L134) |
+| Luz reflejada (exterior + interior) | [`_calcular_reflejadas`, línea 141](../src/simulacion.py#L141); [`area_interior`, línea 165](../src/simulacion.py#L165); [`reflexion_interior`, línea 170](../src/simulacion.py#L170) |
 | Modo por horario | [`horario_modo`, `src/balance.py` línea 26](../src/balance.py#L26); [`PerfilIluminacion.para_modo`, `src/modelo.py` línea 78](../src/modelo.py#L78) |
-| Balance del generador | [`balancear`, `src/balance.py` línea 52](../src/balance.py#L52); [`_categoria`, línea 38](../src/balance.py#L38); [`_demanda`, línea 114](../src/balance.py#L114); [`_asignar`, línea 124](../src/balance.py#L124) |
-| Luz artificial | [`_luz_artificial`, `src/simulacion.py` línea 153](../src/simulacion.py#L153) |
-| Clasificar el resultado | [`_estado`, `src/simulacion.py` línea 65](../src/simulacion.py#L65); [`clasificar`, `src/evaluacion.py` línea 25](../src/evaluacion.py#L25) |
+| Balance del generador | [`balancear`, `src/balance.py` línea 52](../src/balance.py#L52); [`_categoria`, línea 38](../src/balance.py#L38); [`_demanda`, línea 115](../src/balance.py#L115); [`Reparto`, línea 125](../src/balance.py#L125) |
+| Luz artificial | [`_luz_artificial`, `src/simulacion.py` línea 154](../src/simulacion.py#L154) |
+| Clasificar el resultado | [`_estado`, `src/simulacion.py` línea 67](../src/simulacion.py#L67); [`clasificar`, `src/evaluacion.py` línea 25](../src/evaluacion.py#L25) |
 | Guardar en el índice por hora | [`IndiceTemporal.insertar`, `src/temporal.py` línea 24](../src/temporal.py#L24) |
 
 ### 3.0 La forma del bucle
@@ -343,37 +357,102 @@ Los cuatro pasos se repiten 48 veces. La geometría no cambia; lo que cambia en 
 
 ### 3.1 El cielo de esa hora
 
-`_cielo` reúne cuatro números que valen para todo el hotel en esa media hora:
+`_cielo` arma un objeto `Cielo` con cuatro datos que valen para todo el hotel en esa media hora: la luz global sobre el suelo (`G`), qué parte de ella es difusa (`kd`), la dirección del sol y la reflectancia del suelo. Las fórmulas y sus fuentes están en la sección «Fuentes y fórmulas» del README.
 
-- **Luz base** (`luz_base`): `E_base = 900 × curva(hora) × factor_luz`. La curva es un seno: vale 0 a las 6:00, sube a 1 a las 12:00 y vuelve a 0 a las 18:00. Fuera de 6:00–18:00 vale 0. Con nubes parciales, `factor_luz` = 4,863 / 7,063 = 0,689.
-- **Dirección del sol** (`direccion_solar`): una flecha que gira de este a oeste durante el día.
-- **Reparto por nubosidad** (c = 0,709 en nubes parciales): luz directa `f_directa = max(0,10; 1 − c)` = 0,291 y luz difusa `f_difusa = 0,15 + 0,45 × c` = 0,469.
-- **Periodo** (`periodo`): NOCHE antes de las 6:00 y desde las 18:00; TRANSICION de 6:00 a 7:00 y de 17:00 a 18:00; DIA el resto.
+**a) Dónde está el sol** (`declinacion_solar` y `direccion_solar`). Se usa la geometría solar real de Bogotá, con tres datos:
 
-| Hora | Periodo | Luz base |
-|---|---|---|
-| 06:00 | TRANSICION | 0 |
-| 07:00 | DIA | 160,4 lux |
-| 09:00 | DIA | 438,2 lux |
-| 12:00 | DIA | 619,7 lux |
-| 15:00 | DIA | 438,2 lux |
-| 17:30 | TRANSICION | 80,9 lux |
-| 18:00 | NOCHE | 0 |
+- **Latitud** φ = 4,711° N (`ubicacion.latitud`).
+- **Declinación** δ, la latitud a la que el sol queda justo encima ese día (fórmula de Cooper): `δ = 23,45° × sen(360° × (284 + n) / 365)`, con n = `dia_del_anio`. El 15 de febrero (n = 46) vale −13,3°: el sol va por el sur de Bogotá. El 15 de abril vale +9,4° y el 15 de mayo +18,8°: el sol va por el norte.
+- **Ángulo horario** `ω = 15° × (hora − 12)`: el sol avanza 15° por hora y ω = 0 al mediodía.
+
+Con ellos sale una flecha de largo 1 hacia el sol, en los mismos ejes de las ventanas (x este, y norte, z arriba):
+
+```
+x = −cos δ × sen ω
+y =  sen δ × cos φ − cos δ × sen φ × cos ω
+z =  sen δ × sen φ + cos δ × cos φ × cos ω      (z = seno de la altura del sol)
+```
+
+La hora del modelo es hora solar: 12:00 es el momento en que el sol está más alto. No se corrige a la hora del reloj.
+
+**b) Cuánta luz llega al suelo** (`luz_base`):
+
+```
+G = 900 × factor_luz × max(0, sen(altura del sol))       entre 6:00 y 18:00; 0 fuera de esa franja
+```
+
+900 es la luz de referencia en lux con el sol en el cenit y cielo despejado. `factor_luz` = 4,863 / 7,063 = 0,689 con nubes parciales (paso 1.3). Con el sol bajo, la luz se reparte en más suelo y `G` baja; por eso la curva sigue el seno de la altura.
+
+**c) Qué parte es difusa** (`radiacion_extraterrestre_diaria` y `fraccion_difusa_diaria`). La luz que llega se divide en directa (el haz del sol, que hace sombra) y difusa (la que viene de todo el cielo). Un día nublado tiene más difusa. El modelo lo estima así:
+
+1. `H0` es la radiación que llegaría ese día sin atmósfera (Duffie y Beckman, ec. 1.10.3). El 15 de febrero en Bogotá vale 10,049 kWh/m²/día.
+2. El **índice de claridad** `KT = radiación del perfil / H0` dice qué fracción atraviesa la atmósfera. Se limita entre 0,3 y 0,8, el rango donde vale la correlación.
+3. La **correlación de Erbs** convierte `KT` en la fracción difusa `kd`. Para días cortos, como los de Bogotá (ωs ≤ 81,4°): `kd = 1,391 − 3,560·KT + 4,189·KT² − 2,137·KT³`.
+
+| Perfil | `H0` | `KT` | `kd` (difusa) | Directa |
+|---|---|---|---|---|
+| `NUBES_PARCIALES` | 10,049 | 0,484 | 0,445 | 0,555 |
+| `NUBLADO` | 10,059 | 0,445 | 0,484 | 0,516 |
+| `LLUVIOSO` | 10,408 | 0,428 | 0,503 | 0,497 |
+| `CIELO_DESPEJADO` | 10,049 | 0,703 | 0,248 | 0,752 |
+
+La directa más la difusa siempre suman 1, y un cielo con menos radiación tiene más parte difusa. El campo `nubosidad` del perfil ya no entra en el cálculo: queda como dato informativo, porque la radiación ya trae el efecto de las nubes.
+
+**d) Periodo** (`periodo`): NOCHE antes de las 6:00 y desde las 18:00; TRANSICION de 6:00 a 7:00 y de 17:00 a 18:00; DIA el resto.
+
+**El 15 de febrero con nubes parciales (medido):**
+
+| Hora | Periodo | Altura del sol | Hacia dónde está | `G` | Directa horizontal | Difusa horizontal |
+|---|---|---|---|---|---|---|
+| 06:00 | TRANSICION | −1,1° (no ha salido) | este | 0 | 0 | 0 |
+| 07:00 | DIA | 13,4° | este-sureste (105°) | 143,9 | 79,9 | 64,0 |
+| 09:00 | DIA | 41,8° | este-sureste (112°) | 413,3 | 229,5 | 183,8 |
+| 12:00 | DIA | 72,0° | sur (180°) | 589,3 | 327,2 | 262,1 |
+| 15:00 | DIA | 41,8° | oeste-suroeste (248°) | 413,3 | 229,5 | 183,8 |
+| 17:30 | TRANSICION | 6,2° | oeste-suroeste (256°) | 66,8 | 37,1 | 29,7 |
+| 18:00 | NOCHE | −1,1° | oeste | 0 | 0 | 0 |
+
+Los grados de «hacia dónde está» se miden desde el norte en el sentido del reloj (90° este, 180° sur, 270° oeste). La mañana y la tarde son simétricas alrededor de las 12:00. En febrero el sol nunca pasa por el norte, así que **las ventanas que miran al norte nunca reciben sol directo** ese día.
 
 ### 3.2 Luz natural por ventana
 
-Para cada ventana (`_aportes_naturales`):
+Una ventana es vertical, y el `Cielo` describe la luz sobre el suelo horizontal. Para cada ventana (`_aportes_naturales`) se pasa de una a otra en cuatro pasos:
 
-1. **¿Le da el sol de frente?** `coseno = flecha de la ventana · dirección del sol` (0 si el sol está de lado o detrás).
-2. **¿La tapa la otra torre?** `_sombreada` lanza un rayo hacia el sol con el Octree (paso 2). Si choca con la otra torre, `coseno = 0`.
-3. **¿Cuánto deja pasar el vidrio según el ángulo?** `factor_angular_vidrio` aplica Snell y Fresnel: de frente pasa todo lo que dice el catálogo; muy de lado pasa menos.
-4. **Suma directa + difusa:**
+1. **¿Le da el sol de frente?** `coseno = flecha de la ventana · flecha del sol` (`coseno_incidencia`). Vale 1 si el sol está justo enfrente y 0 si está de lado o detrás.
+2. **¿La tapa la otra torre?** Si el coseno es mayor que 0, `_sombreada` lanza un rayo hacia el sol con el Octree (paso 2). Si choca con la otra torre, el coseno pasa a 0.
+3. **Luz directa sobre la ventana** (`directa_en_vertical`, factor Rb de Duffie y Beckman):
 
    ```
-   luz de la ventana = E_base × VLT × (coseno × factor_angular × f_directa + f_difusa × (1 − obstrucción))
+   directa = directa horizontal × coseno / max(sen(altura del sol), sen 5°)
    ```
 
-   `VLT` es la transmitancia del vidrio (0,82 el claro) y `obstrucción` es la parte del cielo que tapa la otra torre (paso 2).
+   Dividir por el seno de la altura da la luz del haz medida de frente al sol; multiplicar por el coseno la proyecta sobre la ventana. Con el sol muy bajo el seno se acerca a 0 y la división se dispararía; por eso se usa como mínimo el seno de 5° (0,087).
+4. **Luz difusa sobre la ventana** (`difusa_en_vertical`, cielo isotrópico de Liu y Jordan): una pared vertical ve la mitad del cielo y la mitad del suelo.
+
+   ```
+   difusa = 0,5 × difusa horizontal × (1 − obstrucción) + 0,5 × reflectancia del suelo × G
+   ```
+
+   `obstrucción` es la parte del cielo que tapa la otra torre (paso 2). El segundo término es la luz que rebota en el suelo, con reflectancia 0,20.
+5. **Paso por el vidrio:**
+
+   ```
+   luz de la ventana = VLT × (directa × factor_angular + difusa)
+   ```
+
+   `VLT` es la transmitancia del vidrio (0,82 el claro). `factor_angular_vidrio` aplica Snell y Fresnel a la parte directa: de frente pasa todo lo que dice el catálogo y muy de lado pasa menos. La difusa llega desde todos los ángulos y usa la transmitancia del catálogo.
+
+**Tres ventanas de TP medidas:**
+
+| Ventana | Hora | Coseno | Directa | Difusa (cielo + suelo) | Luz que entra |
+|---|---|---|---|---|---|
+| `TP-H-101` (este, TG enfrente) | 07:00 | 0,940 | 79,9 × 0,940 / 0,232 = 323,4 | 13,0 + 14,4 = 27,4 | 0,82 × (323,4 × 0,999 + 27,4) = 287,5 |
+| `TP-H-102` (norte) | 12:00 | 0 | 0 | 131,1 + 58,9 = 190,0 | 0,82 × 190,0 = 155,8 |
+| `TP-H-103` (oeste) | 15:00 | 0,688 | 229,5 × 0,688 / 0,667 = 236,8 | 91,9 + 41,3 = 133,2 | 0,82 × (236,8 × 0,975 + 133,2) = 298,5 |
+
+- En `TP-H-101` la difusa del cielo es pequeña (13,0) porque TG le tapa el 59,3 % del cielo. A las 7:00 el sol igual le llega: el rayo sale hacia el este-sureste y pasa por el sur de TG (cuando llega a x = 45 m, el borde de TG, ya va en y = −3,8 m). Si la ventana estuviera en la fachada (x = 32 m) y no cerca del centro del cuarto, el rayo sí chocaría con TG; es una consecuencia de la limitación de posición descrita en el paso 2.
+- `TP-H-102` mira al norte y en febrero no recibe sol directo en ninguna hora. Vive de la difusa y del suelo.
+- El factor angular baja de 0,999 a 0,975 cuando el sol pasa de casi frontal (coseno 0,94) a 46,5° de lado (coseno 0,688).
 
 La luz natural de la zona es el promedio de sus ventanas (`_calcular_naturales`). Una zona sin ventanas, como el parqueadero, tiene luz natural 0.
 
@@ -381,7 +460,16 @@ La luz natural de la zona es el promedio de sus ventanas (`_calcular_naturales`)
 
 `_calcular_reflejadas` suma dos partes por zona:
 
-- **Exterior:** para cada ventana, `luz de la fachada de enfrente × peso de la arista × VLT` (paso 2). La luz de cada fachada es `E_base × (qué tan de frente le da el sol × f_directa + f_difusa)` (`luz_fachadas`).
+- **Exterior:** para cada ventana, `luz de la fachada de enfrente × peso de la arista × VLT` (paso 2). La luz de cada fachada (`luz_fachadas`) usa las mismas fórmulas de la ventana, sin vidrio y sin obstrucción: `directa_en_vertical(coseno de la fachada) + difusa_en_vertical`. Medido:
+
+  | Fachada | 09:00 | 12:00 | 15:00 |
+  |---|---|---|---|
+  | Este (TP y TG) | 370,0 | 190,0 | 133,2 |
+  | Oeste (TP y TG) | 133,2 | 190,0 | 370,0 |
+  | Sur | 231,5 | 296,3 | 231,5 |
+  | Norte | 133,2 | 190,0 | 133,2 |
+
+  La cara que no ve el sol recibe solo la difusa (133,2 a las 9:00 y 15:00; 190,0 a las 12:00). Las fachadas no revisan sombras entre torres.
 - **Interior** (`reflexion_interior`): toda la luz que entró (natural + exterior, por el área de cada ventana) rebota en las paredes del cuarto:
 
   ```
@@ -409,7 +497,7 @@ Se calculan tres demandas: para llegar al nivel de emergencia (10 lux), al míni
 
 **c) Prioridad** de cada zona: `prioridad de la actividad × (1 + 0,10 × (piso − 1)) × 1,4 si es una habitación ocupada`.
 
-**d) Tres repartos**, cada uno hasta agotar los 22 kW (`_asignar` nunca entrega más de lo que queda):
+**d) Tres repartos**, cada uno hasta agotar los 22 kW. Un objeto `Reparto` lleva la cuenta: guarda la capacidad del generador y un total `usado`. Cada vez que una zona pide vatios, `entregar` le da lo pedido o lo que quede, lo que sea menor, y suma eso a `usado`. Así nunca se entrega más de lo que hay, y saber cuánto queda cuesta una resta, sin volver a sumar lo ya repartido.
 
 1. **Emergencia:** a todas las zonas abiertas, lo que necesitan para llegar a 10 lux. Las zonas CERRADA no reciben nada.
 2. **Mínimos**, en este orden (`_categoria`): primero el parqueadero (seguridad), luego las habitaciones ocupadas, luego el resto; dentro de cada grupo, por prioridad. La zona que no alcanza su mínimo porque el generador se agotó queda en **EMERGENCIA**.
@@ -445,36 +533,40 @@ Para cada zona (`ejecutar`):
 |---|---|---|---|---|---|---|---|
 | 02:00 | REDUCIDA | 0 | 0 | 60,0 | 60,0 | 25,7 | CONFORTABLE |
 | 06:00 | ACTIVA | 0 | 0 | 168,0 | 168,0 | 72,0 | CONFORTABLE |
-| 09:00 | ACTIVA | 225,6 | 16,9 | 0 | 242,5 | 0 | CONFORTABLE |
-| 12:00 | ACTIVA | 358,7 | 26,9 | 0 | 385,6 | 0 | EXCESO_SEVERO |
+| 07:00 | ACTIVA | 38,0 | 2,8 | 159,1 | 200,0 | 68,2 | CONFORTABLE |
+| 09:00 | ACTIVA | 109,3 | 8,2 | 82,6 | 200,0 | 35,4 | CONFORTABLE |
+| 12:00 | ACTIVA | 155,8 | 11,7 | 32,5 | 200,0 | 13,9 | CONFORTABLE |
+| 17:30 | ACTIVA | 17,6 | 1,3 | 168,0 | 187,0 | 72,0 | CONFORTABLE |
 | 19:00 | ACTIVA | 0 | 0 | 168,0 | 168,0 | 72,0 | CONFORTABLE |
 | 23:00 | REDUCIDA | 0 | 0 | 60,0 | 60,0 | 25,7 | CONFORTABLE |
 
-De día el sol basta y el generador no le da nada. A mediodía la luz pasa de 375 lux (1,25 × 300) y queda en exceso severo: es una de las 26 zonas casi habitables por exceso solar.
+Sin sol directo en todo el día, la luz natural nunca le basta: el generador completa el resto hasta el objetivo de 200 lux. A las 12:00 le faltan 32,5 lux, que son 13,9 W (32,5 / 2,33 lux/W). A las 17:30 ni con los 72 W llega a 200 y se queda en 187,0. La reflejada (11,7 a las 12:00) es solo interior, porque no tiene torre enfrente; con pared blanca, ρ / (1 − ρ) = 4.
 
 **`TP-H-101`** (habitación ocupada, ventana al este, con la Torre Grande enfrente):
 
-| Hora | Natural | Reflejada | Artificial | Total | Vatios |
-|---|---|---|---|---|---|
-| 09:00 | 125,6 | 73,9 | 0,5 | 200,0 | 0,2 |
-| 12:00 | 97,0 | 98,4 | 4,6 | 200,0 | 2,0 |
-| 15:00 | 68,6 | 92,8 | 38,7 | 200,0 | 16,6 |
+| Hora | Natural | Reflejada | Artificial | Total | Vatios | Estado |
+|---|---|---|---|---|---|---|
+| 07:00 | 287,5 | 36,1 | 0 | 323,6 | 0 | EXCESO_LEVE |
+| 09:00 | 253,8 | 60,8 | 0 | 314,7 | 0 | EXCESO_LEVE |
+| 12:00 | 92,0 | 66,5 | 41,5 | 200,0 | 17,8 | CONFORTABLE |
+| 15:00 | 64,6 | 120,9 | 14,5 | 200,0 | 6,2 | CONFORTABLE |
+| 17:30 | 10,4 | 111,7 | 77,9 | 200,0 | 33,4 | CONFORTABLE |
 
-TG le tapa más de la mitad del cielo, pero le devuelve casi tanta luz como la que le quita. El generador completa justo hasta el objetivo (200 lux).
+En la mañana el sol bajo del este le entra casi de frente y pasa del máximo de 300 lux, sin llegar a 375 (1,25 × 300), así que es exceso leve. En la tarde el sol está detrás de la ventana, pero ilumina la cara oeste de TG, y TG le devuelve más luz (120,9 a las 15:00) que la natural que le deja (64,6).
 
-**`TP-COC-01`** (cocina): CERRADA a las 02:00 y 23:00 (0 vatios, DATOS_INSUFICIENTES); de día recibe entre 91 y 140 W para completar sus 400 lux de objetivo; de noche usa sus 200 W completos y llega a 320 lux.
+**`TP-COC-01`** (cocina, ventana al este): CERRADA a las 02:00 y 23:00 (0 vatios, DATOS_INSUFICIENTES). A las 7:00 está en sombra de TG (paso 2.2), tiene solo 26,2 lux naturales y usa sus 200 W completos. A las 9:00, 12:00 y 15:00 recibe 132, 161 y 167 W para completar sus 400 lux de objetivo (a las 12:00: natural 107,3, reflejada 35,2, artificial 257,5). De noche usa sus 200 W completos y llega a 320 lux.
 
 **`TP-PAR-01`** (parqueadero, sin ventanas): recibe sus 720 W durante las 24 horas y queda en 89,6 lux, por encima de su mínimo de 50.
 
 **Potencia total del generador a lo largo del día:**
 
-| Hora | 00:00 | 06:00 | 09:00 | 12:00 | 15:00 | 17:30 | 18:00 | 22:00 |
-|---|---|---|---|---|---|---|---|---|
-| Vatios | 4.834 | 11.648 | 5.649 | 3.893 | 5.743 | 15.275 | 15.934 | 9.870 |
+| Hora | 00:00 | 06:00 | 07:00 | 09:00 | 12:00 | 15:00 | 17:30 | 18:00 | 22:00 |
+|---|---|---|---|---|---|---|---|---|---|
+| Vatios | 4.834 | 11.648 | 8.837 | 7.174 | 7.220 | 7.754 | 13.080 | 15.934 | 9.870 |
 
-El pico, 15.934 W, se da entre las 18:00 y las 22:00: ya no hay sol y todo está en modo activo. Al mediodía el generador trabaja menos porque el sol hace casi todo.
+El pico, 15.934 W, se da entre las 18:00 y las 22:00: ya no hay sol y todo está en modo activo. De 9:00 a 15:00 el generador trabaja a menos de la mitad del pico porque el sol aporta una parte de la luz, pero no baja de unos 7.200 W: los 3 parqueaderos siguen en 720 W cada uno (2.160 W), y las zonas sin sol directo a esa hora, como `TP-H-102`, todavía piden una parte. La demanda objetivo más alta del día, si el generador no tuviera límite, es 18.110,7 W.
 
-Estados de los 6.096 resultados: 5.602 confortables, 156 en exceso leve, 78 en exceso severo y 260 cerrados. No hay déficit: los 22 kW alcanzan.
+Estados de los 6.096 resultados: 5.517 confortables, 319 en exceso leve y 260 cerrados. No hay exceso severo ni déficit: los 22 kW alcanzan. Los 319 excesos leves son de 52 habitaciones: las 26 con ventana al este, entre las 6:30 y las 9:30, y las 26 con ventana al oeste, entre las 14:30 y las 17:30. Es el sol bajo de la mañana o de la tarde entrando casi de frente.
 
 ### Resultado y costo del paso
 
@@ -482,7 +574,8 @@ Estados de los 6.096 resultados: 5.602 confortables, 156 en exceso leve, 78 en e
 
 - Luz natural: un rayo por ventana, O(V × (log B + k)).
 - Luz reflejada: O(V + E).
-- Balance: construir y ordenar las demandas con `heapq` cuesta O(Z log Z). Pero `_asignar` suma todo lo ya asignado en cada llamada, y eso lo vuelve O(Z²) en la implementación actual (ver «Observaciones»).
+- Balance: O(Z log Z). Ordenar las demandas y sacarlas de la cola `heapq` cuesta O(Z log Z), y cada entrega de `Reparto` cuesta O(1) porque lleva el total acumulado.
+- El cielo (sol, `G` y `kd`) se calcula con unas pocas fórmulas por media hora: O(1).
 - Clasificar y guardar: O(Z), más O(log R) por inserción en el rojo-negro.
 
 En total, T = 48 veces lo anterior. Con 127 zonas el día completo se simula en menos de un segundo.
@@ -491,9 +584,14 @@ En total, T = 48 veces lo anterior. Con 127 zonas el día completo se simula en 
 
 - **La luminaria de una habitación no alcanza su objetivo de noche.** 72 W dan como máximo 168 lux y el objetivo es 200. Como 168 está entre el mínimo (100) y el máximo (300), el estado igual es CONFORTABLE.
 - **El parqueadero tampoco alcanza su objetivo** (89,6 lux contra 100), pero sí su mínimo.
-- **Al mediodía el sol puede sobrar** en las habitaciones que miran al norte: el sistema no apaga la luz natural ni corre cortinas, solo lo reporta como exceso.
+- **El sol puede sobrar en la mañana o en la tarde** en las habitaciones que miran al este o al oeste: el sistema no apaga la luz natural ni corre cortinas, solo lo reporta como exceso. Con el sol real, el exceso del escenario base nunca llega a severo.
+- **La fecha cambia qué ventanas reciben sol.** En febrero el sol va por el sur y las ventanas al norte nunca lo ven. En abril y mayo (perfiles `LLUVIOSO` y `NUBLADO`) la declinación es positiva y el sol del mediodía va por el norte: 85,3° de altura en abril y 75,9° en mayo.
+- **Un día despejado da más luz que uno nublado.** Suma de la luz natural de todas las zonas en el día: despejado 534.973, nubes parciales 396.651, nublado 385.199 y lluvioso 370.265. Un cielo nublado tiene más luz difusa en proporción, pero menos luz en total.
+- **La luz excesiva no vuelve una habitación no habitable.** Con el sol real el exceso dura pocas horas. Para probar la reasignación de huéspedes se usan luminarias dañadas (`luminaria_w = 0`), que dejan la habitación a oscuras de noche (casos `luminarias_danadas` y `reasignacion_restringida`).
 
-### Observaciones pendientes
+### Historia del cambio
 
-- **Recorrido del sol.** `direccion_solar` mueve el sol de este a oeste por el lado norte, con una altura fija de unos 35°. En Bogotá en febrero (el perfil base) el sol de mediodía está alto, a unos 72° (latitud 4,7° N, declinación de unos −13°), y hacia el sur. Esto decide qué fachadas reciben sol directo y explica por qué las habitaciones con ventana al norte quedan en exceso. Es una simplificación del modelo que cambia resultados si se corrige.
-- **Costo del balance.** `_asignar` recalcula la suma de lo ya asignado en cada llamada. El resultado es correcto, pero el costo real del balance es O(Z²) por media hora y no O(Z log Z) como dicen los documentos. Se arregla llevando un total acumulado.
+Una versión anterior de este paso tenía dos simplificaciones que se corrigieron:
+
+- **El sol era inventado.** Giraba de este a oeste por el lado norte con una altura fija de unos 35°, y la luz se repartía con `f_directa = max(0,10; 1 − nubosidad)` y `f_difusa = 0,15 + 0,45 × nubosidad`. Esas dos fracciones no sumaban 1, y un día nublado salía más claro que uno despejado. Las habitaciones al norte quedaban en exceso severo a mediodía, cuando en febrero en Bogotá no reciben sol directo. Hoy se usa la posición real del sol, la correlación de Erbs para la parte difusa y el cielo isotrópico de Liu y Jordan para pasar la luz a superficies verticales.
+- **El balance volvía a sumar todo.** Una función `_asignar` recalculaba lo ya entregado en cada llamada, lo que costaba O(Z²) por media hora. `Reparto` lleva el total acumulado y da el mismo reparto (diferencias menores a 0,000000001 W) en O(Z log Z). Este cambio no tiene relación con los árboles AVL o rojo-negro: el balance usa una cola de prioridad (`heapq`).

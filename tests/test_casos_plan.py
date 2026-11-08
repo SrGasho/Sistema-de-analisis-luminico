@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 
 from src.balance import _demanda, balancear, horario_modo
-from src.clima import direccion_solar, luz_base
+from src.clima import coseno_incidencia, difusa_en_vertical, directa_en_vertical, luz_base
 from src.geometria import angulo_refraccion, factor_angular_vidrio
 from src.io_datos import cargar_hotel_data
 from src.modelo import EstadoIluminacion, ModoOperacion
@@ -23,9 +23,14 @@ def simulador(config: dict) -> SimuladorUnificado:
     return SimuladorUnificado(cargar_hotel_data(config))
 
 
-def factores_cielo(sim: SimuladorUnificado) -> tuple[float, float, float]:
-    perfil = sim.hotel.perfiles_climaticos[sim.hotel.perfil_climatico_activo]
-    return luz_base(9.0, perfil, sim._lux_por_irradiancia), max(0.10, 1.0 - perfil.nubosidad), 0.15 + 0.45 * perfil.nubosidad
+def luz_ventana(sim: SimuladorUnificado, zona, ventana, hora: float) -> float:
+    estado = sim._cielo(hora)
+    coseno = coseno_incidencia(ventana.normal, estado.sol)
+    if sim._sombreada(ventana, zona.torre_id, estado.sol):
+        coseno = 0.0
+    cielo_visible = 1.0 - sim.grafo.obstruccion.get(ventana.id, 0.0)
+    directa = directa_en_vertical(estado, coseno) * factor_angular_vidrio(coseno, ventana.vidrio.indice_refraccion)
+    return ventana.vidrio.transmitancia_visible * (directa + difusa_en_vertical(estado, cielo_visible))
 
 
 class CasosDelPlan(unittest.TestCase):
@@ -37,45 +42,34 @@ class CasosDelPlan(unittest.TestCase):
         cls.por_clave = {(r.zona_id, r.hora): r for r in cls.resultados}
 
     def test_01_ventana_al_sol_sin_obstaculo(self):
-        base, f_directa, f_difusa = factores_cielo(self.sim)
-        direccion = direccion_solar(9.0)
+        estado = self.sim._cielo(9.0)
         zona = next(
             z for z in self.sim.hotel.zonas.values()
-            if len(z.ventanas) == 1 and z.ventanas[0].normal.dot(direccion) > 0.3
-            and not self.sim._sombreada(z.ventanas[0], z.torre_id, direccion)
+            if len(z.ventanas) == 1 and coseno_incidencia(z.ventanas[0].normal, estado.sol) > 0.3
+            and not self.sim._sombreada(z.ventanas[0], z.torre_id, estado.sol)
         )
         ventana = zona.ventanas[0]
-        coseno = ventana.normal.normalized().dot(direccion)
-        cielo = 1.0 - self.sim.grafo.obstruccion.get(ventana.id, 0.0)
-        esperado = base * ventana.vidrio.transmitancia_visible * (coseno * factor_angular_vidrio(coseno, 1.5) * f_directa + f_difusa * cielo)
+        esperado = luz_ventana(self.sim, zona, ventana, 9.0)
         self.assertAlmostEqual(self.sim._calcular_naturales(9.0)[zona.id], esperado, places=6)
-        self.assertGreater(esperado, base * ventana.vidrio.transmitancia_visible * f_difusa * cielo)
+        solo_difusa = ventana.vidrio.transmitancia_visible * difusa_en_vertical(estado, 1.0 - self.sim.grafo.obstruccion.get(ventana.id, 0.0))
+        self.assertGreater(esperado, solo_difusa)
+        self.assertAlmostEqual(estado.directa_horizontal + estado.difusa_horizontal, estado.global_horizontal, places=9)
 
     def test_02_ventana_sombreada_por_la_otra_torre(self):
         sombreadas = []
-        for hora in (7.0, 8.0, 9.0, 10.0, 14.0, 16.0, 17.0):
-            direccion = direccion_solar(hora)
+        for hora in (6.5, 7.0, 7.5, 8.0, 16.0, 16.5, 17.0, 17.5):
+            sol = self.sim._cielo(hora).sol
             for zona in self.sim.hotel.zonas.values():
                 for ventana in zona.ventanas:
-                    if ventana.normal.dot(direccion) > 0 and self.sim._sombreada(ventana, zona.torre_id, direccion):
+                    if coseno_incidencia(ventana.normal, sol) > 0 and self.sim._sombreada(ventana, zona.torre_id, sol):
                         sombreadas.append((hora, zona, ventana))
         self.assertTrue(sombreadas)
         hora, zona, ventana = sombreadas[0]
-        perfil = self.sim.hotel.perfiles_climaticos[self.sim.hotel.perfil_climatico_activo]
-        base = luz_base(hora, perfil, self.sim._lux_por_irradiancia)
-        f_difusa = 0.15 + 0.45 * perfil.nubosidad
-        f_directa = max(0.10, 1.0 - perfil.nubosidad)
-        direccion = direccion_solar(hora)
-        aportes = []
-        for v in zona.ventanas:
-            coseno = max(0.0, v.normal.normalized().dot(direccion))
-            if self.sim._sombreada(v, zona.torre_id, direccion):
-                coseno = 0.0
-            cielo = 1.0 - self.sim.grafo.obstruccion.get(v.id, 0.0)
-            aportes.append(base * v.vidrio.transmitancia_visible * (coseno * factor_angular_vidrio(coseno, 1.5) * f_directa + f_difusa * cielo))
+        estado = self.sim._cielo(hora)
+        aportes = [luz_ventana(self.sim, zona, v, hora) for v in zona.ventanas]
         self.assertAlmostEqual(self.sim._calcular_naturales(hora)[zona.id], sum(aportes) / len(aportes), places=6)
-        cielo = 1.0 - self.sim.grafo.obstruccion.get(ventana.id, 0.0)
-        self.assertAlmostEqual(aportes[zona.ventanas.index(ventana)], base * ventana.vidrio.transmitancia_visible * f_difusa * cielo, places=9)
+        solo_difusa = ventana.vidrio.transmitancia_visible * difusa_en_vertical(estado, 1.0 - self.sim.grafo.obstruccion.get(ventana.id, 0.0))
+        self.assertAlmostEqual(aportes[zona.ventanas.index(ventana)], solo_difusa, places=9)
 
     def test_03_transmision_con_cada_preset_de_vidrio(self):
         naturales = {}
@@ -217,7 +211,7 @@ class CasosDelPlan(unittest.TestCase):
             config = copy.deepcopy(self.config)
             config["hotel"]["perfil_climatico"] = perfil
             sim = simulador(config)
-            naturales[perfil] = sum(sim._calcular_naturales(12.0).values())
+            naturales[perfil] = sum(sum(sim._calcular_naturales(paso / 2).values()) for paso in range(12, 36))
             clima = sim.hotel.perfiles_climaticos[perfil]
             self.assertAlmostEqual(clima.factor_luz, min(1.0, clima.radiacion / 7.063))
         self.assertGreater(naturales["CIELO_DESPEJADO"], naturales["NUBLADO"])

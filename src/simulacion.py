@@ -3,7 +3,7 @@ from __future__ import annotations
 import math
 
 from .balance import balancear, horario_modo
-from .clima import direccion_solar, luz_base, periodo
+from .clima import LATITUD_BOGOTA, Cielo, cielo, coseno_incidencia, difusa_en_vertical, directa_en_vertical, periodo
 from .evaluacion import clasificar, datos_zona_completos, resumen_zonas
 from .geometria import CajaEspacial, Rayo, Vector3, factor_angular_vidrio
 from .habitabilidad import evaluar_hotel
@@ -20,6 +20,8 @@ class SimuladorUnificado:
         self.paso_horas = paso_horas
         self.hotel.generador.demanda_objetivo_maxima = 0.0
         self._lux_por_irradiancia = float(hotel.parametros.get("luz", {}).get("lux_por_irradiancia", 900.0))
+        self._latitud = float(hotel.parametros.get("ubicacion", {}).get("latitud", LATITUD_BOGOTA))
+        self._reflectancia_suelo = float(hotel.parametros.get("luz", {}).get("reflectancia_suelo", 0.20))
         self.habitabilidad: dict = {}
         self.estadisticas_reasignacion: dict = {}
         self.temporal: dict = {}
@@ -98,25 +100,24 @@ class SimuladorUnificado:
             octree.insertar(entrada)
         return octree
 
-    def _cielo(self, hora: float) -> tuple[float, Vector3, float, float]:
+    def _cielo(self, hora: float) -> Cielo:
         perfil = self.hotel.perfiles_climaticos[self.hotel.perfil_climatico_activo]
-        base = luz_base(hora, perfil, self._lux_por_irradiancia)
-        return base, direccion_solar(hora), max(0.10, 1.0 - perfil.nubosidad), 0.15 + 0.45 * perfil.nubosidad
+        return cielo(hora, perfil, self._lux_por_irradiancia, self._latitud, self._reflectancia_suelo)
 
     def _aportes_naturales(self, hora: float) -> dict[str, float]:
-        base, direccion, f_directa, f_difusa = self._cielo(hora)
+        estado = self._cielo(hora)
         aportes = {}
         for zona in self.hotel.zonas.values():
             for ventana in zona.ventanas:
-                if base == 0:
+                if estado.global_horizontal == 0:
                     aportes[ventana.id] = 0.0
                     continue
-                coseno = max(0.0, ventana.normal.normalized().dot(direccion))
-                if self._sombreada(ventana, zona.torre_id, direccion):
+                coseno = coseno_incidencia(ventana.normal, estado.sol)
+                if coseno > 0 and self._sombreada(ventana, zona.torre_id, estado.sol):
                     coseno = 0.0
-                directa = coseno * factor_angular_vidrio(coseno, ventana.vidrio.indice_refraccion)
-                cielo = 1.0 - self.grafo.obstruccion.get(ventana.id, 0.0)
-                aportes[ventana.id] = base * ventana.vidrio.transmitancia_visible * (directa * f_directa + f_difusa * cielo)
+                directa = directa_en_vertical(estado, coseno) * factor_angular_vidrio(coseno, ventana.vidrio.indice_refraccion)
+                difusa = difusa_en_vertical(estado, 1.0 - self.grafo.obstruccion.get(ventana.id, 0.0))
+                aportes[ventana.id] = ventana.vidrio.transmitancia_visible * (directa + difusa)
         return aportes
 
     def _calcular_naturales(self, hora: float, aportes: dict[str, float] | None = None) -> dict[str, float]:
@@ -131,9 +132,9 @@ class SimuladorUnificado:
         return any(entrada.objeto.__class__.__name__ == "Torre" and entrada.id != torre_id for entrada in self.octree.consultar_rayo(rayo))
 
     def luz_fachadas(self, hora: float) -> dict[str, float]:
-        base, direccion, f_directa, f_difusa = self._cielo(hora)
+        estado = self._cielo(hora)
         return {
-            fachada.id: base * (max(0.0, fachada.normal.dot(direccion)) * f_directa + f_difusa)
+            fachada.id: directa_en_vertical(estado, coseno_incidencia(fachada.normal, estado.sol)) + difusa_en_vertical(estado)
             for fachada in self.grafo.fachadas.values()
         }
 

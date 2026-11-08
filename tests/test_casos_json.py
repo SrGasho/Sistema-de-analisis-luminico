@@ -128,25 +128,38 @@ class CasosJson(unittest.TestCase):
 
     def test_cielo_despejado(self):
         v = self.veredictos("cielo_despejado")
+        hotel = cargar_hotel_data(leer("cielo_despejado"))
         afectadas = [z for z in v.values() if z["veredicto"] != "HABITABLE"]
         self.assertTrue(afectadas)
-        self.assertTrue(all(z["causa"] == "EXCESO_SOLAR" for z in afectadas))
-        ocupadas_no_habitables = {z for z in v if v[z]["veredicto"] == "NO_HABITABLE"} & self.ocupadas("cielo_despejado")
-        propuestas = self.r("cielo_despejado")["reasignaciones"]
-        self.assertEqual({p["habitacion_actual"] for p in propuestas}, ocupadas_no_habitables)
-        self.assertEqual({p["estado"] for p in propuestas}, {"PROPUESTA"})
+        self.assertTrue(all(z["veredicto"] == "CASI_HABITABLE" and z["causa"] == "EXCESO_SOLAR" for z in afectadas))
+        for z in afectadas:
+            if z["zona_id"] in hotel.habitaciones:
+                self.assertNotEqual(hotel.habitaciones[z["zona_id"]].ventanas[0].normal.x, 0)
+        self.assertEqual(self.r("cielo_despejado")["reasignaciones"], [])
 
-    def test_exceso_severo_mueve_huespedes_respetando_sus_pedidos(self):
-        r = self.r("exceso_severo")
+    def test_exceso_severo_es_intenso_pero_corto(self):
         v = self.veredictos("exceso_severo")
-        no_habitables = {z for z in v if v[z]["veredicto"] == "NO_HABITABLE"}
-        self.assertTrue(all("-H-" in z for z in no_habitables))
-        self.assertTrue({f"TP-H-{n}" for n in range(101, 125)} <= no_habitables)
-        self.assertTrue(all(v[z]["causa"] == "EXCESO_SOLAR" for z in no_habitables))
+        ocupadas_tp = {f"TP-H-{n}" for n in range(101, 125)}
+        casi = {z for z in ocupadas_tp if v[z]["veredicto"] == "CASI_HABITABLE"}
+        self.assertGreater(len(casi), len(ocupadas_tp) / 2)
+        self.assertTrue(all(v[z]["causa"] == "EXCESO_SOLAR" for z in ocupadas_tp))
+        self.assertFalse(any(v[z]["veredicto"] == "NO_HABITABLE" for z in ocupadas_tp))
+        for zona_id in casi:
+            severos = self.pasos("exceso_severo", lambda x, z=zona_id: x["zona_id"] == z and x["estado"] == "EXCESO_SEVERO")
+            self.assertTrue(severos)
+            self.assertTrue(all(x["hora"] < 12 for x in severos))
+        self.assertEqual(self.r("exceso_severo")["reasignaciones"], [])
+
+    def test_luminarias_danadas_mueve_huespedes_respetando_sus_pedidos(self):
+        r = self.r("luminarias_danadas")
+        v = self.veredictos("luminarias_danadas")
+        danadas = {f"TP-H-{n}" for n in range(101, 117)}
+        self.assertEqual({z for z in v if v[z]["veredicto"] == "NO_HABITABLE"}, danadas)
+        self.assertTrue(all(v[z]["causa"] == "DEFICIT_NOCTURNO" for z in danadas))
         propuestas = {p["huesped_id"]: p for p in r["reasignaciones"]}
         self.assertEqual({p["estado"] for p in propuestas.values()}, {"PROPUESTA"})
-        self.assertEqual({p["habitacion_actual"] for p in propuestas.values()}, no_habitables & self.ocupadas("exceso_severo"))
-        hotel = cargar_hotel_data(leer("exceso_severo"))
+        self.assertEqual({p["habitacion_actual"] for p in propuestas.values()}, danadas)
+        hotel = cargar_hotel_data(leer("luminarias_danadas"))
         self.assertEqual(hotel.habitaciones[propuestas["H-001"]["habitacion_propuesta"]].torre_id, "TP")
         self.assertLessEqual(hotel.habitaciones[propuestas["H-002"]["habitacion_propuesta"]].piso, 2)
         self.assertEqual(hotel.habitaciones[propuestas["H-003"]["habitacion_propuesta"]].ventanas[0].normal.x, 1)
@@ -155,12 +168,12 @@ class CasosJson(unittest.TestCase):
         propuestas = {p["huesped_id"]: p for p in self.r("reasignacion_restringida")["reasignaciones"]}
         hotel = cargar_hotel_data(leer("reasignacion_restringida"))
         en_tp = [p for p in propuestas.values() if p["habitacion_propuesta"] and hotel.habitaciones[p["habitacion_propuesta"]].torre_id == "TP"]
-        self.assertEqual(len(en_tp), 12)
+        self.assertEqual(len(en_tp), 16)
+        self.assertTrue(all(hotel.habitaciones[p["habitacion_propuesta"]].piso == 4 for p in en_tp))
         self.assertEqual({h for h, p in propuestas.items() if p["motivo"] == "SIN_CAPACIDAD"}, {"H-017", "H-018"})
         self.assertEqual({h for h, p in propuestas.items() if p["motivo"] == "RESTRICCIONES"}, {"H-019", "H-020"})
-        for huesped in ("H-021", "H-022"):
+        for huesped in ("H-021", "H-022", "H-023", "H-024"):
             self.assertEqual(hotel.habitaciones[propuestas[huesped]["habitacion_propuesta"]].torre_id, "TG")
-
 
 if __name__ == "__main__":
     unittest.main()

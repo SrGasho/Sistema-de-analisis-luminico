@@ -1,26 +1,23 @@
 {
   "caso": {
     "nombre": "exceso_severo",
-    "historia": "Cielo despejado y las 24 habitaciones ocupadas de la Torre Pequeña (TP-H-101 a TP-H-124) con vidrio claro y ventana al norte, de cara al sol. Tres huéspedes tienen pedidos: H-001 viaja con su familia y quiere seguir en la Torre Pequeña (MISMA_TORRE); H-002 es una persona mayor que no quiere subir del piso 2 (PISO_MAXIMO:2); H-003 prefiere el sol de la mañana (ORIENTACION:ESTE).",
+    "historia": "Cielo despejado y las 24 habitaciones ocupadas de la Torre Pequeña (TP-H-101 a TP-H-124) con vidrio claro y ventana al este, de cara al sol de la mañana.",
     "que_se_espera": [
-      "Las 24 habitaciones ocupadas de TP quedan NO_HABITABLE por exceso solar, igual que las habitaciones con ventana al norte del resto del hotel.",
-      "Todos los huéspedes de habitaciones no habitables reciben una habitación habitable.",
-      "H-001 se queda en TP, H-002 baja a un piso ≤ 2 y H-003 recibe una habitación con ventana al este.",
-      "Ninguna habitación recibe más huéspedes que camas libres."
+      "La mayoría de esas habitaciones pasa de las 6:30 a las 10:00 en EXCESO_SEVERO (más de 375 lux) y queda CASI_HABITABLE; las que tienen la Torre Grande enfrente reciben su sombra en la mañana y siguen HABITABLE.",
+      "Aunque el exceso es severo, dura unas cuatro horas: no basta para que la habitación sea NO_HABITABLE, así que nadie se reasigna.",
+      "El reporte las marca con causa EXCESO_SOLAR y recomienda protección solar."
     ],
     "resultado_esperado": {
       "conteo_veredictos": {
-        "HABITABLE": 83,
-        "NO_HABITABLE": 44
+        "CASI_HABITABLE": 58,
+        "HABITABLE": 69
       },
-      "puntaje_hotel": 0.8783,
-      "energia_wh": 190424.4,
+      "puntaje_hotel": 0.9152,
+      "energia_wh": 189802.9,
       "estado_generador": "OPERACION_NORMAL",
       "pasos_emergencia": 0,
       "pasos_cerrada": 260,
-      "reasignaciones": {
-        "PROPUESTA:PROPUESTA": 38
-      }
+      "reasignaciones": {}
     }
   },
   "hotel": {
@@ -143,21 +140,25 @@
   },
   "perfiles_climaticos": {
     "NUBES_PARCIALES": {
+      "dia_del_anio": 46,
       "radiacion": 4.863,
       "nubosidad": 0.7089,
       "precipitacion": 2.51
     },
     "NUBLADO": {
+      "dia_del_anio": 135,
       "radiacion": 4.477,
       "nubosidad": 0.8582,
       "precipitacion": 6.68
     },
     "LLUVIOSO": {
+      "dia_del_anio": 105,
       "radiacion": 4.454,
       "nubosidad": 0.8487,
       "precipitacion": 6.97
     },
     "CIELO_DESPEJADO": {
+      "dia_del_anio": 46,
       "radiacion": 7.063,
       "nubosidad": 0.0,
       "precipitacion": 0.0
@@ -247,9 +248,14 @@
     "reserva": 0.2
   },
   "parametros_evaluacion": {
+    "ubicacion": {
+      "latitud": 4.711,
+      "longitud": -74.072
+    },
     "luz": {
       "lux_por_irradiancia": 900.0,
-      "radiacion_cielo_despejado": 7.063
+      "radiacion_cielo_despejado": 7.063,
+      "reflectancia_suelo": 0.2
     },
     "emergencia": {
       "nivel_lux": 10.0
@@ -332,18 +338,7 @@
   "huespedes": {
     "total": 78,
     "actividad": "HABITACION",
-    "prioridad": 1.0,
-    "restricciones_por_huesped": {
-      "H-001": [
-        "MISMA_TORRE"
-      ],
-      "H-002": [
-        "PISO_MAXIMO:2"
-      ],
-      "H-003": [
-        "ORIENTACION:ESTE"
-      ]
-    }
+    "prioridad": 1.0
   },
   "asignaciones": [],
   "acabados": {
@@ -385,145 +380,145 @@
     "TP-H-101": {
       "vidrio": "VIDRIO_CLARO",
       "orientaciones": [
-        "NORTE"
+        "ESTE"
       ]
     },
     "TP-H-102": {
       "vidrio": "VIDRIO_CLARO",
       "orientaciones": [
-        "NORTE"
+        "ESTE"
       ]
     },
     "TP-H-103": {
       "vidrio": "VIDRIO_CLARO",
       "orientaciones": [
-        "NORTE"
+        "ESTE"
       ]
     },
     "TP-H-104": {
       "vidrio": "VIDRIO_CLARO",
       "orientaciones": [
-        "NORTE"
+        "ESTE"
       ]
     },
     "TP-H-105": {
       "vidrio": "VIDRIO_CLARO",
       "orientaciones": [
-        "NORTE"
+        "ESTE"
       ]
     },
     "TP-H-106": {
       "vidrio": "VIDRIO_CLARO",
       "orientaciones": [
-        "NORTE"
+        "ESTE"
       ]
     },
     "TP-H-107": {
       "vidrio": "VIDRIO_CLARO",
       "orientaciones": [
-        "NORTE"
+        "ESTE"
       ]
     },
     "TP-H-108": {
       "vidrio": "VIDRIO_CLARO",
       "orientaciones": [
-        "NORTE"
+        "ESTE"
       ]
     },
     "TP-H-109": {
       "vidrio": "VIDRIO_CLARO",
       "orientaciones": [
-        "NORTE"
+        "ESTE"
       ]
     },
     "TP-H-110": {
       "vidrio": "VIDRIO_CLARO",
       "orientaciones": [
-        "NORTE"
+        "ESTE"
       ]
     },
     "TP-H-111": {
       "vidrio": "VIDRIO_CLARO",
       "orientaciones": [
-        "NORTE"
+        "ESTE"
       ]
     },
     "TP-H-112": {
       "vidrio": "VIDRIO_CLARO",
       "orientaciones": [
-        "NORTE"
+        "ESTE"
       ]
     },
     "TP-H-113": {
       "vidrio": "VIDRIO_CLARO",
       "orientaciones": [
-        "NORTE"
+        "ESTE"
       ]
     },
     "TP-H-114": {
       "vidrio": "VIDRIO_CLARO",
       "orientaciones": [
-        "NORTE"
+        "ESTE"
       ]
     },
     "TP-H-115": {
       "vidrio": "VIDRIO_CLARO",
       "orientaciones": [
-        "NORTE"
+        "ESTE"
       ]
     },
     "TP-H-116": {
       "vidrio": "VIDRIO_CLARO",
       "orientaciones": [
-        "NORTE"
+        "ESTE"
       ]
     },
     "TP-H-117": {
       "vidrio": "VIDRIO_CLARO",
       "orientaciones": [
-        "NORTE"
+        "ESTE"
       ]
     },
     "TP-H-118": {
       "vidrio": "VIDRIO_CLARO",
       "orientaciones": [
-        "NORTE"
+        "ESTE"
       ]
     },
     "TP-H-119": {
       "vidrio": "VIDRIO_CLARO",
       "orientaciones": [
-        "NORTE"
+        "ESTE"
       ]
     },
     "TP-H-120": {
       "vidrio": "VIDRIO_CLARO",
       "orientaciones": [
-        "NORTE"
+        "ESTE"
       ]
     },
     "TP-H-121": {
       "vidrio": "VIDRIO_CLARO",
       "orientaciones": [
-        "NORTE"
+        "ESTE"
       ]
     },
     "TP-H-122": {
       "vidrio": "VIDRIO_CLARO",
       "orientaciones": [
-        "NORTE"
+        "ESTE"
       ]
     },
     "TP-H-123": {
       "vidrio": "VIDRIO_CLARO",
       "orientaciones": [
-        "NORTE"
+        "ESTE"
       ]
     },
     "TP-H-124": {
       "vidrio": "VIDRIO_CLARO",
       "orientaciones": [
-        "NORTE"
+        "ESTE"
       ]
     }
   }

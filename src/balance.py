@@ -72,17 +72,18 @@ def balancear(hotel: Hotel, hora: float, natural: dict[str, float], reflejada: d
     hotel.generador.demanda_objetivo_maxima = max(hotel.generador.demanda_objetivo_maxima, demanda_objetivo_total)
 
     asignadas: dict[str, float] = {demanda.zona.id: 0.0 for demanda in demandas}
+    generador = Reparto(hotel.generador.potencia_disponible)
     abiertas = [(_categoria(hotel, d.zona), -d.prioridad, i, d) for i, d in enumerate(demandas) if d.zona.modo != ModoOperacion.CERRADA]
     orden = _en_orden(abiertas)
 
     for demanda in orden:
         potencia = min(demanda.potencia_emergencia, _potencia_maxima(hotel, demanda.zona))
-        asignadas[demanda.zona.id] = _asignar(hotel, potencia, asignadas)
+        asignadas[demanda.zona.id] = generador.entregar(potencia)
 
     for demanda in orden:
         alcanzable = min(demanda.potencia_minima, _potencia_maxima(hotel, demanda.zona))
         restante = max(0.0, alcanzable - asignadas[demanda.zona.id])
-        asignadas[demanda.zona.id] += _asignar(hotel, restante, asignadas)
+        asignadas[demanda.zona.id] += generador.entregar(restante)
         if asignadas[demanda.zona.id] < alcanzable - 1e-6:
             demanda.zona.modo = ModoOperacion.EMERGENCIA
 
@@ -94,7 +95,7 @@ def balancear(hotel: Hotel, hora: float, natural: dict[str, float], reflejada: d
         if restante == 0 or demanda.zona.modo in (ModoOperacion.CERRADA, ModoOperacion.EMERGENCIA):
             continue
         potencia = min(restante, _potencia_maxima(hotel, demanda.zona) - asignadas[demanda.zona.id])
-        asignadas[demanda.zona.id] += _asignar(hotel, potencia, asignadas)
+        asignadas[demanda.zona.id] += generador.entregar(potencia)
     return asignadas
 
 
@@ -121,6 +122,14 @@ def _potencia_maxima(hotel: Hotel, zona: ZonaHotel) -> float:
     return hotel.fuentes[zona.fuente_id].potencia_maxima
 
 
-def _asignar(hotel: Hotel, potencia: float, asignadas: dict[str, float]) -> float:
-    disponible = max(0.0, hotel.generador.potencia_disponible - sum(asignadas.values()))
-    return min(max(0.0, potencia), disponible)
+class Reparto:
+    """Lleva la cuenta de lo que ya entregó el generador en el instante, para no volver a sumarlo."""
+
+    def __init__(self, capacidad: float) -> None:
+        self.capacidad = capacidad
+        self.usado = 0.0
+
+    def entregar(self, potencia: float) -> float:
+        entregado = min(max(0.0, potencia), max(0.0, self.capacidad - self.usado))
+        self.usado += entregado
+        return entregado

@@ -11,8 +11,8 @@
       "conteo_veredictos": {
         "HABITABLE": 127
       },
-      "puntaje_hotel": 0.9886,
-      "energia_wh": 198385.6,
+      "puntaje_hotel": 0.9954,
+      "energia_wh": 210495.2,
       "estado_generador": "OPERACION_NORMAL",
       "pasos_emergencia": 0,
       "pasos_cerrada": 260,
@@ -139,21 +139,25 @@
   },
   "perfiles_climaticos": {
     "NUBES_PARCIALES": {
+      "dia_del_anio": 46,
       "radiacion": 4.863,
       "nubosidad": 0.7089,
       "precipitacion": 2.51
     },
     "NUBLADO": {
+      "dia_del_anio": 135,
       "radiacion": 4.477,
       "nubosidad": 0.8582,
       "precipitacion": 6.68
     },
     "LLUVIOSO": {
+      "dia_del_anio": 105,
       "radiacion": 4.454,
       "nubosidad": 0.8487,
       "precipitacion": 6.97
     },
     "CIELO_DESPEJADO": {
+      "dia_del_anio": 46,
       "radiacion": 7.063,
       "nubosidad": 0.0,
       "precipitacion": 0.0
@@ -243,9 +247,14 @@
     "reserva": 0.2
   },
   "parametros_evaluacion": {
+    "ubicacion": {
+      "latitud": 4.711,
+      "longitud": -74.072
+    },
     "luz": {
       "lux_por_irradiancia": 900.0,
-      "radiacion_cielo_despejado": 7.063
+      "radiacion_cielo_despejado": 7.063,
+      "reflectancia_suelo": 0.2
     },
     "emergencia": {
       "nivel_lux": 10.0

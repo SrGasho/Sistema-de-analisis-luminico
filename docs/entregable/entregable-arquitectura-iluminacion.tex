@@ -150,34 +150,65 @@ En modo \estado{REDUCIDA} los tres niveles se multiplican por \codigo{factor\_re
 \begin{center}\small
 \begin{tabular}{p{0.22\textwidth}p{0.16\textwidth}r r r r}
 \toprule
-\textbf{Perfil} & \textbf{Referencia} & \textbf{Radiación} & \textbf{Nubosidad} & \textbf{Lluvia} & \textbf{factor\_luz}\\
+\textbf{Perfil} & \textbf{Referencia ($n$)} & \textbf{Radiación} & \textbf{Nubosidad} & \textbf{Lluvia} & \textbf{factor\_luz}\\
  & & kWh/m$^2$/día & \% & mm/día & \\
 \midrule
-Nubes parciales & Febrero & 4,863 & 70,89 & 2,51 & 0,689\\
-Nublado & Mayo & 4,477 & 85,82 & 6,68 & 0,634\\
-Lluvioso & Abril & 4,454 & 84,87 & 6,97 & 0,631\\
-Cielo despejado & Clear-sky & 7,063 & -- & -- & 1,000\\
+Nubes parciales & Febrero (46) & 4,863 & 70,89 & 2,51 & 0,689\\
+Nublado & Mayo (135) & 4,477 & 85,82 & 6,68 & 0,634\\
+Lluvioso & Abril (105) & 4,454 & 84,87 & 6,97 & 0,631\\
+Cielo despejado & Clear-sky (46) & 7,063 & -- & -- & 1,000\\
 \bottomrule
 \end{tabular}
 \end{center}
 
-Como contexto anual se usan 4,639 kWh/m$^2$/día de radiación global all-sky, 7,063 de cielo despejado, 78,41\% de nubosidad y 4,45 mm/día de precipitación. El escenario base usa el perfil de nubes parciales. La irradiancia se transforma en lux de referencia mediante una constante calibrable, no en lux fotométricos medidos:
+Como contexto anual se usan 4,639 kWh/m$^2$/día de radiación global all-sky, 7,063 de cielo despejado, 78,41\% de nubosidad y 4,45 mm/día de precipitación. El escenario base usa el perfil de nubes parciales. Cada perfil trae su día del año $n$ (\codigo{dia\_del\_anio}), que fija la posición del sol. La nubosidad y la precipitación se cargan y se reportan, pero son informativas: no entran en el cálculo.
+
+\textbf{Posición del sol.} Se calcula la posición real del sol en Bogotá (\codigo{direccion\_solar} en \codigo{clima.py}) con la latitud $\varphi=4,711^\circ$ (\codigo{parametros\_evaluacion.ubicacion.latitud}), la declinación de Cooper \cite{cooper1969} y el ángulo horario; la hora se toma como hora solar \cite{duffieBeckman,noaaSolcalc}:
 \begin{equation}
- E_{base}(t)=K_{lux}\,C(t)\,factor_{luz},\qquad
- factor_{luz}=\min\left(1,\frac{I_{clima}}{I_{despejado}}\right),\qquad
- C(t)=\sin\left(\frac{\pi(t-6)}{12}\right),
+ \delta=23,45^\circ\sin\left(\frac{360^\circ(284+n)}{365}\right),\qquad
+ \omega=15^\circ(t-12),
+ \label{eq:declinacion}
+\end{equation}
+\begin{equation}
+ \mathbf s=\left(-\cos\delta\sin\omega,\;
+ \sin\delta\cos\varphi-\cos\delta\sin\varphi\cos\omega,\;
+ \sin\delta\sin\varphi+\cos\delta\cos\varphi\cos\omega\right),
+ \label{eq:sol}
+\end{equation}
+con los ejes este, norte y arriba; la tercera componente es el seno de la altura del sol $\alpha$. En febrero el sol de mediodía está a 72,0° de altura y hacia el sur; a las 7:00 está a 13,4° y a las 9:00 a 41,8°. En abril el mediodía llega a 85,3° y en mayo a 75,9°, hacia el norte.
+
+\textbf{Luz global y fracción difusa.} La irradiancia se transforma en lux de referencia mediante una constante calibrable, no en lux fotométricos medidos:
+\begin{equation}
+ G(t)=K_{lux}\,factor_{luz}\,\max(0,\sin\alpha(t)),\qquad
+ factor_{luz}=\min\left(1,\frac{I_{clima}}{I_{despejado}}\right),
  \label{eq:clima}
 \end{equation}
-donde $K_{lux}=900$ (\codigo{parametros\_evaluacion.luz.lux\_por\_irradiancia}), $I_{clima}$ es la radiación del perfil activo e $I_{despejado}=7,063$ kWh/m$^2$/día es la radiación de cielo despejado de NASA POWER (\codigo{parametros\_evaluacion.luz.radiacion\_cielo\_despejado}; si falta, se usa la mayor radiación de los perfiles). La curva solar $C(t)$ solo se evalúa entre 06:00 y 18:00; fuera de ese intervalo $E_{base}=0$. El factor no se escribe a mano en el JSON: lo calcula la propiedad \codigo{PerfilClimatico.factor\_luz}, así que cambiar la radiación cambia el resultado. La nubosidad $c$ reparte la luz entre directa y difusa:
+donde $K_{lux}=900$ (\codigo{parametros\_evaluacion.luz.lux\_por\_irradiancia}), $I_{clima}$ es la radiación del perfil activo e $I_{despejado}=7,063$ kWh/m$^2$/día es la radiación de cielo despejado de NASA POWER (\codigo{parametros\_evaluacion.luz.radiacion\_cielo\_despejado}; si falta, se usa la mayor radiación de los perfiles). $G$ solo se evalúa entre 06:00 y 18:00; fuera de ese intervalo $G=0$. El factor no se escribe a mano en el JSON: lo calcula la propiedad \codigo{PerfilClimatico.factor\_luz}, así que cambiar la radiación cambia el resultado. En febrero con nubes parciales $G$ vale 143,9 lux a las 7:00, 413,3 a las 9:00, 589,3 a las 12:00, 413,3 a las 15:00 y 66,8 a las 17:30.
+
+$G$ se reparte en directa y difusa con una fracción difusa diaria $k_d$, según la correlación de Erbs, Klein y Duffie \cite{erbs1982} en su forma para $\omega_s>81,4^\circ$. El índice de claridad es la radiación del perfil dividida por la radiación extraterrestre diaria $H_0$ \cite[ec.~1.10.3]{duffieBeckman}:
 \begin{equation}
- f_{directa}=\max(0.10,1-c),\qquad f_{difusa}=0.15+0.45c.
- \label{eq:nubosidad}
+ H_0=\frac{24}{\pi}G_{sc}\left(1+0,033\cos\frac{360^\circ n}{365}\right)\left(\cos\varphi\cos\delta\sin\omega_s+\omega_s\sin\varphi\sin\delta\right),\qquad
+ K_T=\frac{I_{clima}}{H_0},
+ \label{eq:extraterrestre}
 \end{equation}
-La precipitación se carga y se reporta, pero es informativa: no entra en el cálculo.
+\begin{equation}
+ k_d=1,311-3,022K_T+3,427K_T^2-1,821K_T^3,\qquad
+ G_{dir,h}=G(1-k_d),\qquad G_{dif,h}=G\,k_d,
+ \label{eq:difusa}
+\end{equation}
+con $G_{sc}=1,367$ kW/m$^2$ y $\omega_s$ el ángulo horario de la puesta del sol. Directa y difusa suman $G$. Con nubes parciales $H_0=10,05$, $K_T=0,484$ y $k_d=0,445$; nublado, 10,06, 0,445 y 0,484; lluvioso, 10,41, 0,428 y 0,503; con cielo despejado, $K_T=0,703$ y $k_d=0,248$. Así, la luz natural del hotel en el día completo crece con la radiación: 534.973 con cielo despejado, 396.651 con nubes parciales, 385.199 nublado y 370.265 lluvioso (suma de lux de todas las zonas en los 48 pasos).
+
+\textbf{Superficies verticales.} Ventanas y fachadas reciben la luz con el modelo de cielo isotrópico de Liu y Jordan \cite{liuJordan1960}:
+\begin{equation}
+ E_{dir}(\theta)=G_{dir,h}\frac{\cos\theta}{\max(\sin\alpha,\sin5^\circ)},\qquad
+ E_{dif}(O)=0,5\,G_{dif,h}\,(1-O)+0,5\,\rho_{suelo}\,G,
+ \label{eq:vertical}
+\end{equation}
+donde $\theta$ es el ángulo entre la normal de la superficie y $\mathbf s$, $\cos\theta/\sin\alpha$ es el factor $R_b$ \cite{duffieBeckman}, $O$ es la obstrucción del cielo (ecuación~\ref{eq:obstruccion}) y $\rho_{suelo}=0,20$ (\codigo{parametros\_evaluacion.luz.reflectancia\_suelo}). La altura mínima de 5° evita que la directa se dispare al amanecer.
 
 \textbf{Vidrios y paredes.} Las ventanas reciben uno de tres presets basados en fichas de vidrio arquitectónico \cite{cardinalSolarControl,cardinalClear}: \clase{VIDRIO\_CLARO}, VLT 0,82; \clase{VIDRIO\_LOW\_E}, VLT 0,70--0,72; o \clase{VIDRIO\_CONTROL\_SOLAR}, VLT 0,52. Los tres usan índice de refracción $n=1,5$ (\codigo{indice\_refraccion}), que entra en el cálculo de Snell y Fresnel de la luz directa. El vidrio, el color de pared y la orientación de las ventanas se configuran por actividad en \codigo{acabados} y por recinto en \codigo{zonas\_personalizadas}. Las paredes usan reflectancias educativas: blanco 0,80, crema 0,70, gris claro 0,60, gris medio 0,45 y oscuro 0,25. Cada torre tiene además cuatro fachadas (norte, sur, este y oeste) cuya reflectancia sale del campo \codigo{fachada} de la torre, con los mismos presets; por defecto es \codigo{GRIS\_CLARO} (0,60).
 
-\textbf{Fuentes y generador.} Una fuente contiene posición, potencia, eficacia, $CU$, $MF$, horario y zona servida. El generador tiene capacidad nominal sintética de 22,0 kW y se usa solamente para iluminación. No alimenta climatización, ascensores ni otras cargas. La reserva del 20\% es el margen con que se dimensionó la capacidad (ecuación~\ref{eq:generador}); en cada instante el balance puede repartir los 22,0 kW completos.
+\textbf{Fuentes y generador.} Una fuente contiene posición, potencia, eficacia, $CU$, $MF$, horario y zona servida. Un recinto puede cambiar la potencia de su luminaria con \codigo{luminaria\_w} en \codigo{zonas\_personalizadas}: debe ser un número mayor o igual a 0, y 0 representa una luminaria dañada. Ese campo se valida al cargar y solo se edita en el JSON, no desde la interfaz. El generador tiene capacidad nominal sintética de 22,0 kW y se usa solamente para iluminación. No alimenta climatización, ascensores ni otras cargas. La reserva del 20\% es el margen con que se dimensionó la capacidad (ecuación~\ref{eq:generador}); en cada instante el balance puede repartir los 22,0 kW completos.
 
 \textbf{Huéspedes y restricciones.} Cada huésped puede tener restricciones en \codigo{huespedes.restricciones\_por\_huesped}. Hay dos restricciones duras, que descartan candidatas: \codigo{MISMA\_TORRE} y \codigo{PISO\_MAXIMO:n}. Hay una preferencia, que suma al puntaje de la candidata: \codigo{ORIENTACION:ESTE}, \codigo{NORTE}, \codigo{OESTE} o \codigo{SUR}. Una restricción desconocida se rechaza al cargar el escenario.
 
@@ -238,7 +269,7 @@ No se crean clases separadas de día y noche.
 \end{tabular}
 \end{center}
 
-En el escenario base el generador alcanza y ninguna zona entra en \estado{EMERGENCIA}; hay 260 pasos \estado{CERRADA}. Con el generador de 10 kW del caso \codigo{deficit\_leve} aparecen 16 pasos \estado{EMERGENCIA}, y con el de 4 kW del caso \codigo{deficit\_severo}, 667. ISO 30061:2007 y NFPA 101 se usan como referencia de contexto para emergencia \cite{isoEmergency,nfpa101}.
+En el escenario base el generador alcanza y ninguna zona entra en \estado{EMERGENCIA}; hay 260 pasos \estado{CERRADA}. Con el generador de 10 kW del caso \codigo{deficit\_leve} aparecen 16 pasos \estado{EMERGENCIA}, y con el de 4 kW del caso \codigo{deficit\_severo}, 660. ISO 30061:2007 y NFPA 101 se usan como referencia de contexto para emergencia \cite{isoEmergency,nfpa101}.
 
 \textbf{Clasificación por instante.} El estado siempre usa el nivel real de iluminación de la zona, no su peso de prioridad:
 
@@ -283,9 +314,9 @@ $E_{min}$ y $E_{max}$ son los del modo de la zona en ese instante: en \estado{RE
 \end{tabular}
 \end{center}
 
-El puntaje se calcula también solo con los pasos de día y solo con los de noche. Para una zona casi habitable se reporta la brecha hasta 0,90, la causa más frecuente (déficit diurno o nocturno, exceso solar o artificial) y una recomendación. El puntaje del hotel es el promedio de los puntajes de zona ponderado por $Prioridad_{actividad}\,(1+0,10(p-1))$. Los umbrales y los valores de $q$ están en \codigo{parametros\_evaluacion} del JSON. En el escenario base 101 zonas son \estado{HABITABLE}, 26 quedan \estado{CASI\_HABITABLE}, todas por exceso solar, ninguna es \estado{NO\_HABITABLE} y el puntaje ponderado del hotel es 0,9726 (día 0,9451, noche 1,0).
+El puntaje se calcula también solo con los pasos de día y solo con los de noche. Para una zona casi habitable se reporta la brecha hasta 0,90, la causa más frecuente (déficit diurno o nocturno, exceso solar o artificial) y una recomendación. El puntaje del hotel es el promedio de los puntajes de zona ponderado por $Prioridad_{actividad}\,(1+0,10(p-1))$. Los umbrales y los valores de $q$ están en \codigo{parametros\_evaluacion} del JSON. En el escenario base las 127 zonas son \estado{HABITABLE} (52 de ellas con causa \codigo{EXCESO\_SOLAR} en algunos pasos), ninguna queda \estado{CASI\_HABITABLE} ni \estado{NO\_HABITABLE} y el puntaje ponderado del hotel es 0,9718 (día 0,9436, noche 1,0). De los 6.096 estados, 5.517 son confortables, 319 exceso leve, 260 cerrados y ninguno déficit.
 
-\textbf{Condiciones ópticas.} Para la luz directa, cada ventana calcula el ángulo de refracción con la ley de Snell y la transmitancia de Fresnel no polarizada \cite{edmundOptics}. Con $\cos\theta_i=\max(0,\mathbf n_v\cdot\mathbf s)$, donde $\mathbf s$ es la dirección solar:
+\textbf{Condiciones ópticas.} Para la luz directa, cada ventana calcula el ángulo de refracción con la ley de Snell y la transmitancia de Fresnel no polarizada \cite{hecht2017,edmundOptics}. Con $\cos\theta_i=\max(0,\mathbf n_v\cdot\mathbf s)$, donde $\mathbf s$ es la dirección solar:
 \begin{equation}
  n_{aire}\sin(\theta_i)=n_{vidrio}\sin(\theta_t),\qquad
  R_s=\left(\frac{\cos\theta_i-n\cos\theta_t}{\cos\theta_i+n\cos\theta_t}\right)^2,\qquad
@@ -299,19 +330,19 @@ El puntaje se calcula también solo con los pasos de día y solo con los de noch
 \end{equation}
 donde $n=n_{vidrio}=1,5$ y $n_{aire}=1$. El cuadrado representa las dos caras del vidrio. Al dividir por la incidencia perpendicular, $F(0)=1$ y la VLT del catálogo se conserva a 0°. El factor angular resultante es 0,997 a 30°, 0,979 a 45°, 0,900 a 60°, 0,605 a 75° y 0,163 a 85°. La función que lo calcula es \codigo{factor\_angular\_vidrio} en \codigo{geometria.py}. La luz natural de la zona es el promedio de sus ventanas:
 \begin{equation}
- E_{natural}(z,t)=\frac{1}{|V_z|}\sum_{v\in V_z}E_{base}(t)\,\tau_v\left(\cos\theta_i\,F(\theta_i)\,f_{directa}+f_{difusa}\right),
+ E_{natural}(z,t)=\frac{1}{|V_z|}\sum_{v\in V_z}\tau_v\left(E_{dir}(\theta_i)\,F(\theta_i)+E_{dif}(O_v)\right),
  \label{eq:natural}
 \end{equation}
-donde $\tau_v$ es la VLT del catálogo y $\cos\theta_i=0$ si un rayo del Octree hacia el sol encuentra la otra torre. La componente difusa usa solo la VLT, sin corrección angular. No se modelan polarización de salida, dispersión espectral, reflexión múltiple dentro del vidrio ni marcos detallados.
+donde $\tau_v$ es la VLT del catálogo, $E_{dir}$ y $E_{dif}$ son los de la ecuación~\ref{eq:vertical} y $\cos\theta_i=0$ si un rayo del Octree hacia el sol encuentra la otra torre. La componente difusa usa solo la VLT, sin corrección angular. No se modelan polarización de salida, dispersión espectral, reflexión múltiple dentro del vidrio ni marcos detallados.
 
-La otra torre también tapa parte del cielo. Por eso $f_{difusa}$ se multiplica, en cada ventana, por $1-O_v$:
+La otra torre también tapa parte del cielo. Por eso la difusa del cielo se multiplica, en cada ventana, por $1-O_v$:
 \begin{equation}
  O_v=\min\left(1,\sum_{f}\cos\theta_{v,f}\,\frac{A_f}{\pi d_{vf}^{2}+A_f}\right),
  \label{eq:obstruccion}
 \end{equation}
 donde la suma recorre las fachadas $f$ de la otra torre que la ventana tiene enfrente, $A_f$ es el área de la fachada, $d_{vf}$ la distancia y $\cos\theta_{v,f}$ el coseno entre la normal de la ventana y la dirección hacia la fachada. En el escenario base 40 ventanas tienen obstrucción; \codigo{TP-H-101-V1}, al este y frente a TG, tiene $O_v=0,593$.
 
-\textbf{Luz reflejada.} Sólo existe de día y suma dos partes: la reflexión exterior entre torres, que se calcula con el grafo de influencia (ecuación~\ref{eq:influencia}), y la reflexión interior del recinto. La reflexión interior usa el método de flujo dividido:
+\textbf{Luz reflejada.} Sólo existe de día y suma dos partes: la reflexión exterior entre torres, que se calcula con el grafo de influencia (ecuación~\ref{eq:influencia}), y la reflexión interior del recinto. La reflexión interior usa el método de flujo dividido \cite{hopkinson1966}:
 \begin{equation}
  E_{ri}(z,t)=\frac{\Phi(z,t)\,\rho_z}{A_{int}(z)\,(1-\rho_z)},\qquad
  \Phi(z,t)=\sum_{v\in V_z}\left(E_v(t)+E_{ext}(v,t)\right)A_v,\qquad
@@ -323,7 +354,7 @@ donde $E_v$ es la luz natural de la ventana, $E_{ext}$ la luz exterior reflejada
  E_{reflejada}(z,t)=\frac{1}{|V_z|}\sum_{v\in V_z}E_{ext}(v,t)+E_{ri}(z,t).
  \label{eq:reflejada}
 \end{equation}
-A las 12:00 del escenario base, \codigo{TP-H-101} (ventana al este, frente a TG) recibe 97,0 lux naturales y 98,4 reflejados; \codigo{TP-H-102} (al norte, sin torre enfrente) recibe 358,7 naturales y 26,9 reflejados, casi todos interiores; \codigo{TG-H-101} recibe 238,3 y 17,9.
+A las 12:00 de febrero el sol está al sur, así que las ventanas al este y al norte solo reciben difusa. En el escenario base, \codigo{TP-H-101} (ventana al este, frente a TG) recibe 92,0 lux naturales y 66,5 reflejados; \codigo{TP-H-102} (al norte, sin torre enfrente) recibe 155,8 naturales y 11,7 reflejados, casi todos interiores (1,0 con pared oscura); \codigo{TG-H-101} (al este, sin torre enfrente) recibe 155,8 y 11,7.
 
 La luz artificial no recibe reflexión aparte: el $CU=0,70$ del método de lúmenes ya incluye el rebote interior de la luz de la luminaria. El $CU$ es fijo y no cambia con el color de la pared.
 
@@ -354,6 +385,8 @@ El diagrama de la Figura~\ref{fig:uml-clases} presenta las clases agrupadas en c
 \clase{PerfilClimatico}, \clase{PerfilIluminacion} & Mantienen clima, mínimos, objetivos, máximos y prioridades.\\
 \clase{ResultadoIluminacion}, \clase{EvaluadorHabitabilidad} & Guardan componentes temporales, clasifican zonas y emiten el veredicto de habitabilidad.\\
 \clase{BalanceEnergetico}, \clase{ReasignadorHuespedes} & Distribuyen potencia y proponen habitaciones alternativas.\\
+\clase{Reparto} & Cuenta en \codigo{usado} la potencia que el generador ya entregó en el instante.\\
+\clase{Cielo} & Luz global, fracción difusa, dirección del sol y reflectancia del suelo de un instante.\\
 \clase{SimuladorUnificado} & Recorre los 48 instantes, construye el Octree y el grafo, y coordina balance, evaluación y reasignación.\\
 \clase{Octree}, \clase{GrafoInfluencia} & Consultas espaciales de rayo y radio; aristas fachada--ventana de la otra torre indexadas por origen y por destino, y obstrucción del cielo por ventana.\\
 \clase{IndiceAVL}, \clase{IndiceRojoNegro}, \clase{IndiceTemporal} & Bolsa de habitaciones libres para la reasignación e índice de resultados por hora.\\
@@ -376,10 +409,10 @@ Los orígenes son las 8 fachadas (norte, sur, este y oeste de cada torre). Su re
  \label{eq:influencia}
 \end{equation}
 \begin{equation}
- E_f(t)=E_{base}(t)\left(\max(0,\mathbf n_f\cdot\mathbf s)f_{directa}+f_{difusa}\right),
+ E_f(t)=E_{dir}(\theta_f)+E_{dif}(0),\qquad \cos\theta_f=\max(0,\mathbf n_f\cdot\mathbf s),
  \label{eq:fachada}
 \end{equation}
-donde $\cos\theta_f$ y $\cos\theta_v$ miden cuánto se miran la fachada y la ventana, $A_f/(\pi d_{vf}^{2}+A_f)$ es un factor de vista aproximado para una superficie grande y solo se guardan aristas con $w_{fv}>0,0001$. La reflexión exterior es de primer orden: la luz reflejada por una fachada no vuelve a propagarse. A las 12:00 del escenario base, \codigo{TG-F-OESTE} recibe 290,6 lux y su arista hacia \codigo{TP-H-101-V1} pesa 0,3559. Al construir el grafo también se acumula la obstrucción del cielo de cada ventana (ecuación~\ref{eq:obstruccion}).
+donde $\cos\theta_f$ y $\cos\theta_v$ miden cuánto se miran la fachada y la ventana, $A_f/(\pi d_{vf}^{2}+A_f)$ es un factor de vista aproximado para una superficie grande y solo se guardan aristas con $w_{fv}>0,0001$. La reflexión exterior es de primer orden: la luz reflejada por una fachada no vuelve a propagarse. La fachada usa la ecuación~\ref{eq:vertical} sin obstrucción. En el escenario base, \codigo{TG-F-OESTE} recibe 133,2 lux a las 9:00, 190,0 a las 12:00 y 370,0 a las 15:00, y su arista hacia \codigo{TP-H-101-V1} pesa 0,3559. Al construir el grafo también se acumula la obstrucción del cielo de cada ventana (ecuación~\ref{eq:obstruccion}).
 
 El grafo se construye con \codigo{Octree.consultar\_radio} desde cada ventana, en vez de comparar cada fachada con todas las ventanas. Las aristas se guardan en dos diccionarios, por origen y por destino; así, en cada instante, el cálculo de la luz exterior de una ventana solo recorre las aristas que llegan a ella. En el escenario base hay 8 fachadas y 154 ventanas: la versión ingenua evaluaría 1.232 pares y la versión con Octree evalúa 68 candidatos, visitando 7.834 nodos del Octree. El grafo tiene 46 aristas: \codigo{TP-F-ESTE} llega a 24 ventanas de TG, \codigo{TG-F-OESTE} a 16 ventanas de TP y \codigo{TP-F-NORTE} a 6 ventanas de recreaciones de TG. Los resultados de iluminación son idénticos a los de la construcción ingenua; solo cambia el número de comparaciones.
 
@@ -390,7 +423,7 @@ El grafo se construye con \codigo{Octree.consultar\_radio} desde cada ventana, e
 \end{equation}
 donde $P(r)$ es el puntaje de habitabilidad de la habitación y $Energia_{max}$ la mayor energía consumida por una zona. Como la calidad entra negativa, dentro de cada piso la primera clave es la mejor habitación. El árbol usa cuatro operaciones: insertar, \codigo{sucesor} (menor clave $\geq x$), \codigo{siguiente} (menor clave $>x$) y \codigo{eliminar} con rebalanceo. Para cada huésped que hay que mover se consulta el sucesor de $(torre, piso, -\infty)$ en cada piso permitido por sus restricciones; si tiene preferencia de orientación, se siguen los sucesores del piso mientras alguno todavía pueda ganar con el bono. Cuando una habitación se llena, se elimina del árbol, de modo que dos huéspedes no reciben la misma cama. El trabajo es casi todo de lectura (varias consultas y como máximo una eliminación por huésped), y por eso conviene el equilibrio estricto del AVL. El costo es $O(G\cdot F\cdot\log H)$ contra $O(G\cdot H)$ de recorrer la lista, con $G$ huéspedes por mover, $F$ pisos y $H$ habitaciones.
 
-En el escenario base el AVL se construye con las 78 habitaciones habitables con cama libre (altura 7, 58 rotaciones, 417 comparaciones de construcción) y no se consulta, porque ningún huésped está en una habitación \estado{NO\_HABITABLE}. En una prueba de carga sobre el escenario base con 60 de las 78 habitaciones ocupadas marcadas \estado{NO\_HABITABLE}, el AVL hizo 2.087 comparaciones contra 6.240 de la búsqueda lineal, con 34 eliminaciones y ninguna habitación con sobrecupo; con restricciones mezcladas, 2.045 contra 6.240. En las dos corridas la habitación elegida coincidió, huésped por huésped, con una búsqueda lineal que descuenta capacidad.
+En el escenario base el AVL se construye con las 104 habitaciones habitables con cama libre (altura 8, 80 rotaciones, 618 comparaciones de construcción) y no se consulta, porque ningún huésped está en una habitación \estado{NO\_HABITABLE}. En una prueba de carga sobre el escenario base con 60 de las 78 habitaciones ocupadas marcadas \estado{NO\_HABITABLE}, el AVL hizo 2.792 comparaciones contra 6.240 de la búsqueda lineal, con 39 eliminaciones y ninguna habitación con sobrecupo; con restricciones mezcladas, 3.289 contra 6.240. En las dos corridas la habitación elegida coincidió, huésped por huésped, con una búsqueda lineal que descuenta capacidad.
 
 \textbf{Árbol rojo-negro para los resultados temporales.} Cada \clase{ResultadoIluminacion} se inserta, apenas se calcula, en un \clase{IndiceRojoNegro} con clave $(hora, zona\_id)$. Las franjas horarias se consultan como rango semiabierto $[inicio, fin)$ en $O(\log R+k)$, con $R$ resultados y $k$ resultados en la franja, contra $O(R)$ de recorrer la lista; construir el índice cuesta $O(R\log R)$. De esas consultas salen los reportes por franja de la sección de salidas y el selector de franja horaria del plano en la interfaz. Se eligió el rojo-negro porque hay 6.096 inserciones y pocas consultas, y en teoría rota menos que el AVL al insertar. La medición, hecha insertando los mismos resultados en los dos árboles, da:
 
@@ -437,9 +470,9 @@ En el escenario base el rojo-negro rota más que el AVL. Los resultados llegan c
 \codigo{geometria.py} & Vector, caja, rayo, Snell y Fresnel (\codigo{factor\_angular\_vidrio}).\\
 \codigo{octree.py} & Octree con consultas de rayo y de radio.\\
 \codigo{influencia.py} & Grafo fachada--ventana de la otra torre construido con el Octree, visibilidad, pesos, obstrucción del cielo y reflexión exterior de primer orden.\\
-\codigo{clima.py} & Curva solar, dirección solar, periodo y luz base.\\
+\codigo{clima.py} & Posición del sol, luz global, fracción difusa diaria, luz directa y difusa sobre superficies verticales (\clase{Cielo}) y periodo.\\
 \codigo{simulacion.py} & \clase{SimuladorUnificado}: los 48 instantes, luz natural, luz de las fachadas, reflejada (exterior e interior) y artificial, y estado de cada resultado.\\
-\codigo{balance.py} & Modos por horario, demandas, orden del balance con \codigo{heapq} y agregación de energía por torre y piso.\\
+\codigo{balance.py} & Modos por horario, demandas, orden del balance con \codigo{heapq}, \clase{Reparto} de la potencia del generador y agregación de energía por torre y piso.\\
 \codigo{evaluacion.py} & Estados instantáneos y resumen por zona.\\
 \codigo{habitabilidad.py} & Puntaje y veredicto de habitabilidad por zona y del hotel.\\
 \codigo{arboles.py} & \clase{IndiceAVL} e \clase{IndiceRojoNegro} con contadores de comparaciones y rotaciones.\\
@@ -453,7 +486,7 @@ En el escenario base el rojo-negro rota más que el AVL. Los resultados llegan c
 \end{tabular}
 \end{center}
 
-\textbf{Iluminación artificial y balance.} Para una zona de área $A_z$:
+\textbf{Iluminación artificial y balance.} Para una zona de área $A_z$, con el método de lúmenes \cite{iesHandbook}:
 \begin{equation}
  E_{artificial}(z,t)=\frac{\eta P_{asignada}(z,t)CU MF}{A_z},\qquad
  P_{req}(E^*)=\max\left(0,\frac{E^*-E_{natural}-E_{reflejada}}{\eta CU MF/A_z}\right),
@@ -484,7 +517,9 @@ La prioridad de una zona es
 \end{equation}
 con $pesoActividad$ igual a 3 para habitación y cocina, 2 para recreación y 1 para parqueadero, $p$ el número del piso y $factorOcupacion$ igual a 1,4 en una habitación ocupada y 1,0 en las demás zonas. La cola de prioridad es suficiente porque el balance solo inserta y extrae el máximo; un árbol de búsqueda no aporta nada en esta parte.
 
-El peso decide prioridad, pero no altera el estado físico: una zona con iluminación real menor que su mínimo continúa en déficit. La estrategia es greedy y no garantiza un óptimo global. En el escenario base el balance consume 194.432,4 Wh en las 24 horas y el pico del generador es 15.933,7 W.
+El peso decide prioridad, pero no altera el estado físico: una zona con iluminación real menor que su mínimo continúa en déficit. Cada entrega de potencia pasa por un objeto \clase{Reparto} (\codigo{balance.py}), que guarda en \codigo{usado} lo que el generador ya entregó en el instante. Así no se vuelve a sumar todo lo asignado: cada entrega cuesta $O(1)$ y el instante completo $O(Z\log Z)$.
+
+La estrategia es greedy y no garantiza un óptimo global. En el escenario base el balance consume 208.075,0 Wh en las 24 horas y el pico del generador es 15.933,7 W a las 18:00. La potencia asignada es 4.834 W a las 0:00, 11.648 a las 6:00, 8.837 a las 7:00, 7.174 a las 9:00, 7.220 a las 12:00, 7.754 a las 15:00, 13.080 a las 17:30, 15.934 a las 18:00 y 9.870 a las 22:00.
 
 \textbf{Reasignación de huéspedes.} Se reasigna a un huésped solo si su habitación tiene veredicto \estado{NO\_HABITABLE}; un paso aislado bajo el mínimo no basta. Las candidatas salen de la bolsa AVL descrita en la sección anterior, filtradas por \codigo{MISMA\_TORRE} y \codigo{PISO\_MAXIMO:n}. El puntaje de una candidata $r$ es:
 \begin{equation}
@@ -505,7 +540,7 @@ donde $calidad(r)$ es la de la ecuación~\ref{eq:calidad}, $Orientacion(r)$ vale
 \end{tabular}
 \end{center}
 
-La operación modifica la asignación lógica, no la geometría ni una reserva real. El caso \codigo{deficit\_severo} demuestra la falta de alternativa: 71 zonas quedan \estado{NO\_HABITABLE}, solo los 3 parqueaderos quedan \estado{HABITABLE} y 25 huéspedes reciben \codigo{SIN\_HABITACIONES\_HABITABLES\_LIBRES}.
+La operación modifica la asignación lógica, no la geometría ni una reserva real. El caso \codigo{deficit\_severo} demuestra la falta de alternativa: 68 zonas quedan \estado{NO\_HABITABLE}, solo los 3 parqueaderos quedan \estado{HABITABLE} y 22 huéspedes reciben \codigo{SIN\_HABITACIONES\_HABITABLES\_LIBRES}. El caso \codigo{luminarias\_danadas} deja con \codigo{luminaria\_w} $=0$ las 16 habitaciones ocupadas de los pisos 1 y 2 de TP (\codigo{TP-H-101} a \codigo{TP-H-116}); quedan \estado{NO\_HABITABLE} por déficit nocturno y sus 16 huéspedes se mueven: H-001 (\codigo{MISMA\_TORRE}) a \codigo{TP-H-120}, H-002 (\codigo{PISO\_MAXIMO:2}) a \codigo{TG-H-112} y H-003 (\codigo{ORIENTACION:ESTE}) a \codigo{TG-H-101}. El caso \codigo{reasignacion\_restringida} deja sin luminaria las 24 habitaciones ocupadas de TP: 16 huéspedes con \codigo{MISMA\_TORRE} llenan las 16 camas del piso 4 de TP, H-017 y H-018 reciben \codigo{SIN\_CAPACIDAD}, H-019 y H-020 (además \codigo{PISO\_MAXIMO:2}) reciben \codigo{RESTRICCIONES}, y H-021 a H-024 van a TG.
 
 \textbf{Flujo del programa.}
 \begin{verbatim}
@@ -514,6 +549,7 @@ construir árbol, diccionarios, Octree y grafo fachada -> ventana de la
     otra torre (consultar_radio, 18 m), con la obstrucción del cielo
 para cada instante t de 00:00 a 24:00, cada 0,5 h:
     determinar modo por horario y periodo de cada zona
+    calcular sol, G y su reparto en directa y difusa (Cielo)
     calcular luz natural (sombra, obstrucción, Snell y Fresnel)
     calcular reflejada: exterior (fachadas) + interior (flujo dividido)
     reservar nivel de emergencia, luego mínimos por categoría
@@ -531,9 +567,9 @@ exportar resultados por zona, torre, actividad y hotel
 
 \textbf{Interfaz web.} El servidor se inicia con \codigo{python -m src.api} y sirve la carpeta \codigo{web/}. La interfaz tiene formularios para editar las entradas, un plano por torre y piso con la leyenda \codigo{TP} = Torre Pequeña y \codigo{TG} = Torre Grande, un selector de franja horaria que colorea cada zona con su estado en esa franja, los veredictos de habitabilidad, las sugerencias, las mejoras medidas, la reestructuración y una tabla de estructuras de datos y comparaciones (grafo, AVL de reasignación y rotaciones del rojo-negro contra el AVL).
 
-\textbf{Complejidad y pruebas.} Las cotas son: sombras sin Octree $O(VBT)$; sombras con Octree $O(VT(\log B+k))$; grafo ingenuo $O(S\cdot V)$, con $S$ fachadas, y grafo con consultas de radio $O(V(\log B+k))$; agregación $O(N)$; balance con cola de prioridad $O(Z\log Z)$ por instante; reasignación $O(G\cdot F\cdot\log H)$ contra $O(G\cdot H)$; índice temporal $O(R\log R)$ para construirlo y $O(\log R+k)$ por franja. Las mediciones están en la sección de estructuras de datos. Con dos torres, el beneficio del Octree en las sombras es principalmente didáctico y organizativo; en el grafo reduce los pares evaluados de 1.232 a 68. Las pruebas automáticas están en \codigo{tests/test\_casos\_plan.py} y se ejecutan con \codigo{python -m unittest} desde la raíz del repositorio. Cubren diez casos: ventana al sol sin obstáculo, ventana sombreada por la otra torre, transmisión con cada vidrio, reflexión de primer orden sin cascada (aristas solo de una fachada a ventanas de la otra torre, peso no mayor que la reflectancia, reflejada igual a exterior más interior, menos reflejada con pared oscura que con pared blanca y reflejada nula de noche), noche sin luz natural, generador que alcanza para mínimos pero no para objetivos, habitación con déficit y alternativa, habitación con déficit sin alternativa, zona cerrada y habitación en descanso sin falso déficit, y cielo nublado contra despejado.
+\textbf{Complejidad y pruebas.} Las cotas son: sombras sin Octree $O(VBT)$; sombras con Octree $O(VT(\log B+k))$; grafo ingenuo $O(S\cdot V)$, con $S$ fachadas, y grafo con consultas de radio $O(V(\log B+k))$; agregación $O(N)$; balance con cola de prioridad $O(Z\log Z)$ por instante; reasignación $O(G\cdot F\cdot\log H)$ contra $O(G\cdot H)$; índice temporal $O(R\log R)$ para construirlo y $O(\log R+k)$ por franja. Las mediciones están en la sección de estructuras de datos. Con dos torres, el beneficio del Octree en las sombras es principalmente didáctico y organizativo; en el grafo reduce los pares evaluados de 1.232 a 68. Las pruebas automáticas están en \codigo{tests/test\_casos\_plan.py} y se ejecutan con \codigo{python -m unittest} desde la raíz del repositorio. Cubren diez casos: ventana al sol sin obstáculo, ventana sombreada por la otra torre, transmisión con cada vidrio, reflexión de primer orden sin cascada (aristas solo de una fachada a ventanas de la otra torre, peso no mayor que la reflectancia, reflejada igual a exterior más interior, menos reflejada con pared oscura que con pared blanca y reflejada nula de noche), noche sin luz natural, generador que alcanza para mínimos pero no para objetivos, habitación con déficit y alternativa, habitación con déficit sin alternativa, zona cerrada y habitación en descanso sin falso déficit, y cielo nublado contra despejado. La prueba del primer caso comprueba además que la directa y la difusa horizontales suman $G$. \codigo{tests/test\_casos\_json.py} ejecuta el escenario base y los nueve casos de \codigo{data/casos\_prueba/}; en total son 22 pruebas. Los resultados de los casos, como habitables, casi habitables y no habitables, son: \codigo{temporada\_lluvias} 127/0/0; \codigo{generador\_alta\_demanda} 127/0/0 en \codigo{ALTA\_DEMANDA}; \codigo{deficit\_leve} 73/53/1, con solo recreaciones en \estado{EMERGENCIA} (16 pasos); \codigo{deficit\_severo} 3/56/68, con 22 huéspedes sin alternativa y 660 pasos en \estado{EMERGENCIA}; \codigo{apagon\_generador} 0/0/127, con 78 sin alternativa; \codigo{cielo\_despejado} 75/52/0, con causa \codigo{EXCESO\_SOLAR} en habitaciones con ventana al este u oeste y nadie reasignado; \codigo{exceso\_severo} 69/58/0, donde 18 de las 24 habitaciones ocupadas de TP, con vidrio claro y ventana al este, quedan \estado{CASI\_HABITABLE} con \estado{EXCESO\_SEVERO} entre las 6:30 y las 10:00, las otras 6 siguen \estado{HABITABLE} porque TG les hace sombra en la mañana y nadie se reasigna; \codigo{luminarias\_danadas} 111/0/16; y \codigo{reasignacion\_restringida} 103/0/24.
 
-\textbf{Balance de alcance.} La geometría de las torres es fija: el sistema no mueve ni rediseña edificios. Sí mide mejoras y propone reestructuraciones de las variables de luz: actividades (orientación de ventanas y objetivos), acabados (pared y vidrio), horarios y generador. El proyecto no incluye óptica espectral, deslumbramiento profesional, ganancia térmica, consumo total del hotel, mallas complejas ni reservas reales. Los resultados son aproximaciones educativas, y los rangos, horarios, pesos, conteos, potencias y capacidad del generador son supuestos didácticos. La precipitación es informativa. Las fachadas se modelan como superficies opacas de un solo color: la luz que el vidrio de una ventana refleja hacia afuera se descuenta como pérdida de Fresnel y no ilumina la otra torre, aunque en una fachada con mucho vidrio ese reflejo puede ser fuerte. La reflexión exterior entre torres es de primer orden; el $CU$ de la luz artificial es fijo y no cambia con el color de la pared; las superficies interiores de cada recinto se representan con un solo valor de reflectancia; y las ventanas quedan dentro de la caja de su torre, así que para la reflexión exterior se usa su punto de salida en la fachada. RETILAP, UNE-EN 12464-1, ISO 30061 y NFPA 101 deben verificarse para una instalación real. Los estudios de energía hotelera y habitaciones sirven como contexto, no como sustituto de un cálculo eléctrico \cite{hotelReview,lbnlHotelLighting,energyStarEui}.
+\textbf{Balance de alcance.} La geometría de las torres es fija: el sistema no mueve ni rediseña edificios. Sí mide mejoras y propone reestructuraciones de las variables de luz: actividades (orientación de ventanas y objetivos), acabados (pared y vidrio), horarios y generador. El proyecto no incluye óptica espectral, deslumbramiento profesional, ganancia térmica, consumo total del hotel, mallas complejas ni reservas reales. Los resultados son aproximaciones educativas, y los rangos, horarios, pesos, conteos, potencias y capacidad del generador son supuestos didácticos, igual que $K_{lux}=900$, el factor de vista $A_f/(\pi d^2+A_f)$ (aproximación del proyecto, sin fuente), la reflectancia del suelo de 0,20 (valor típico) y la altura mínima de 5°. Son datos reales el clima de NASA POWER, las transmitancias de Cardinal Glass y las áreas de referencia del DOE; las fórmulas del sol, del cielo, de Snell y Fresnel, del flujo dividido y del método de lúmenes son publicadas. La nubosidad y la precipitación son informativas. La hora se trata como hora solar: Bogotá está a $-74,07^\circ$ y usa UTC$-5$, así que la diferencia con el reloj es de unos minutos más la ecuación del tiempo. La fracción difusa es diaria, una sola para todo el día, no horaria. Con el sol muy bajo, la directa sobre una superficie vertical se limita con una altura mínima de 5°. \codigo{luminaria\_w} solo se edita en el JSON. Las fachadas se modelan como superficies opacas de un solo color: la luz que el vidrio de una ventana refleja hacia afuera se descuenta como pérdida de Fresnel y no ilumina la otra torre, aunque en una fachada con mucho vidrio ese reflejo puede ser fuerte. La reflexión exterior entre torres es de primer orden; el $CU$ de la luz artificial es fijo y no cambia con el color de la pared; las superficies interiores de cada recinto se representan con un solo valor de reflectancia; y las ventanas quedan dentro de la caja de su torre, así que para la reflexión exterior se usa su punto de salida en la fachada. RETILAP, UNE-EN 12464-1, ISO 30061 y NFPA 101 deben verificarse para una instalación real. Los estudios de energía hotelera y habitaciones sirven como contexto, no como sustituto de un cálculo eléctrico \cite{hotelReview,lbnlHotelLighting,energyStarEui}.
 
 \section*{Referencias}
 \begin{thebibliography}{99}
@@ -573,6 +609,30 @@ Cardinal Glass Industries, \textit{Quad LoE-452+ Solar Control Glass}. Disponibl
 
 \bibitem{edmundOptics}
 Edmund Optics, \textit{Introduction to Basic Ray Optics}. Disponible en: \url{https://www.edmundoptics.com/knowledge-center/application-notes/optics/introduction-to-basic-ray-optics/}.
+
+\bibitem{cooper1969}
+Cooper, P. I., \textit{The absorption of radiation in solar stills}, Solar Energy, 12(3), 333--346, 1969. Disponible en: \url{https://doi.org/10.1016/0038-092X(69)90047-4}.
+
+\bibitem{duffieBeckman}
+Duffie, J. A. y Beckman, W. A., \textit{Solar Engineering of Thermal Processes}, 4.ª ed., Wiley, 2013. Disponible en: \url{https://doi.org/10.1002/9781118671603}.
+
+\bibitem{noaaSolcalc}
+NOAA Global Monitoring Laboratory, \textit{Solar Calculation Details}. Usado para verificar la posición del sol. Disponible en: \url{https://gml.noaa.gov/grad/solcalc/calcdetails.html}.
+
+\bibitem{erbs1982}
+Erbs, D. G., Klein, S. A. y Duffie, J. A., \textit{Estimation of the diffuse radiation fraction for hourly, daily and monthly-average global radiation}, Solar Energy, 28(4), 293--302, 1982. Disponible en: \url{https://doi.org/10.1016/0038-092X(82)90302-4}.
+
+\bibitem{liuJordan1960}
+Liu, B. Y. H. y Jordan, R. C., \textit{The interrelationship and characteristic distribution of direct, diffuse and total solar radiation}, Solar Energy, 4(3), 1--19, 1960. Disponible en: \url{https://doi.org/10.1016/0038-092X(60)90062-1}.
+
+\bibitem{hecht2017}
+Hecht, E., \textit{Optics}, 5.ª ed., Pearson, 2017.
+
+\bibitem{hopkinson1966}
+Hopkinson, R. G., Petherbridge, P. y Longmore, J., \textit{Daylighting}, Heinemann, 1966.
+
+\bibitem{iesHandbook}
+Illuminating Engineering Society, \textit{IES Lighting Handbook}. Método de lúmenes con coeficiente de utilización ($CU$) y factor de mantenimiento ($MF$).
 
 \end{thebibliography}
 \end{document}

@@ -81,7 +81,7 @@ def cargar_hotel_data(data: dict) -> Hotel:
     if referencia is None:
         referencia = max(valores["radiacion"] for valores in data["perfiles_climaticos"].values())
     climas = {
-        nombre: PerfilClimatico(nombre, valores["radiacion"], valores["nubosidad"], valores["precipitacion"], float(referencia))
+        nombre: PerfilClimatico(nombre, valores["radiacion"], valores["nubosidad"], valores["precipitacion"], float(referencia), int(valores.get("dia_del_anio", 46)))
         for nombre, valores in data["perfiles_climaticos"].items()
     }
     torres: list[Torre] = []
@@ -131,10 +131,11 @@ def cargar_hotel_data(data: dict) -> Hotel:
     for zona in hotel.zonas.values():
         if zona.fuente_id:
             config = data["luminarias"][zona.actividad.value]
+            personal = data.get("zonas_personalizadas", {}).get(zona.id, {})
             fuente = FuenteIluminacion(
                 id=zona.fuente_id,
                 posicion=zona.ventanas[0].posicion if zona.ventanas else _zona_center(zona),
-                potencia_maxima=config["potencia_w"],
+                potencia_maxima=float(personal.get("luminaria_w", config["potencia_w"])),
                 eficacia=config["eficacia_lm_w"],
                 cu=config["cu"],
                 mf=config["mf"],
@@ -326,6 +327,10 @@ def _validar_acabados(data: dict) -> None:
         for orientacion in personal.get("orientaciones", []):
             if orientacion not in VECTORES_ORIENTACION:
                 raise ValueError(f"Orientación no válida en {zona_id}: {orientacion}")
+        if "luminaria_w" in personal:
+            valor = personal["luminaria_w"]
+            if isinstance(valor, bool) or not isinstance(valor, (int, float)) or valor < 0:
+                raise ValueError(f"luminaria_w debe ser un número mayor o igual a 0 en {zona_id}")
 
 
 def _validar(hotel: Hotel) -> None:

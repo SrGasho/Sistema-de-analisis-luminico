@@ -3,22 +3,20 @@
     "nombre": "cielo_despejado",
     "historia": "Febrero con cielo despejado (7,063 kWh/m²/día). El resto es el escenario base.",
     "que_se_espera": [
-      "Las habitaciones con ventana al norte, de cara al sol, quedan NO_HABITABLE por exceso solar.",
-      "Las habitaciones ocupadas que quedan NO_HABITABLE tienen alternativa: sus huéspedes se mueven a otra habitación habitable."
+      "Las habitaciones con ventana al este o al oeste reciben el sol bajo de la mañana o de la tarde y quedan CASI_HABITABLE por exceso solar.",
+      "El exceso dura pocas horas, así que ninguna zona llega a NO_HABITABLE y nadie se reasigna."
     ],
     "resultado_esperado": {
       "conteo_veredictos": {
-        "HABITABLE": 101,
-        "NO_HABITABLE": 26
+        "CASI_HABITABLE": 52,
+        "HABITABLE": 75
       },
-      "puntaje_hotel": 0.9092,
-      "energia_wh": 194168.5,
+      "puntaje_hotel": 0.9236,
+      "energia_wh": 193037.9,
       "estado_generador": "OPERACION_NORMAL",
       "pasos_emergencia": 0,
       "pasos_cerrada": 260,
-      "reasignaciones": {
-        "PROPUESTA:PROPUESTA": 20
-      }
+      "reasignaciones": {}
     }
   },
   "hotel": {
@@ -141,21 +139,25 @@
   },
   "perfiles_climaticos": {
     "NUBES_PARCIALES": {
+      "dia_del_anio": 46,
       "radiacion": 4.863,
       "nubosidad": 0.7089,
       "precipitacion": 2.51
     },
     "NUBLADO": {
+      "dia_del_anio": 135,
       "radiacion": 4.477,
       "nubosidad": 0.8582,
       "precipitacion": 6.68
     },
     "LLUVIOSO": {
+      "dia_del_anio": 105,
       "radiacion": 4.454,
       "nubosidad": 0.8487,
       "precipitacion": 6.97
     },
     "CIELO_DESPEJADO": {
+      "dia_del_anio": 46,
       "radiacion": 7.063,
       "nubosidad": 0.0,
       "precipitacion": 0.0
@@ -245,9 +247,14 @@
     "reserva": 0.2
   },
   "parametros_evaluacion": {
+    "ubicacion": {
+      "latitud": 4.711,
+      "longitud": -74.072
+    },
     "luz": {
       "lux_por_irradiancia": 900.0,
-      "radiacion_cielo_despejado": 7.063
+      "radiacion_cielo_despejado": 7.063,
+      "reflectancia_suelo": 0.2
     },
     "emergencia": {
       "nivel_lux": 10.0

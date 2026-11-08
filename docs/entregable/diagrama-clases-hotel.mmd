@@ -149,7 +149,30 @@ classDiagram
         +nubosidad
         +precipitacion
         +radiacion_cielo_despejado
+        +dia_del_anio
         +factor_luz: float [propiedad]
+    }
+
+    %% ============ CLIMA (clima.py) ============
+    class Cielo {
+        +global_horizontal
+        +fraccion_difusa
+        +sol
+        +reflectancia_suelo
+        +directa_horizontal: float [propiedad]
+        +difusa_horizontal: float [propiedad]
+    }
+    class ClimaSolar {
+        <<modulo>>
+        +declinacion_solar(dia_del_anio)
+        +direccion_solar(hora, latitud, dia_del_anio)
+        +radiacion_extraterrestre_diaria(latitud, dia_del_anio)
+        +fraccion_difusa_diaria(indice_claridad, latitud, dia_del_anio)
+        +luz_base(hora, perfil, lux_por_irradiancia, latitud)
+        +cielo(hora, perfil, lux_por_irradiancia, latitud, reflectancia_suelo)
+        +directa_en_vertical(estado, coseno)
+        +difusa_en_vertical(estado, cielo_visible)
+        +periodo(hora)
     }
     class PerfilIluminacion {
         +actividad: Actividad
@@ -300,6 +323,11 @@ classDiagram
         +balancear(hotel, hora, natural, reflejada)
         +agregar_energia_postorden(hotel)
     }
+    class Reparto {
+        +capacidad
+        +usado
+        +entregar(potencia)
+    }
     class EvaluadorHabitabilidad {
         <<modulo>>
         +evaluar_zona(zona_id, resultados, limites, peso)
@@ -383,6 +411,11 @@ classDiagram
     SimuladorUnificado ..> ReasignadorHuespedes : propuestas
     BalanceEnergetico ..> Demanda : cola heapq
     BalanceEnergetico ..> GeneradorEnergia : reparte
+    BalanceEnergetico ..> Reparto : uno por instante
+    Reparto ..> GeneradorEnergia : capacidad = potencia_disponible
+    SimuladorUnificado ..> ClimaSolar : cielo por instante
+    ClimaSolar ..> Cielo : crea
+    ClimaSolar ..> PerfilClimatico : radiacion y dia_del_anio
     BalanceEnergetico ..> ZonaHotel : asigna modo y potencia
     EvaluadorHabitabilidad ..> ResultadoIluminacion : puntua
     ReasignadorHuespedes ..> IndiceAVL : bolsa torre piso calidad id
@@ -393,6 +426,8 @@ classDiagram
     Reestructuracion ..> SimuladorUnificado : vuelve a simular
 
     note for PerfilClimatico "factor_luz = min(1, radiacion / radiacion_cielo_despejado)"
+    note for Cielo "G = K_lux * factor_luz * sen(altura); directa = G*(1-kd), difusa = G*kd (Erbs); vertical: Rb y cielo isotropico (Liu y Jordan)"
+    note for Reparto "entregar(p) = min(p, capacidad - usado); usado += entregado"
     note for IndiceAVL "Bolsa de reasignacion: clave (torre, piso, -calidad, id)"
     note for GrafoInfluencia "peso = rho_fachada * cos_fachada * cos_ventana * A_f / (pi * d^2 + A_f)"
     note for SimuladorUnificado "reflejada = exterior (grafo) + interior: flujo * rho / (A_int * (1 - rho))"

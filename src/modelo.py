@@ -90,6 +90,7 @@ class PerfilClimatico:
     nubosidad: float
     precipitacion: float
     radiacion_cielo_despejado: float
+    dia_del_anio: int = 46
 
     @property
     def factor_luz(self) -> float:
