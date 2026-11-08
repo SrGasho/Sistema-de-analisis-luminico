@@ -495,5 +495,5 @@ En total, T = 48 veces lo anterior. Con 127 zonas el día completo se simula en 
 
 ### Observaciones pendientes
 
-- **Recorrido del sol.** `direccion_solar` mueve el sol de este a oeste por el lado norte, con una altura fija de unos 35°. En Bogotá en febrero (el perfil base) el sol de mediodía está alto, cerca de 73°, y hacia el sur. Esto decide qué fachadas reciben sol directo y explica por qué las habitaciones con ventana al norte quedan en exceso. Es una simplificación del modelo que cambia resultados si se corrige.
+- **Recorrido del sol.** `direccion_solar` mueve el sol de este a oeste por el lado norte, con una altura fija de unos 35°. En Bogotá en febrero (el perfil base) el sol de mediodía está alto, a unos 72° (latitud 4,7° N, declinación de unos −13°), y hacia el sur. Esto decide qué fachadas reciben sol directo y explica por qué las habitaciones con ventana al norte quedan en exceso. Es una simplificación del modelo que cambia resultados si se corrige.
 - **Costo del balance.** `_asignar` recalcula la suma de lo ya asignado en cada llamada. El resultado es correcto, pero el costo real del balance es O(Z²) por media hora y no O(Z log Z) como dicen los documentos. Se arregla llevando un total acumulado.
