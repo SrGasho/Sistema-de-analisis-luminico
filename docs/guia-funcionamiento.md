@@ -41,7 +41,7 @@ Cada habitación (`_zona_habitacion`) recibe:
 
 - **Posición.** `_room_center` reparte las habitaciones del piso en una cuadrícula dentro de la caja de la torre. La altura es la mitad de su piso: `(piso − 0,5) × 3 m`.
 - **Una ventana de 2 m²**, medio metro hacia el lado al que mira. Las orientaciones se alternan: la primera habitación mira al este, la segunda al norte, la tercera al oeste, la cuarta al sur, y se repite.
-- **Una pared** en el centro, mirando hacia la ventana, con la reflectancia de su color.
+- **Una superficie reflectante** (llamada «pared» en el código): un punto en el centro con una sola dirección, **opuesta a la ventana**, y la reflectancia de su color. El cuarto no se modela con cuatro paredes, techo y piso: esta superficie es una abstracción que representa la cara del recinto que refleja luz hacia las ventanas de otros cuartos (ver 2.4).
 - **Una luminaria asociada** (`L-TP-H-101`).
 
 Las cocinas y recreaciones (`_zona_comun`) se construyen igual, pero con varias ventanas. `_common_center` las ubica en fila, en una franja libre del piso 1, sin encimarlas.
@@ -61,7 +61,7 @@ El tercer número, la altura, es 0 porque las ventanas miran al horizonte. Con e
 
 - ubica la ventana: centro + flecha × 0,5 es avanzar medio metro hacia ese lado;
 - indica hacia dónde mira la ventana, que es hacia afuera;
-- orienta la pared al revés (flecha × −1), hacia adentro y de frente a la ventana.
+- orienta la superficie al revés (flecha × −1), es decir, hacia el lado contrario de su propia ventana. Por eso una superficie nunca le refleja luz a su propio cuarto: solo a ventanas de otros cuartos que la tengan de frente.
 
 Más adelante, al calcular la luz, la flecha de la ventana se compara con la dirección del sol. Si apuntan parecido, el sol pega de frente y entra mucha luz directa. Si quedan de lado, entra poca, y si el sol está detrás, solo entra la luz difusa del cielo. La misma comparación decide si una pared y una ventana "se miran" para que haya reflexión.
 
@@ -234,6 +234,18 @@ En el paso 3, en cada media hora, cada ventana suma `luz de la pared × peso` de
 
 ### 2.4 Qué guarda el grafo y cómo se usa
 
+**Qué reflexión representa.** Es luz **exterior que rebota entre recintos**, no la luz que rebota dentro de un cuarto. Cada superficie recibe la luz exterior del sol (`E_base`) y la refleja hacia las ventanas de otros cuartos que la tienen de frente a 18 m o menos. Como mira hacia el lado contrario de su propia ventana, de las 521 aristas ninguna une una superficie con la ventana de su mismo recinto. La reflexión interior (luz que entra y rebota en las paredes, techo y piso del propio cuarto) no está modelada.
+
+```
+  TP-H-102 (ventana mira al NORTE ↑)          TP-H-106 (superficie mira al SUR ↓)
+        ┌───────┐                                   ┌───────┐
+        │       │  ventana ↑  ······ luz rebotada ·· ↓ sup.  │
+        └───────┘                                   └───────┘
+     y ≈ 5,7 m          ←—— 9,95 m ——→              y ≈ 15,7 m
+```
+
+**Por qué una superficie tiene varias aristas.** El grafo nace en las superficies (origen) y llega a ventanas (destino). Cada superficie tiene tantas aristas como ventanas de otros cuartos estén a 18 m o menos, la tengan de frente y no tengan una torre en medio. `TP-H-106-P1` tiene 8: las 4 ventanas de su misma columna en los 4 pisos (`102`, `110`, `118`, `126`), que miran al norte hacia ella, y las 4 de la columna vecina (`101`, `109`, `117`, `125`), que la ven en diagonal y reciben menos.
+
 | Parte | Qué es |
 |---|---|
 | Nodos | Las paredes, que originan la luz rebotada, y las ventanas, que la reciben |
@@ -284,7 +296,7 @@ Como referencia de tamaño: a las 12:00 esa habitación recibe 238,3 lux de luz 
 | Peso despreciable (0,0001 o menos) | 22 |
 | Se convierten en arista | 521 |
 
-La mayoría no se miran porque cada pared mira hacia la ventana de su propio recinto, no hacia todas.
+La mayoría no se miran porque cada superficie mira en una sola dirección, la contraria a su propia ventana, y solo la ven las ventanas de otros cuartos que miran justo hacia ella.
 
 **Complejidad.**
 
