@@ -298,6 +298,6 @@ Las dos estructuras se arman una vez y sirven para los 48 pasos del día.
   - `influencia.py` guarda qué fachada le refleja luz a qué ventana y cuánta, y cuánto cielo le tapa a cada ventana.
   - `simulacion.py` crea las dos estructuras y las usa en cada paso.
 - **El grafo existe para no repetir trabajo.** Como la geometría no cambia durante el día, los pesos se calculan una vez; en cada media hora solo se multiplica la luz de las fachadas por esos pesos.
-- **Limitaciones:** la reflexión exterior es de un solo rebote; las ventanas están cerca del centro de su cuarto y para la reflexión exterior se usa su punto en la fachada.
+- **Limitaciones:** las fachadas son superficies opacas de un solo color, y lo que el vidrio de una ventana refleja hacia afuera se pierde (no ilumina la otra torre); la reflexión exterior es de un solo rebote; las ventanas están cerca del centro de su cuarto y para la reflexión exterior se usa su punto en la fachada.
 
 **Historia del cambio.** Una versión anterior del grafo unía la superficie interior de cada cuarto con ventanas de otros cuartos, incluso dentro de la misma torre, como si la luz atravesara las paredes del edificio. Se reemplazó por la reflexión entre fachadas de las dos torres, y la luz que rebota dentro de cada cuarto pasó a calcularse aparte (paso 3).

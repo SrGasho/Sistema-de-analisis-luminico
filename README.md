@@ -239,6 +239,7 @@ web/styles.css              Estilos
 
 - La geometría de cada habitación (24 m², una ventana de 2 m²) está fija en `src/io_datos.py`. En la interfaz se edita su orientación, no sus dimensiones.
 - La reflexión exterior entre torres es de primer orden: la luz que refleja una fachada no se vuelve a reflejar.
+- Las fachadas se modelan como superficies opacas de un solo color. El vidrio de las ventanas no se usa como fuente de reflexión: la luz que el vidrio refleja hacia afuera (la pérdida de Fresnel) se descuenta y no ilumina la otra torre. En una fachada con mucho vidrio ese reflejo puede ser fuerte y concentrado; no se calcula.
 - La luz artificial usa un `CU` fijo de 0,70. Ese factor del método de lúmenes ya incluye el rebote interior, por eso no se le suma reflexión aparte, pero no cambia con el color de la pared.
 - Las superficies interiores de cada recinto se representan con un solo valor de reflectancia (el de su pared).
 - Las ventanas están ubicadas dentro de la caja de su torre. Para la reflexión exterior se usa su punto de salida en la fachada hacia la que miran.

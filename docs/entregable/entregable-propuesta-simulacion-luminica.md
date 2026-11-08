@@ -530,6 +530,7 @@ Limitaciones conocidas:
 - Los resultados son aproximaciones educativas en lux de referencia.
 - La precipitación es informativa y no entra en el cálculo.
 - La reflexión exterior entre torres es de primer orden.
+- Las fachadas se modelan como superficies opacas de un solo color. El vidrio de las ventanas no se usa como fuente de reflexión: la luz que el vidrio refleja hacia afuera (la pérdida de Fresnel) se descuenta y no ilumina la otra torre. En una fachada con mucho vidrio ese reflejo puede ser fuerte y concentrado; no se calcula.
 - El `CU` de la luz artificial es fijo y no cambia con el color de la pared.
 - Las superficies interiores de cada recinto se representan con un solo valor de reflectancia.
 - Las ventanas están dentro de la caja de su torre; para la reflexión exterior se usa su punto de salida en la fachada.
