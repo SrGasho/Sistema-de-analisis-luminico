@@ -10,12 +10,12 @@
     ],
     "resultado_esperado": {
       "conteo_veredictos": {
-        "CASI_HABITABLE": 31,
-        "HABITABLE": 95,
+        "CASI_HABITABLE": 37,
+        "HABITABLE": 89,
         "NO_HABITABLE": 1
       },
-      "puntaje_hotel": 0.9029,
-      "energia_wh": 164831.6,
+      "puntaje_hotel": 0.8915,
+      "energia_wh": 164292.1,
       "estado_generador": "CAPACIDAD_LIMITADA",
       "pasos_emergencia": 16,
       "pasos_cerrada": 260,
@@ -30,6 +30,7 @@
     {
       "id": "TP",
       "nombre": "Torre Pequeña",
+      "fachada": "GRIS_CLARO",
       "area_referencia": 4013,
       "pisos": 4,
       "habitaciones_por_piso": 8,
@@ -72,6 +73,7 @@
     {
       "id": "TG",
       "nombre": "Torre Grande",
+      "fachada": "GRIS_CLARO",
       "area_referencia": 11346,
       "pisos": 6,
       "habitaciones_por_piso": 12,

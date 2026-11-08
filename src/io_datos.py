@@ -9,6 +9,7 @@ from .reasignacion import leer_restricciones
 from .modelo import (
     Actividad,
     Asignacion,
+    Fachada,
     FuenteIluminacion,
     GeneradorEnergia,
     HabitacionHotel,
@@ -43,6 +44,7 @@ VIDRIOS_POR_DEFECTO = {
     "VIDRIO_LOW_E": {"transmitancia_visible": 0.71, "indice_refraccion": 1.5},
     "VIDRIO_CONTROL_SOLAR": {"transmitancia_visible": 0.52, "indice_refraccion": 1.5},
 }
+FACHADA_POR_DEFECTO = "GRIS_CLARO"
 PAREDES_POR_DEFECTO = {
     "BLANCO": {"reflectancia": 0.80},
     "CREMA": {"reflectancia": 0.70},
@@ -90,6 +92,7 @@ def cargar_hotel_data(data: dict) -> Hotel:
             caja=_box(tower_data["caja"]),
             nombre=tower_data.get("nombre", tower_data["id"]),
         )
+        torre.fachadas = _fachadas(torre, _reflectancia(data, tower_data.get("fachada", FACHADA_POR_DEFECTO)))
         room_index = 0
         for piso_numero in range(1, tower_data["pisos"] + 1):
             piso = Piso(piso_numero)
@@ -276,6 +279,19 @@ def _common_center(box: CajaEspacial, posicion: int, total: int, rooms_per_floor
     return Vector3(box.min_x + (posicion + 1) * width, box.min_y + (rows + 1) * depth, 1.5)
 
 
+def _fachadas(torre: Torre, reflectancia: float) -> list[Fachada]:
+    c = torre.caja
+    alto = c.max_z - c.min_z
+    ancho_x, ancho_y = c.max_x - c.min_x, c.max_y - c.min_y
+    caras = {
+        "ESTE": (CajaEspacial(c.max_x, c.max_x, c.min_y, c.max_y, c.min_z, c.max_z), ancho_y * alto),
+        "OESTE": (CajaEspacial(c.min_x, c.min_x, c.min_y, c.max_y, c.min_z, c.max_z), ancho_y * alto),
+        "NORTE": (CajaEspacial(c.min_x, c.max_x, c.max_y, c.max_y, c.min_z, c.max_z), ancho_x * alto),
+        "SUR": (CajaEspacial(c.min_x, c.max_x, c.min_y, c.min_y, c.min_z, c.max_z), ancho_x * alto),
+    }
+    return [Fachada(f"{torre.id}-F-{lado}", torre.id, lado, VECTORES_ORIENTACION[lado], reflectancia, caja, area) for lado, (caja, area) in caras.items()]
+
+
 def _zona_center(zona: ZonaHotel) -> Vector3:
     if zona.ventanas:
         return zona.ventanas[0].posicion
@@ -299,6 +315,9 @@ def _validar_acabados(data: dict) -> None:
         for orientacion in acabado.get("orientaciones", []):
             if orientacion not in VECTORES_ORIENTACION:
                 raise ValueError(f"Orientación no válida: {orientacion}")
+    for torre in data.get("torres", []):
+        if torre.get("fachada", FACHADA_POR_DEFECTO) not in paredes:
+            raise ValueError(f"Fachada no definida para {torre.get('id')}: {torre.get('fachada')}")
     for zona_id, personal in data.get("zonas_personalizadas", {}).items():
         if "pared" in personal and personal["pared"] not in paredes:
             raise ValueError(f"Pared no definida para {zona_id}: {personal['pared']}")

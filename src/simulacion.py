@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import math
+
 from .balance import balancear, horario_modo
 from .clima import direccion_solar, luz_base, periodo
 from .evaluacion import clasificar, datos_zona_completos, resumen_zonas
@@ -30,8 +32,9 @@ class SimuladorUnificado:
         indice = IndiceTemporal(comparar_arboles)
         hora = 0.0
         while hora < 24.0:
-            naturales = self._calcular_naturales(hora)
-            reflejadas = self._calcular_reflejadas(hora)
+            aportes = self._aportes_naturales(hora)
+            naturales = self._calcular_naturales(hora, aportes)
+            reflejadas = self._calcular_reflejadas(hora, aportes)
             if balancear_energia:
                 asignadas = balancear(self.hotel, hora, naturales, reflejadas)
             else:
@@ -79,6 +82,8 @@ class SimuladorUnificado:
                         entradas.append(EntradaEspacial(ventana.id, box, ventana))
                     for superficie in zona.superficies:
                         entradas.append(EntradaEspacial(superficie.id, superficie.caja, superficie))
+            for fachada in torre.fachadas:
+                entradas.append(EntradaEspacial(fachada.id, fachada.caja, fachada))
         for fuente in self.hotel.fuentes.values():
             point = fuente.posicion
             box = CajaEspacial(point.x - 0.05, point.x + 0.05, point.y - 0.05, point.y + 0.05, point.z - 0.05, point.z + 0.05)
@@ -93,41 +98,56 @@ class SimuladorUnificado:
             octree.insertar(entrada)
         return octree
 
-    def _calcular_naturales(self, hora: float) -> dict[str, float]:
+    def _cielo(self, hora: float) -> tuple[float, Vector3, float, float]:
         perfil = self.hotel.perfiles_climaticos[self.hotel.perfil_climatico_activo]
         base = luz_base(hora, perfil, self._lux_por_irradiancia)
-        direccion = direccion_solar(hora)
-        f_directa = max(0.10, 1.0 - perfil.nubosidad)
-        f_difusa = 0.15 + 0.45 * perfil.nubosidad
-        naturales = {}
+        return base, direccion_solar(hora), max(0.10, 1.0 - perfil.nubosidad), 0.15 + 0.45 * perfil.nubosidad
+
+    def _aportes_naturales(self, hora: float) -> dict[str, float]:
+        base, direccion, f_directa, f_difusa = self._cielo(hora)
+        aportes = {}
         for zona in self.hotel.zonas.values():
-            if not zona.ventanas or base == 0:
-                naturales[zona.id] = 0.0
-                continue
-            aportes = []
             for ventana in zona.ventanas:
+                if base == 0:
+                    aportes[ventana.id] = 0.0
+                    continue
                 coseno = max(0.0, ventana.normal.normalized().dot(direccion))
                 if self._sombreada(ventana, zona.torre_id, direccion):
                     coseno = 0.0
                 directa = coseno * factor_angular_vidrio(coseno, ventana.vidrio.indice_refraccion)
-                aporte = base * ventana.vidrio.transmitancia_visible * (directa * f_directa + f_difusa)
-                aportes.append(aporte)
-            naturales[zona.id] = sum(aportes) / len(aportes)
-        return naturales
+                cielo = 1.0 - self.grafo.obstruccion.get(ventana.id, 0.0)
+                aportes[ventana.id] = base * ventana.vidrio.transmitancia_visible * (directa * f_directa + f_difusa * cielo)
+        return aportes
+
+    def _calcular_naturales(self, hora: float, aportes: dict[str, float] | None = None) -> dict[str, float]:
+        aportes = self._aportes_naturales(hora) if aportes is None else aportes
+        return {
+            zona.id: sum(aportes[v.id] for v in zona.ventanas) / len(zona.ventanas) if zona.ventanas else 0.0
+            for zona in self.hotel.zonas.values()
+        }
 
     def _sombreada(self, ventana, torre_id: str, direccion: Vector3) -> bool:
         rayo = Rayo(ventana.posicion + direccion * 0.01, direccion)
         return any(entrada.objeto.__class__.__name__ == "Torre" and entrada.id != torre_id for entrada in self.octree.consultar_rayo(rayo))
 
-    def _calcular_reflejadas(self, hora: float) -> dict[str, float]:
-        perfil = self.hotel.perfiles_climaticos[self.hotel.perfil_climatico_activo]
-        base = luz_base(hora, perfil, self._lux_por_irradiancia)
-        superficies = {superficie.id: base for zona in self.hotel.zonas.values() for superficie in zona.superficies}
-        ventanas_por_zona = {zona.id: zona.ventanas for zona in self.hotel.zonas.values()}
+    def luz_fachadas(self, hora: float) -> dict[str, float]:
+        base, direccion, f_directa, f_difusa = self._cielo(hora)
+        return {
+            fachada.id: base * (max(0.0, fachada.normal.dot(direccion)) * f_directa + f_difusa)
+            for fachada in self.grafo.fachadas.values()
+        }
+
+    def _calcular_reflejadas(self, hora: float, aportes: dict[str, float] | None = None) -> dict[str, float]:
+        aportes = self._aportes_naturales(hora) if aportes is None else aportes
+        luz_fachadas = self.luz_fachadas(hora)
         reflejadas = {}
-        for zona_id, ventanas in ventanas_por_zona.items():
-            aportes = [self.grafo.reflejada_para(ventana.id, superficies) for ventana in ventanas]
-            reflejadas[zona_id] = sum(aportes) / len(aportes) if aportes else 0.0
+        for zona in self.hotel.zonas.values():
+            if not zona.ventanas:
+                reflejadas[zona.id] = 0.0
+                continue
+            exteriores = {v.id: self.grafo.reflejada_para(v.id, luz_fachadas) * v.vidrio.transmitancia_visible for v in zona.ventanas}
+            flujo = sum((aportes[v.id] + exteriores[v.id]) * v.area for v in zona.ventanas)
+            reflejadas[zona.id] = sum(exteriores.values()) / len(zona.ventanas) + reflexion_interior(zona, flujo)
         return reflejadas
 
     def _luz_artificial(self, zona_id: str, potencia: float) -> float:
@@ -136,3 +156,19 @@ class SimuladorUnificado:
             return 0.0
         fuente = self.hotel.fuentes[zona.fuente_id]
         return fuente.eficacia * potencia * fuente.cu * fuente.mf / zona.area
+
+
+ALTO_PISO = 3.0
+
+
+def area_interior(zona) -> float:
+    lado = math.sqrt(zona.area)
+    return 2 * zona.area + 4 * lado * ALTO_PISO
+
+
+def reflexion_interior(zona, flujo_entrante: float) -> float:
+    """Componente reflejada interior por el método de flujo dividido: Φ·ρ / (A·(1 − ρ))."""
+    if flujo_entrante <= 0 or not zona.superficies:
+        return 0.0
+    rho = zona.superficies[0].reflectancia
+    return flujo_entrante * rho / (area_interior(zona) * (1 - rho))

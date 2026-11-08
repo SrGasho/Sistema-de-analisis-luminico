@@ -56,6 +56,17 @@ class SuperficiePared:
 
 
 @dataclass
+class Fachada:
+    id: str
+    torre_id: str
+    lado: str
+    normal: Vector3
+    reflectancia: float
+    caja: CajaEspacial
+    area: float
+
+
+@dataclass
 class PerfilIluminacion:
     actividad: Actividad
     minimo: float
@@ -160,6 +171,7 @@ class Torre:
     caja: CajaEspacial
     pisos: list[Piso] = field(default_factory=list)
     nombre: str = ""
+    fachadas: list[Fachada] = field(default_factory=list)
 
 
 @dataclass

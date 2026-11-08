@@ -10,7 +10,7 @@ from src.geometria import angulo_refraccion, factor_angular_vidrio
 from src.io_datos import cargar_hotel_data
 from src.modelo import EstadoIluminacion, ModoOperacion
 from src.reasignacion import proponer_reasignaciones
-from src.simulacion import SimuladorUnificado
+from src.simulacion import SimuladorUnificado, area_interior, reflexion_interior
 
 DATOS = Path(__file__).resolve().parent.parent / "data"
 
@@ -46,9 +46,10 @@ class CasosDelPlan(unittest.TestCase):
         )
         ventana = zona.ventanas[0]
         coseno = ventana.normal.normalized().dot(direccion)
-        esperado = base * ventana.vidrio.transmitancia_visible * (coseno * factor_angular_vidrio(coseno, 1.5) * f_directa + f_difusa)
+        cielo = 1.0 - self.sim.grafo.obstruccion.get(ventana.id, 0.0)
+        esperado = base * ventana.vidrio.transmitancia_visible * (coseno * factor_angular_vidrio(coseno, 1.5) * f_directa + f_difusa * cielo)
         self.assertAlmostEqual(self.sim._calcular_naturales(9.0)[zona.id], esperado, places=6)
-        self.assertGreater(esperado, base * ventana.vidrio.transmitancia_visible * f_difusa)
+        self.assertGreater(esperado, base * ventana.vidrio.transmitancia_visible * f_difusa * cielo)
 
     def test_02_ventana_sombreada_por_la_otra_torre(self):
         sombreadas = []
@@ -70,9 +71,11 @@ class CasosDelPlan(unittest.TestCase):
             coseno = max(0.0, v.normal.normalized().dot(direccion))
             if self.sim._sombreada(v, zona.torre_id, direccion):
                 coseno = 0.0
-            aportes.append(base * v.vidrio.transmitancia_visible * (coseno * factor_angular_vidrio(coseno, 1.5) * f_directa + f_difusa))
+            cielo = 1.0 - self.sim.grafo.obstruccion.get(v.id, 0.0)
+            aportes.append(base * v.vidrio.transmitancia_visible * (coseno * factor_angular_vidrio(coseno, 1.5) * f_directa + f_difusa * cielo))
         self.assertAlmostEqual(self.sim._calcular_naturales(hora)[zona.id], sum(aportes) / len(aportes), places=6)
-        self.assertAlmostEqual(aportes[zona.ventanas.index(ventana)], base * ventana.vidrio.transmitancia_visible * f_difusa, places=9)
+        cielo = 1.0 - self.sim.grafo.obstruccion.get(ventana.id, 0.0)
+        self.assertAlmostEqual(aportes[zona.ventanas.index(ventana)], base * ventana.vidrio.transmitancia_visible * f_difusa * cielo, places=9)
 
     def test_03_transmision_con_cada_preset_de_vidrio(self):
         naturales = {}
@@ -88,24 +91,34 @@ class CasosDelPlan(unittest.TestCase):
         self.assertAlmostEqual(math.sin(angulo_refraccion(math.cos(math.radians(60)), 1.5)), math.sin(math.radians(60)) / 1.5)
 
     def test_04_reflexion_de_primer_orden_sin_cascada(self):
-        perfil = self.sim.hotel.perfiles_climaticos[self.sim.hotel.perfil_climatico_activo]
-        base = luz_base(12.0, perfil, self.sim._lux_por_irradiancia)
-        luz = {s.id: base for z in self.sim.hotel.zonas.values() for s in z.superficies}
-        for aristas in self.sim.grafo.adyacencias.values():
+        grafo = self.sim.grafo
+        torre_de = {v.id: z.torre_id for z in self.sim.hotel.zonas.values() for v in z.ventanas}
+        self.assertTrue(grafo.adyacencias)
+        for origen, aristas in grafo.adyacencias.items():
+            fachada = grafo.fachadas[origen]
             for arista in aristas:
-                superficie = next(s for z in self.sim.hotel.zonas.values() for s in z.superficies if s.id == arista.origen)
-                self.assertLessEqual(arista.peso, superficie.reflectancia)
-        reflejadas = self.sim._calcular_reflejadas(12.0)
-        con_aristas = 0
+                self.assertNotEqual(torre_de[arista.destino], fachada.torre_id)
+                self.assertLessEqual(arista.peso, fachada.reflectancia)
+        self.assertTrue(set(grafo.adyacencias) <= set(grafo.fachadas))
+        aportes = self.sim._aportes_naturales(12.0)
+        luz_fachadas = self.sim.luz_fachadas(12.0)
+        reflejadas = self.sim._calcular_reflejadas(12.0, aportes)
         for zona in self.sim.hotel.zonas.values():
             if not zona.ventanas:
+                self.assertEqual(reflejadas[zona.id], 0.0)
                 continue
-            aportes = [sum(luz[a.origen] * a.peso for a in self.sim.grafo.entrantes.get(v.id, [])) for v in zona.ventanas]
-            self.assertAlmostEqual(reflejadas[zona.id], sum(aportes) / len(aportes), places=6)
-            con_aristas += any(aportes)
-        self.assertGreater(con_aristas, 0)
-        ventanas = {v.id for z in self.sim.hotel.zonas.values() for v in z.ventanas}
-        self.assertTrue(all(origen not in ventanas for origen in self.sim.grafo.adyacencias))
+            exteriores = {v.id: sum(luz_fachadas[a.origen] * a.peso for a in grafo.entrantes.get(v.id, [])) * v.vidrio.transmitancia_visible for v in zona.ventanas}
+            flujo = sum((aportes[v.id] + exteriores[v.id]) * v.area for v in zona.ventanas)
+            rho = zona.superficies[0].reflectancia
+            interior = flujo * rho / (area_interior(zona) * (1 - rho))
+            self.assertAlmostEqual(reflexion_interior(zona, flujo), interior, places=9)
+            self.assertAlmostEqual(reflejadas[zona.id], sum(exteriores.values()) / len(zona.ventanas) + interior, places=6)
+        habitacion = self.sim.hotel.zonas["TP-H-102"]
+        oscura = copy.deepcopy(self.config)
+        oscura["zonas_personalizadas"] = {"TP-H-102": {"pared": "OSCURO"}}
+        self.assertGreater(reflejadas["TP-H-102"], simulador(oscura)._calcular_reflejadas(12.0)["TP-H-102"])
+        self.assertEqual(self.sim._calcular_reflejadas(20.0)["TP-H-102"], 0.0)
+        self.assertEqual(habitacion.superficies[0].reflectancia, 0.80)
 
     def test_05_noche_sin_luz_natural_y_con_artificial(self):
         ocupada = self.sim.hotel.asignaciones[0].habitacion_id

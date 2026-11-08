@@ -1,35 +1,35 @@
 {
   "caso": {
-    "nombre": "exceso_leve",
+    "nombre": "cielo_despejado",
     "historia": "Febrero con cielo despejado (7,063 kWh/m²/día). El resto es el escenario base.",
     "que_se_espera": [
-      "Aparecen zonas CASI_HABITABLE y algunas NO_HABITABLE, todas por exceso solar de día.",
+      "Las habitaciones con ventana al norte, de cara al sol, quedan NO_HABITABLE por exceso solar.",
       "Las habitaciones ocupadas que quedan NO_HABITABLE tienen alternativa: sus huéspedes se mueven a otra habitación habitable."
     ],
     "resultado_esperado": {
       "conteo_veredictos": {
-        "CASI_HABITABLE": 22,
         "HABITABLE": 101,
-        "NO_HABITABLE": 4
+        "NO_HABITABLE": 26
       },
-      "puntaje_hotel": 0.9216,
-      "energia_wh": 201488.8,
+      "puntaje_hotel": 0.9092,
+      "energia_wh": 194168.5,
       "estado_generador": "OPERACION_NORMAL",
       "pasos_emergencia": 0,
       "pasos_cerrada": 260,
       "reasignaciones": {
-        "PROPUESTA:PROPUESTA": 3
+        "PROPUESTA:PROPUESTA": 20
       }
     }
   },
   "hotel": {
-    "id": "HOTEL-BOGOTA-EXCESO-LEVE",
+    "id": "HOTEL-BOGOTA-CIELO-DESPEJADO",
     "perfil_climatico": "CIELO_DESPEJADO"
   },
   "torres": [
     {
       "id": "TP",
       "nombre": "Torre Pequeña",
+      "fachada": "GRIS_CLARO",
       "area_referencia": 4013,
       "pisos": 4,
       "habitaciones_por_piso": 8,
@@ -72,6 +72,7 @@
     {
       "id": "TG",
       "nombre": "Torre Grande",
+      "fachada": "GRIS_CLARO",
       "area_referencia": 11346,
       "pisos": 6,
       "habitaciones_por_piso": 12,

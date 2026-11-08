@@ -126,13 +126,13 @@ class CasosJson(unittest.TestCase):
         self.assertEqual(r["resumen"]["energia_total_wh"], 0.0)
         self.assertEqual(len(r["reasignaciones"]), 78)
 
-    def test_exceso_leve(self):
-        v = self.veredictos("exceso_leve")
+    def test_cielo_despejado(self):
+        v = self.veredictos("cielo_despejado")
         afectadas = [z for z in v.values() if z["veredicto"] != "HABITABLE"]
         self.assertTrue(afectadas)
         self.assertTrue(all(z["causa"] == "EXCESO_SOLAR" for z in afectadas))
-        ocupadas_no_habitables = {z for z in v if v[z]["veredicto"] == "NO_HABITABLE"} & self.ocupadas("exceso_leve")
-        propuestas = self.r("exceso_leve")["reasignaciones"]
+        ocupadas_no_habitables = {z for z in v if v[z]["veredicto"] == "NO_HABITABLE"} & self.ocupadas("cielo_despejado")
+        propuestas = self.r("cielo_despejado")["reasignaciones"]
         self.assertEqual({p["habitacion_actual"] for p in propuestas}, ocupadas_no_habitables)
         self.assertEqual({p["estado"] for p in propuestas}, {"PROPUESTA"})
 
@@ -140,8 +140,8 @@ class CasosJson(unittest.TestCase):
         r = self.r("exceso_severo")
         v = self.veredictos("exceso_severo")
         no_habitables = {z for z in v if v[z]["veredicto"] == "NO_HABITABLE"}
-        self.assertTrue(all(z.startswith("TP-H-") for z in no_habitables))
-        self.assertTrue(no_habitables & self.ocupadas("exceso_severo") <= {f"TP-H-{n}" for n in range(101, 125)})
+        self.assertTrue(all("-H-" in z for z in no_habitables))
+        self.assertTrue({f"TP-H-{n}" for n in range(101, 125)} <= no_habitables)
         self.assertTrue(all(v[z]["causa"] == "EXCESO_SOLAR" for z in no_habitables))
         propuestas = {p["huesped_id"]: p for p in r["reasignaciones"]}
         self.assertEqual({p["estado"] for p in propuestas.values()}, {"PROPUESTA"})
