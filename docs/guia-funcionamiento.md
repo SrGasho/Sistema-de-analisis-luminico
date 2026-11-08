@@ -677,7 +677,14 @@ Al final la raíz se pinta de negro.
 
 Sin la rotación del tercer paso, las tres claves quedarían en una línea, que es justo lo que le pasa al árbol sin balancear.
 
-**Cómo queda el árbol completo** en el escenario base: 6.096 nodos, altura 22, altura negra 11, 780 nodos rojos y la raíz en `(5,0, "TP-H-108")`.
+**Cómo queda el árbol completo** en el escenario base: 6.096 nodos, altura 22, altura negra 11 y 780 nodos rojos.
+
+**La raíz** es el nodo con clave `(5,0, "TP-H-108")`: el resultado de la habitación `TP-H-108` a las 5:00 (modo REDUCIDA, 0 lux naturales, 60 lux artificiales con 25,7 W, CONFORTABLE). No tiene nada especial como dato; está arriba porque las rotaciones la subieron hasta ahí.
+
+- Fue el resultado número 1.278 en insertarse, no el primero. La primera raíz fue `(0,0, "TP-H-101")`, y la raíz cambió 10 veces durante el día: `TP-H-102`, `TP-H-104` y `TP-H-108` de las 0:00, luego `(0,5, "TG-H-140")`, `(1,0, "TP-H-108")`, `(2,5, "TG-H-140")` y, desde la inserción 3.396, `(5,0, "TP-H-108")`, que ya no cambió hasta la 6.096.
+- Cada cambio pasa cuando una rotación cerca de la raíz sube a otro nodo para que ningún camino quede demasiado largo.
+- A su izquierda quedan los 1.367 resultados de antes de las 5:00 y a su derecha los 4.728 de después. Sus hijos directos son `(2,5, "TG-H-140")` y `(10,5, "TG-H-140")`.
+- La raíz no queda en la mitad del día (las 12:00) porque el rojo-negro no reparte el mismo número de nodos a cada lado. Lo que asegura es que ningún camino sea más del doble de largo que otro, y con eso basta para que la altura se quede en 22.
 
 ### 4.4 La consulta por rango
 
