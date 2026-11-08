@@ -6,7 +6,7 @@
 
 El proyecto propone diseñar e implementar un sistema educativo que estime la iluminación de un hotel de dos torres ubicado en Bogotá. El hotel se analiza durante 24 horas y contiene cuatro actividades: habitaciones, cocina, recreación y parqueadero.
 
-El sistema combina un árbol jerárquico, un Octree, un grafo dirigido ponderado, un árbol AVL, un árbol rojo-negro, una cola de prioridad y recorridos de agregación. Durante el día calcula luz natural con la radiación real de NASA POWER, transmisión por vidrio con refracción de Snell y transmitancia de Fresnel, reflexión de primer orden y luz artificial complementaria. Durante la noche toma la luz solar como cero y distribuye la potencia artificial disponible mediante un balance heurístico.
+El sistema combina un árbol jerárquico, un Octree, un grafo dirigido ponderado, un árbol AVL, un árbol rojo-negro, una cola de prioridad y recorridos de agregación. Durante el día calcula luz natural con la radiación real de NASA POWER, transmisión por vidrio con refracción de Snell y transmitancia de Fresnel, reflexión interior de cada recinto, reflexión de primer orden entre las fachadas de las dos torres y luz artificial complementaria. Durante la noche toma la luz solar como cero y distribuye la potencia artificial disponible mediante un balance heurístico.
 
 El modelo no pretende sustituir un diseño fotométrico, eléctrico o arquitectónico profesional. Las torres, zonas, huéspedes, luminarias y potencias son datos sintéticos didácticos; las fuentes publicadas se distinguen explícitamente de los supuestos del proyecto.
 
@@ -38,9 +38,9 @@ Diseñar e implementar un sistema de análisis lumínico y balance energético q
 - Representar habitaciones, cocinas, recreaciones y parqueaderos con zonas reutilizables.
 - Usar un eje temporal único entre 00:00 y 24:00, sin clases diurnas/nocturnas duplicadas.
 - Calcular sombras con cajas espaciales y consultas de Octree.
-- Representar influencias de superficies y fuentes mediante un grafo dirigido construido con consultas de radio del Octree.
-- Calcular una sola reflexión secundaria.
-- Incorporar tres presets de vidrio y cinco reflectancias educativas de pared.
+- Representar la reflexión entre torres mediante un grafo dirigido `fachada → ventana de la otra torre`, construido con consultas de radio del Octree.
+- Calcular la reflexión exterior entre torres en primer orden y la reflexión interior de cada recinto con el método de flujo dividido.
+- Incorporar tres presets de vidrio y cinco reflectancias educativas de pared y de fachada.
 - Usar perfiles climáticos de Bogotá basados en NASA POWER, con la radiación real en el cálculo de la luz base.
 - Calcular la refracción con la ley de Snell y la transmitancia de Fresnel según el ángulo de incidencia.
 - Dimensionar y utilizar un generador exclusivo para iluminación.
@@ -58,7 +58,7 @@ Diseñar e implementar un sistema de análisis lumínico y balance energético q
 - 32 y 72 habitaciones respectivamente.
 - Cocinas, zonas recreativas y parqueaderos sintéticos.
 - Ventanas con posición, normal, área y vidrio.
-- Paredes con reflectancia nominal.
+- Paredes con reflectancia nominal y cuatro fachadas por torre con la reflectancia del campo `fachada` de la torre (por defecto `GRIS_CLARO`, 0,60).
 - Clima de Bogotá con perfiles de nubes parciales, nublado, lluvioso y cielo despejado.
 - Simulación discreta de 24 horas.
 - Luz natural, reflejada y artificial separadas.
@@ -77,7 +77,7 @@ Diseñar e implementar un sistema de análisis lumínico y balance energético q
 - Archivos IES/LDT o mallas arquitectónicas complejas.
 - Deslumbramiento profesional, confort circadiano o modelo térmico.
 - Consumo total del hotel, ascensores, climatización o agua caliente.
-- Reflexión especular o reflexiones de segundo orden.
+- Reflexión especular o reflexiones exteriores de segundo orden (de una fachada a otra).
 - Cambios en la geometría de las torres. Las torres son fijas: el sistema no mueve ni rediseña edificios, pisos ni habitaciones. Las mejoras y la reestructuración solo cambian variables de luz (actividades, acabados, horarios y generador).
 - Sistema real de reservas o traslado físico de huéspedes.
 - Certificación normativa.
@@ -227,7 +227,27 @@ La luz difusa usa la transmitancia visible del catálogo sin factor angular. Por
 E_ventana = E_base × VLT × (cos θi × factor_angular × f_directa + f_difusa)
 ```
 
-Si la ventana está en sombra, `cos θi` se toma como cero y solo queda la difusa. La luz natural de la zona es el promedio de sus ventanas. La reflexión se limita al primer orden.
+Si la ventana está en sombra, `cos θi` se toma como cero y solo queda la difusa. La otra torre también tapa parte del cielo: la difusa se multiplica por `1 − obstrucción`, con `obstrucción = Σ cos_ventana × factor de vista` de las fachadas que la ventana tiene enfrente (máximo 1). En el escenario base 40 ventanas tienen obstrucción; `TP-H-101-V1` (al este, frente a TG) tiene 0,593. La luz natural de la zona es el promedio de sus ventanas.
+
+La luz reflejada sólo existe de día y suma dos partes:
+
+```text
+E_reflejada = E_exterior + E_ri
+
+Reflexión exterior entre torres (primer orden):
+E_exterior(ventana) = Σ luz_fachada × peso × VLT
+luz_fachada         = E_base × (max(0, n · sol) × f_directa + f_difusa)
+peso                = ρ_fachada × cos_fachada × cos_ventana × A_f / (π·d² + A_f)
+
+Reflexión interior (flujo dividido):
+E_ri  = Φ × ρ / (A_int × (1 − ρ))
+Φ     = Σ_ventanas (E_natural + E_exterior) × área_ventana
+A_int = 2 × área + 4 × √área × 3 m
+```
+
+`ρ` es la reflectancia de la pared del recinto. Una habitación de 24 m² tiene `A_int ≈ 106,8 m²`, y con pared blanca (`ρ = 0,80`) el factor `ρ / (1 − ρ)` vale 4. La reflexión interior promedia todos los rebotes dentro del recinto y hace que el color de la pared cambie la luz de su propio cuarto. La zona toma el promedio de la reflexión exterior de sus ventanas.
+
+A las 12:00 del escenario base, `TP-H-101` (al este, frente a TG) recibe 97,0 lux naturales y 98,4 reflejados; `TP-H-102` (al norte, sin torre enfrente) recibe 358,7 naturales y 26,9 reflejados, casi todos interiores; `TG-H-101` recibe 238,3 y 17,9.
 
 ## 9. Estructuras y flujo
 
@@ -245,15 +265,15 @@ La energía se agrega por piso y por torre con un recorrido en postorden.
 
 ### Octree
 
-Indexa cajas de torres, paredes, ventanas y luminarias. Sirve para rayos de sombra y radios de influencia. Los objetos que cruzan octantes se quedan en el nodo padre.
+Indexa cajas de torres, fachadas, paredes, ventanas y luminarias. Sirve para rayos de sombra y radios de influencia. Los objetos que cruzan octantes se quedan en el nodo padre.
 
 ### Grafo
 
 ```text
-Superficie o Fuente → Ventana o ZonaHotel
+Fachada (8: N, S, E, O de cada torre) → Ventana de la otra torre
 ```
 
-Cada arista contiene un peso de distancia, orientación, reflectancia y visibilidad. Sólo se calcula reflexión de primer orden: la luz reflejada no vuelve a ser origen. El grafo se construye pidiendo a `Octree.consultar_radio` las ventanas a 18 m o menos de cada superficie, en vez de comparar todos los pares. Las aristas también se indexan por destino, así que cada ventana recorre solo las aristas que le llegan.
+Para cada ventana se toma su punto de salida en la fachada de su torre y `Octree.consultar_radio` entrega las fachadas de la otra torre a 18 m o menos, en vez de comparar todos los pares. La distancia `d` se mide al punto más cercano de la fachada; ventana y fachada deben mirarse y un rayo debe unirlas sin cruzar otra torre. El peso de la arista es `ρ_fachada × cos_fachada × cos_ventana × A_f / (π·d² + A_f)` (sección 8). Sólo se calcula reflexión exterior de primer orden: la luz reflejada no vuelve a ser origen. Al construir el grafo también se guarda la obstrucción del cielo de cada ventana. Las aristas se indexan por destino, así que cada ventana recorre solo las aristas que le llegan.
 
 ### Cola de prioridad
 
@@ -280,14 +300,16 @@ Se eligió rojo-negro porque hay muchas inserciones y pocas consultas, y en gene
 
 ```text
 cargar hotel y validar dos torres
-cargar pisos, zonas, ventanas, vidrios, paredes, luminarias y huéspedes
+cargar pisos, zonas, ventanas, vidrios, paredes, fachadas, luminarias y huéspedes
 cargar clima, horarios y restricciones
 construir Octree
-construir grafo de influencia con consultas de radio del Octree
+construir grafo fachada → ventana de la otra torre con consultas de radio del Octree
+y la obstrucción del cielo de cada ventana
 
 para cada instante t entre 00:00 y 24:00:
     determinar periodo y modo de horario de cada zona
-    si es de día: calcular luz natural con Snell y Fresnel, sombras y reflexión
+    si es de día: calcular luz natural con Snell y Fresnel, sombras y obstrucción,
+                  luz de las fachadas, reflexión exterior y reflexión interior
     calcular demandas de emergencia, mínima y objetivo
     reservar el nivel de emergencia para todas las zonas abiertas
     cubrir mínimos: parqueadero, habitaciones ocupadas, resto
@@ -317,6 +339,8 @@ Para cada zona se calcula la potencia artificial aproximada:
 E_artificial = eficacia × potenciaAsignada × CU × MF / área
 ```
 
+El `CU = 0,70` del método de lúmenes ya incluye el rebote interior de la luz de la luminaria, por eso no se le suma reflexión aparte. El `CU` es fijo: no cambia con el color de la pared.
+
 Las demandas de emergencia, mínima y objetivo se calculan después de descontar luz natural y reflejada. La prioridad de cada zona es `prioridadActividad × pesoPiso × factorOcupacion`, con `pesoPiso = 1 + 0,10 × (piso − 1)` y `factorOcupacion = 1,4` para habitaciones ocupadas (1,0 en las demás). El balance:
 
 1. identifica zonas abiertas; las `CERRADA` no reciben energía;
@@ -335,7 +359,7 @@ En el escenario base el generador de 22 kW alcanza: el pico es 15.933,7 W a las 
 
 El sistema reporta estado por zona e instante, puntuación diurna/nocturna, veredicto por zona, energía por torre y actividad, potencia máxima, déficit residual, energía no asignada, zonas críticas, horas con déficit, huéspedes reasignados, candidatos descartados y conteos de las estructuras de datos.
 
-Resultado del escenario base: 123 zonas habitables, 4 casi habitables por exceso solar y 0 no habitables; puntaje ponderado 0,9819 (día 0,9639, noche 1,0); energía 195.152,2 Wh.
+Resultado del escenario base: 101 zonas habitables, 26 casi habitables (todas por exceso solar) y 0 no habitables; puntaje ponderado 0,9726 (día 0,9451, noche 1,0); energía 194.432,4 Wh.
 
 Costes:
 
@@ -343,7 +367,7 @@ Costes:
 Sombras ingenuas:          O(V × B × T)
 Octree esperado:           O(V × T × (log B + k))
 Grafo ingenuo:             O(S × V)
-Grafo con Octree:          O(S × (log N + k) + E)
+Grafo con Octree:          O(V × (log N + k) + E)
 Agregación jerárquica:     O(N)
 Balance por instante:      O(Z log Z)
 Reasignación lineal:       O(G × H)
@@ -352,16 +376,16 @@ Franja con lista:          O(R)
 Franja con rojo-negro:     O(log R + k)
 ```
 
-`G` es el número de huéspedes a mover, `F` el número de pisos, `H` el número de habitaciones y `R` el número de resultados.
+`S` es el número de fachadas, `V` el de ventanas, `G` el número de huéspedes a mover, `F` el número de pisos, `H` el número de habitaciones y `R` el número de resultados.
 
 Conteos medidos en el escenario base:
 
 | Medida | Versión ingenua | Con estructura |
 |---|---:|---:|
-| Pares superficie–ventana al construir el grafo (127 superficies, 154 ventanas) | 19.558 | 5.581 |
-| Aristas del grafo | — | 521 |
+| Pares fachada–ventana al construir el grafo (8 fachadas, 154 ventanas) | 1.232 | 68 (7.834 nodos del Octree visitados) |
+| Aristas del grafo | — | 46 (`TP-F-ESTE` → 24 ventanas de TG, `TG-F-OESTE` → 16 de TP, `TP-F-NORTE` → 6 de recreaciones de TG) |
 | Nodos visitados para la franja 18–22 (6.096 resultados) | 6.096 | 1.029 |
-| AVL de reasignación (100 habitaciones habitables) | — | altura 8, 79 rotaciones |
+| AVL de reasignación (78 habitaciones habitables libres) | — | altura 7, 58 rotaciones, 417 comparaciones de construcción |
 
 En el escenario base nadie está en una habitación `NO_HABITABLE`, así que el AVL se construye y se reporta pero no se consulta. La prueba del caso 7 (sección 12) verifica que el AVL hace menos comparaciones que la búsqueda lineal.
 
@@ -385,7 +409,7 @@ Los 10 casos son pruebas automáticas con `unittest` en `tests/test_casos_plan.p
 | 1 | Ventana orientada al sol y sin obstáculo | La luz natural coincide con la fórmula de la sección 8 y supera la que daría solo la difusa. |
 | 2 | Ventana sombreada por la otra torre | La ventana sombreada solo aporta luz difusa. |
 | 3 | Transmisión con cada preset de vidrio | La luz natural es proporcional a la VLT; el factor angular vale 1 a 0° y baja con la incidencia; Snell da `sen θt = sen θi / 1,5`. |
-| 4 | Reflexión de primer orden sin cascada | La reflejada sale de las aristas entrantes de cada ventana y ninguna ventana es origen de aristas. |
+| 4 | Reflexión de primer orden sin cascada | Las aristas van solo de una fachada a ventanas de la otra torre y su peso no supera la reflectancia de la fachada; la reflejada de cada zona es la exterior (aristas entrantes) más la interior; una pared oscura da menos reflejada que una blanca; de noche la reflejada es 0. |
 | 5 | Noche con luz natural cero y luminaria artificial activa | Natural y reflejada son cero de noche y una habitación ocupada no queda en déficit a las 20:00. |
 | 6 | Generador suficiente para mínimos pero insuficiente para todos los objetivos | Con la capacidad entre la suma de mínimos y la de objetivos, todas las zonas reciben su mínimo, ninguna entra en `EMERGENCIA` y se usa toda la capacidad. |
 | 7 | Habitación ocupada `NO_HABITABLE` con habitación compatible disponible | Ningún JSON de prueba produce este caso, así que se arma con veredictos modificados sobre el escenario base: todas las habitaciones quedan `NO_HABITABLE` menos una ocupada con una cama libre. El primer huésped la recibe, la habitación sale del AVL y los demás reciben `SIN_CAPACIDAD`. El AVL hace menos comparaciones que la búsqueda lineal. |
@@ -402,7 +426,11 @@ Los rangos, pesos, horarios, áreas de zonas, potencias, capacidad del generador
 Limitaciones conocidas:
 
 - La precipitación es informativa y no entra en el cálculo.
+- La reflexión exterior entre torres es de primer orden.
+- El `CU` de la luz artificial es fijo y no cambia con el color de la pared.
+- Las superficies interiores de cada recinto se representan con un solo valor de reflectancia.
+- Las ventanas están dentro de la caja de su torre; para la reflexión exterior se usa su punto de salida en la fachada.
 
 ## 14. Criterio de éxito
 
-El proyecto será exitoso si construye las dos torres, recorre 24 horas con un modelo único, consulta el Octree, calcula reflexión de primer orden, aplica el balance con emergencia y mínimos de seguridad, clasifica las cuatro actividades, emite veredictos por zona, reporta energía y déficits por franja, produce propuestas coherentes de reasignación sin alterar la geometría, y pasa los 10 casos de prueba.
+El proyecto será exitoso si construye las dos torres, recorre 24 horas con un modelo único, consulta el Octree, calcula la reflexión interior y la reflexión exterior de primer orden entre torres, aplica el balance con emergencia y mínimos de seguridad, clasifica las cuatro actividades, emite veredictos por zona, reporta energía y déficits por franja, produce propuestas coherentes de reasignación sin alterar la geometría, y pasa los 10 casos de prueba.

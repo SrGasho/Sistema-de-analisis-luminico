@@ -27,12 +27,13 @@ La caja de `TP` es `x=0..32, y=0..31.35, z=0..12`. La caja de `TG` es `x=45..89,
 ```text
 Árbol jerárquico:
     Hotel → Torre → Piso → ZonaHotel → Ventana / SuperficiePared
+    Torre → Fachada (4 por torre: N, S, E, O)
 
 Octree:
-    cajas de torres, paredes, ventanas y luminarias
+    cajas de torres, fachadas, paredes, ventanas y luminarias
 
 Grafo de influencia:
-    SuperficiePared → Ventana, con aristas indexadas por origen y por destino
+    Fachada → Ventana de la otra torre, con aristas indexadas por origen y por destino
 
 Cola de prioridad (heapq):
     demandas de energía de cada instante
@@ -113,7 +114,11 @@ Contiene exactamente dos `Torre`, un `GeneradorEnergia`, perfiles de iluminació
 
 ### `Torre`
 
-Mantiene ID (`TP` o `TG`), nombre de presentación ("Torre Pequeña", "Torre Grande"), caja espacial, área de referencia y pisos. Sus dimensiones son fijas.
+Mantiene ID (`TP` o `TG`), nombre de presentación ("Torre Pequeña", "Torre Grande"), caja espacial, área de referencia, pisos y cuatro fachadas. Sus dimensiones son fijas.
+
+### `Fachada`
+
+Cara exterior de una torre (`NORTE`, `SUR`, `ESTE` u `OESTE`). Mantiene ID (por ejemplo `TP-F-ESTE`), torre, lado, normal, reflectancia, caja (plana, del alto de la torre) y área. La reflectancia sale del campo `fachada` de cada torre en el JSON; si falta, se usa `GRIS_CLARO` (0,60). Es el origen de las aristas del grafo de influencia.
 
 ### `Piso`
 
@@ -129,7 +134,7 @@ Mantiene ID, actividad, área, piso, torre, modo, ventanas, superficies, luminar
 
 ### `Ventana`, `Vidrio` y `SuperficiePared`
 
-Una ventana mantiene posición, normal, área y vidrio. El vidrio mantiene tipo, transmitancia visible e índice de refracción. Una pared mantiene posición, normal, caja y la reflectancia educativa de su preset de color.
+Una ventana mantiene posición, normal, área y vidrio. El vidrio mantiene tipo, transmitancia visible e índice de refracción. Una pared mantiene posición, normal, caja y la reflectancia educativa de su preset de color. Esa reflectancia representa todas las superficies interiores del recinto en la reflexión interior.
 
 ### `FuenteIluminacion` y `GeneradorEnergia`
 
@@ -143,8 +148,8 @@ Mantiene radiación, nubosidad y precipitación de Bogotá (NASA POWER) y la rad
 
 | Clase o módulo | Responsabilidad |
 |---|---|
-| `Octree` | Consultar rayos y radios sobre torres, paredes, ventanas y luminarias. |
-| `GrafoInfluencia` | Mantener aristas de reflexión de primer orden por origen (`adyacencias`) y por destino (`entrantes`), y contar los pares evaluados al construirlo. |
+| `Octree` | Consultar rayos y radios sobre torres, fachadas, paredes, ventanas y luminarias. |
+| `GrafoInfluencia` | Mantener las aristas `fachada → ventana de la otra torre` (reflexión exterior de primer orden) por origen (`adyacencias`) y por destino (`entrantes`), la obstrucción del cielo de cada ventana (`obstruccion`) y los conteos de su construcción. |
 | `PerfilClimatico` | Mantener radiación, nubosidad y precipitación, y calcular `factor_luz`. |
 | `PerfilIluminacion` | Mantener mínimo, objetivo, máximo y prioridad, y dar el triplete de cada modo. |
 | `SimuladorUnificado` | Ejecutar el mismo flujo entre 00:00 y 24:00 en pasos de 30 minutos. |
@@ -167,13 +172,36 @@ factor_luz = radiación / radiación de cielo despejado
 
 `K_lux` es 900 lux y `C(t)` es una curva senoidal entre 06:00 y 18:00; fuera de esa franja `E_base = 0`. La nubosidad reparte la luz entre directa, `max(0,10; 1 − c)`, y difusa, `0,15 + 0,45c`.
 
-En la luz directa, cada ventana calcula el ángulo de refracción con Snell (`n = 1,5`) y la transmitancia de Fresnel no polarizada en las dos caras del vidrio. El resultado se normaliza con la incidencia perpendicular, así que a 0° se conserva la transmitancia visible del catálogo. La luz difusa usa directamente esa transmitancia visible. El vidrio usa una transmitancia visible de 0,82, 0,71 o 0,52 según el preset. Las paredes usan reflectancias educativas de 0,80, 0,70, 0,60, 0,45 o 0,25. La reflexión se limita a primer orden.
+En la luz directa, cada ventana calcula el ángulo de refracción con Snell (`n = 1,5`) y la transmitancia de Fresnel no polarizada en las dos caras del vidrio. El resultado se normaliza con la incidencia perpendicular, así que a 0° se conserva la transmitancia visible del catálogo. La luz difusa usa directamente esa transmitancia visible. El vidrio usa una transmitancia visible de 0,82, 0,71 o 0,52 según el preset. Las paredes y las fachadas usan reflectancias educativas de 0,80, 0,70, 0,60, 0,45 o 0,25.
+
+La otra torre tapa parte del cielo. La difusa de cada ventana se multiplica por `1 − obstrucción`, con `obstrucción = Σ cos_ventana × factor de vista` de las fachadas que la ventana tiene enfrente (máximo 1). En el escenario base 40 ventanas tienen obstrucción; `TP-H-101-V1` (al este, frente a TG) tiene 0,593.
+
+La luz reflejada sólo existe de día y tiene dos partes:
+
+```text
+E_reflejada = E_exterior + E_ri
+
+E_exterior(ventana) = Σ luz_fachada × peso × VLT
+luz_fachada         = E_base × (max(0, n · sol) × f_directa + f_difusa)
+peso                = ρ_fachada × cos_fachada × cos_ventana × A_f / (π·d² + A_f)
+
+E_ri  = Φ × ρ / (A_int × (1 − ρ))
+Φ     = Σ_ventanas (E_natural + E_exterior) × área_ventana
+A_int = 2 × área + 4 × √área × 3 m
+```
+
+- **Reflexión exterior entre torres.** Los orígenes son las 8 fachadas y los destinos, las ventanas de la otra torre. Cada ventana se lleva a su punto de salida en la fachada de su torre (`punto_en_fachada`); `consultar_radio` (18 m) entrega las fachadas candidatas; `d` es la distancia al punto más cercano de cada fachada; ventana y fachada deben mirarse y un rayo (`_visible`) debe llegar sin cruzar otra torre. El último factor del peso es un factor de vista aproximado para una superficie grande. La reflexión exterior es de primer orden. La zona toma el promedio de la exterior de sus ventanas.
+- **Reflexión interior.** Método de flujo dividido con la reflectancia `ρ` de la pared del recinto. Promedia todos los rebotes interiores, así que no es de primer orden, y hace que el color de la pared cambie la luz de su propio cuarto. Una habitación de 24 m² tiene `A_int ≈ 106,8 m²`; con pared blanca (`ρ = 0,80`), `ρ / (1 − ρ) = 4`.
+
+A las 12:00 del escenario base, `TP-H-101` (ventana al este, frente a TG) recibe 97,0 lux naturales y 98,4 reflejados; `TP-H-102` (al norte, sin torre enfrente) recibe 358,7 naturales y 26,9 reflejados, casi todos interiores; `TG-H-101` recibe 238,3 y 17,9. La fachada `TG-F-OESTE` recibe 290,6 lux y su arista hacia `TP-H-101-V1` pesa 0,3559.
 
 La luz artificial se aproxima con el método de lúmenes:
 
 ```text
 E_artificial = eficacia × potenciaAsignada × CU × MF / área
 ```
+
+El `CU = 0,70` del método de lúmenes ya incluye el rebote interior de la luz de la luminaria, por eso a la luz artificial no se le suma reflexión aparte. El `CU` es fijo y no cambia con el color de la pared.
 
 El generador se dimensiona sólo para iluminación:
 
@@ -219,7 +247,8 @@ El diagrama completo, con todos los campos y relaciones, está en `diagrama-clas
 ```mermaid
 classDiagram
     class Hotel { +id +torres[2] +generador +perfiles_climaticos +huespedes +asignaciones }
-    class Torre { +id +nombre +area_referencia +caja +pisos }
+    class Torre { +id +nombre +area_referencia +caja +pisos +fachadas }
+    class Fachada { +id +torre_id +lado +normal +reflectancia +caja +area }
     class Piso { +numero +zonas +peso }
     class ZonaHotel { +id +actividad +area +modo +ventanas +superficies +resultados }
     class HabitacionHotel { +capacidad +ocupacion +disponible }
@@ -234,7 +263,7 @@ classDiagram
     class PerfilIluminacion { +minimo +objetivo +maximo +prioridad }
     class ResultadoIluminacion { +hora +modo +luz_natural +luz_reflejada +luz_artificial +luz_total +estado }
     class Octree { +insertar() +consultar_rayo() +consultar_radio() }
-    class GrafoInfluencia { +adyacencias +entrantes +construir() +reflejada_para() }
+    class GrafoInfluencia { +adyacencias +entrantes +fachadas +obstruccion +construir() +reflejada_para() }
     class IndiceAVL { +insertar() +eliminar() +sucesor() +siguiente() }
     class IndiceRojoNegro { +insertar() +rango() }
     class IndiceTemporal { +insertar() +franja() }
@@ -245,6 +274,7 @@ classDiagram
 
     Hotel "1" *-- "2" Torre
     Torre "1" *-- "1..*" Piso
+    Torre "1" *-- "4" Fachada
     Piso "1" *-- "1..*" ZonaHotel
     ZonaHotel "1" *-- "0..*" Ventana
     ZonaHotel "1" *-- "0..*" SuperficiePared
@@ -261,6 +291,8 @@ classDiagram
     SimuladorUnificado *-- Octree
     SimuladorUnificado *-- GrafoInfluencia
     GrafoInfluencia ..> Octree : consultar_radio
+    GrafoInfluencia ..> Fachada : origen de aristas
+    GrafoInfluencia ..> Ventana : destino de aristas
     SimuladorUnificado ..> IndiceTemporal
     IndiceTemporal *-- IndiceRojoNegro
     IndiceTemporal o-- IndiceAVL : compara rotaciones
@@ -276,12 +308,12 @@ classDiagram
 ## 9. Flujo de ejecución
 
 1. Validar que existan exactamente dos torres y cargar el dataset sintético.
-2. Crear pisos, zonas, superficies, ventanas, vidrios y fuentes.
+2. Crear pisos, zonas, superficies, ventanas, vidrios, fuentes y las cuatro fachadas de cada torre.
 3. Cargar el perfil de Bogotá, calcular `factor_luz` y leer los horarios de las cuatro actividades.
 4. Insertar cajas y posiciones en el Octree.
-5. Construir las aristas de influencia: para cada superficie, `Octree.consultar_radio` (18 m) entrega las ventanas cercanas, que se filtran por orientación y visibilidad.
+5. Construir las aristas de influencia: para cada ventana, `Octree.consultar_radio` (18 m) desde su punto de salida en la fachada entrega las fachadas de la otra torre, que se filtran por orientación y visibilidad. Al mismo tiempo se acumula la obstrucción del cielo de la ventana.
 6. Recorrer los instantes de 00:00 a 24:00.
-7. Calcular sol, clima, sombra, transmisión con Snell y Fresnel y reflexión cuando corresponda.
+7. Calcular sol, clima, sombra, obstrucción del cielo, transmisión con Snell y Fresnel, luz de las fachadas, reflexión exterior y reflexión interior cuando corresponda.
 8. Decidir el modo de cada zona según su horario y calcular demandas de emergencia, mínimo y objetivo.
 9. Reservar emergencia, cubrir mínimos en el orden parqueadero, habitaciones ocupadas y resto, y repartir la potencia restante.
 10. Clasificar cada zona, guardar `ResultadoIluminacion` e insertarlo en el índice temporal.
@@ -293,16 +325,16 @@ Las mejoras medidas y la reestructuración repiten los pasos 1 a 13 con la confi
 
 ## 10. Complejidad conceptual
 
-Notación: `V` ventanas, `B` objetos en el Octree, `T` instantes, `S` superficies, `E` aristas del grafo, `N` nodos del árbol físico, `Z` zonas, `G` huéspedes a mover, `F` pisos permitidos, `H` habitaciones, `R` resultados y `k` objetos devueltos por una consulta.
+Notación: `V` ventanas, `B` objetos en el Octree, `T` instantes, `S` fachadas, `E` aristas del grafo, `N` nodos del árbol físico, `Z` zonas, `G` huéspedes a mover, `F` pisos permitidos, `H` habitaciones, `R` resultados y `k` objetos devueltos por una consulta.
 
 | Operación | Coste aproximado |
 |---|---|
 | Sombras comparando cada ventana con todas las torres | `O(V × B × T)` |
 | Consulta espacial esperada en el Octree | `O(log B + k)` |
 | Sombras con Octree | `O(V × T × (log B + k))` |
-| Construcción ingenua del grafo (cada superficie contra cada ventana) | `O(S × V)` |
-| Construcción del grafo con `consultar_radio` | `O(S × (log B + k))`, más una consulta de rayo por par candidato |
-| Luz reflejada por instante, con aristas por destino | `O(V + E)` |
+| Construcción ingenua del grafo (cada fachada contra cada ventana) | `O(S × V)` |
+| Construcción del grafo con `consultar_radio` | `O(V × (log B + k))`, más una consulta de rayo por par candidato |
+| Luz reflejada por instante (exterior con aristas por destino, más interior por zona) | `O(S + V + E + Z)` |
 | Agregación por árbol | `O(N)` |
 | Balance por instante con `heapq` | `O(Z log Z)` |
 | Construcción de la bolsa AVL | `O(H log H)` |
@@ -316,11 +348,14 @@ Mediciones en el escenario base:
 
 | Medida | Valor |
 |---|---|
-| Pares superficie–ventana del grafo | 5.581 evaluados con el Octree contra 19.558 ingenuos (127 × 154) |
-| Aristas del grafo | 521 |
+| Pares fachada–ventana del grafo | 68 candidatos con el Octree contra 1.232 ingenuos (8 × 154); 7.834 nodos del Octree visitados |
+| Aristas del grafo | 46: `TP-F-ESTE` → 24 ventanas de TG, `TG-F-OESTE` → 16 ventanas de TP, `TP-F-NORTE` → 6 ventanas de recreaciones de TG |
+| Ventanas con obstrucción del cielo | 40 |
+| Veredictos | 101 `HABITABLE`, 26 `CASI_HABITABLE` (todas por `EXCESO_SOLAR`), 0 `NO_HABITABLE`; puntaje ponderado 0,9726 (día 0,9451, noche 1,0) |
+| Energía y generador | 194.432,4 Wh; pico 15.933,7 W; demanda objetivo máxima 18.110,7 W |
 | Resultados indexados | 6.096 (127 zonas × 48 pasos) |
 | Consulta de la franja 18–22 | 1.029 nodos visitados contra 6.096 de recorrer la lista |
-| Bolsa AVL de reasignación | 100 habitaciones, altura 8, 79 rotaciones; no se consulta porque ninguna habitación ocupada queda `NO_HABITABLE` |
+| Bolsa AVL de reasignación | 78 habitaciones habitables libres, altura 7, 58 rotaciones, 417 comparaciones de construcción; no se consulta porque ninguna habitación ocupada queda `NO_HABITABLE` |
 | Rotaciones rojo-negro / AVL con los mismos resultados | 9.099 / 7.232 |
 | Altura rojo-negro / AVL | 22 / 14 |
 
@@ -328,4 +363,4 @@ El rojo-negro se eligió para el índice temporal porque, en general, rota menos
 
 ## 11. Límites
 
-No se incluyen mallas complejas, óptica espectral, deslumbramiento profesional, consumo total del hotel, reservas reales ni ejecución automática de traslados. La reestructuración es una búsqueda local dentro de rangos fijos: puede no encontrar la mejor combinación posible y nunca cambia la geometría. La precipitación es informativa. Los resultados son aproximaciones educativas. El documento separa fuentes publicadas, presets educativos y datos sintéticos para evitar confundirlos.
+No se incluyen mallas complejas, óptica espectral, deslumbramiento profesional, consumo total del hotel, reservas reales ni ejecución automática de traslados. La reestructuración es una búsqueda local dentro de rangos fijos: puede no encontrar la mejor combinación posible y nunca cambia la geometría. La precipitación es informativa. La reflexión exterior entre torres es de primer orden. El `CU` de la luz artificial es fijo y no depende del color de la pared. Las superficies interiores de cada recinto se representan con un solo valor de reflectancia. Las ventanas quedan dentro de la caja de su torre; para la reflexión exterior se usa su punto de salida en la fachada. Los resultados son aproximaciones educativas. El documento separa fuentes publicadas, presets educativos y datos sintéticos para evitar confundirlos.

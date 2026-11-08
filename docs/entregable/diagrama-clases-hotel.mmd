@@ -57,6 +57,16 @@ classDiagram
         +area_referencia
         +caja: CajaEspacial
         +pisos: Piso[]
+        +fachadas: Fachada[4]
+    }
+    class Fachada {
+        +id
+        +torre_id
+        +lado
+        +normal
+        +reflectancia
+        +caja: CajaEspacial
+        +area
     }
     class Piso {
         +numero
@@ -204,10 +214,12 @@ classDiagram
     class GrafoInfluencia {
         +adyacencias: dict origen a AristaInfluencia[]
         +entrantes: dict destino a AristaInfluencia[]
+        +fachadas: dict id a Fachada
+        +obstruccion: dict ventana a float
         +estadisticas: dict
         +agregar_arista(origen, destino, peso)
         +construir(hotel, octree, radio_maximo=18)
-        +reflejada_para(receptor_id, luz_superficies)
+        +reflejada_para(receptor_id, luz_fachadas)
     }
     class AristaInfluencia {
         +origen
@@ -271,6 +283,7 @@ classDiagram
         +estadisticas_reasignacion: dict
         +temporal: dict
         +ejecutar(balancear_energia, comparar_arboles)
+        +luz_fachadas(hora)
     }
     class Demanda {
         +zona: ZonaHotel
@@ -309,6 +322,7 @@ classDiagram
     %% ============ RELACIONES DE COMPOSICION (arbol fisico) ============
     Hotel "1" *-- "2" Torre : contiene
     Torre "1" *-- "1..*" Piso : contiene
+    Torre "1" *-- "4" Fachada : N S E O
     Piso "1" *-- "1..*" ZonaHotel : contiene
     ZonaHotel "1" *-- "0..*" Ventana : contiene
     ZonaHotel "1" *-- "0..*" SuperficiePared : tiene
@@ -320,6 +334,7 @@ classDiagram
     Ventana "1" --> "1" Vidrio : usa
     Torre "1" --> "1" CajaEspacial : caja fija
     SuperficiePared "1" --> "1" CajaEspacial : caja
+    Fachada "1" --> "1" CajaEspacial : caja plana
     Hotel "1" --> "4" PerfilIluminacion : uno por actividad
     Hotel "1" --> "1..*" PerfilClimatico : perfil activo
     Hotel "1" --> "0..*" FuenteIluminacion : opera
@@ -341,13 +356,14 @@ classDiagram
     EntradaEspacial ..> Torre : indexa
     EntradaEspacial ..> Ventana : indexa
     EntradaEspacial ..> SuperficiePared : indexa
+    EntradaEspacial ..> Fachada : indexa
     EntradaEspacial ..> FuenteIluminacion : indexa
     Octree ..> Rayo : consultar_rayo
 
     %% ============ GRAFO DE INFLUENCIA ============
     GrafoInfluencia "1" *-- "0..*" AristaInfluencia : adyacencias y entrantes
-    AristaInfluencia ..> SuperficiePared : origen
-    AristaInfluencia ..> Ventana : destino
+    AristaInfluencia ..> Fachada : origen
+    AristaInfluencia ..> Ventana : destino en la otra torre
     GrafoInfluencia ..> Octree : consultar_radio 18 m y visibilidad
 
     %% ============ ARBOLES ============
@@ -360,7 +376,7 @@ classDiagram
     %% ============ SIMULACION Y CONTROL ============
     SimuladorUnificado --> Hotel : simula
     SimuladorUnificado "1" *-- "1" Octree : sombras
-    SimuladorUnificado "1" *-- "1" GrafoInfluencia : reflexion primer orden
+    SimuladorUnificado "1" *-- "1" GrafoInfluencia : reflexion exterior primer orden
     SimuladorUnificado ..> IndiceTemporal : crea en ejecutar
     SimuladorUnificado ..> BalanceEnergetico : cada paso
     SimuladorUnificado ..> EvaluadorHabitabilidad : veredictos
@@ -378,3 +394,5 @@ classDiagram
 
     note for PerfilClimatico "factor_luz = min(1, radiacion / radiacion_cielo_despejado)"
     note for IndiceAVL "Bolsa de reasignacion: clave (torre, piso, -calidad, id)"
+    note for GrafoInfluencia "peso = rho_fachada * cos_fachada * cos_ventana * A_f / (pi * d^2 + A_f)"
+    note for SimuladorUnificado "reflejada = exterior (grafo) + interior: flujo * rho / (A_int * (1 - rho))"

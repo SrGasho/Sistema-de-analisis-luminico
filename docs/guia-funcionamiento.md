@@ -41,8 +41,10 @@ Cada habitación (`_zona_habitacion`) recibe:
 
 - **Posición.** `_room_center` reparte las habitaciones del piso en una cuadrícula dentro de la caja de la torre. La altura es la mitad de su piso: `(piso − 0,5) × 3 m`.
 - **Una ventana de 2 m²**, medio metro hacia el lado al que mira. Las orientaciones se alternan: la primera habitación mira al este, la segunda al norte, la tercera al oeste, la cuarta al sur, y se repite.
-- **Una superficie reflectante** (llamada «pared» en el código): un punto en el centro con una sola dirección, **opuesta a la ventana**, y la reflectancia de su color. El cuarto no se modela con cuatro paredes, techo y piso: esta superficie es una abstracción que representa la cara del recinto que refleja luz hacia las ventanas de otros cuartos (ver 2.4).
+- **Una superficie interior** (llamada «pared» en el código) con la reflectancia del color de sus paredes. El cuarto no se modela con cuatro paredes, techo y piso por separado: esta superficie representa todas sus caras interiores con un solo valor de reflectancia, y se usa para la reflexión interior (paso 3).
 - **Una luminaria asociada** (`L-TP-H-101`).
+
+Cada torre recibe además sus **4 fachadas** (`_fachadas`): las caras norte, sur, este y oeste de su caja, cada una con su área, su dirección hacia afuera y la reflectancia del color indicado en el campo `fachada` de la torre (por defecto `GRIS_CLARO`, 0,60). Se usan para la reflexión entre torres (paso 2).
 
 Las cocinas y recreaciones (`_zona_comun`) se construyen igual, pero con varias ventanas. `_common_center` las ubica en fila, en una franja libre del piso 1, sin encimarlas.
 
@@ -61,7 +63,7 @@ El tercer número, la altura, es 0 porque las ventanas miran al horizonte. Con e
 
 - ubica la ventana: centro + flecha × 0,5 es avanzar medio metro hacia ese lado;
 - indica hacia dónde mira la ventana, que es hacia afuera;
-- orienta la superficie al revés (flecha × −1), es decir, hacia el lado contrario de su propia ventana. Por eso una superficie nunca le refleja luz a su propio cuarto: solo a ventanas de otros cuartos que la tengan de frente.
+- orienta la superficie interior al revés (flecha × −1). Esa dirección ya no se usa en ningún cálculo de luz; quedó del modelo anterior.
 
 Más adelante, al calcular la luz, la flecha de la ventana se compara con la dirección del sol. Si apuntan parecido, el sol pega de frente y entra mucha luz directa. Si quedan de lado, entra poca, y si el sol está detrás, solo entra la luz difusa del cielo. La misma comparación decide si una pared y una ventana "se miran" para que haya reflexión.
 
@@ -102,22 +104,23 @@ Cada zona recibe una `FuenteIluminacion` con la potencia, la eficacia, el CU y e
 
 | Qué | Dónde |
 |---|---|
-| Entrada del paso | [`cargar_hotel_data`, `src/io_datos.py` línea 71](../src/io_datos.py#L71) |
-| Valores por defecto | [`_completar_defaults`, línea 55](../src/io_datos.py#L55) |
-| Validar acabados | [`_validar_acabados`, línea 291](../src/io_datos.py#L291) |
-| Perfiles de iluminación y clima | [línea 74](../src/io_datos.py#L74) |
-| Bucle de torres, pisos y zonas | [línea 85](../src/io_datos.py#L85) |
-| Habitación | [`_zona_habitacion`, línea 219](../src/io_datos.py#L219) y [`_room_center`, línea 262](../src/io_datos.py#L262) |
-| Zona común | [`_zona_comun`, línea 237](../src/io_datos.py#L237) y [`_common_center`, línea 271](../src/io_datos.py#L271) |
-| Acabado de cada zona | [`_acabado`, línea 193](../src/io_datos.py#L193) |
-| Índices por ID | [`Hotel.indexar`, `src/modelo.py` línea 207](../src/modelo.py#L207) |
-| Luminarias | [línea 127](../src/io_datos.py#L127) |
-| Huéspedes y asignaciones | [línea 145](../src/io_datos.py#L145) y [línea 171](../src/io_datos.py#L171) |
-| Validación final | [`_validar`, línea 312](../src/io_datos.py#L312) |
+| Entrada del paso | [`cargar_hotel_data`, `src/io_datos.py` línea 73](../src/io_datos.py#L73) |
+| Valores por defecto | [`_completar_defaults`, línea 57](../src/io_datos.py#L57) |
+| Validar acabados | [`_validar_acabados`, línea 307](../src/io_datos.py#L307) |
+| Perfiles de iluminación y clima | [línea 76](../src/io_datos.py#L76) |
+| Bucle de torres, pisos y zonas | [línea 87](../src/io_datos.py#L87) |
+| Habitación | [`_zona_habitacion`, línea 222](../src/io_datos.py#L222) y [`_room_center`, línea 265](../src/io_datos.py#L265) |
+| Zona común | [`_zona_comun`, línea 240](../src/io_datos.py#L240) y [`_common_center`, línea 274](../src/io_datos.py#L274) |
+| Fachadas de cada torre | [`_fachadas`, línea 282](../src/io_datos.py#L282) y [`class Fachada`, `src/modelo.py` línea 59](../src/modelo.py#L59) |
+| Acabado de cada zona | [`_acabado`, línea 196](../src/io_datos.py#L196) |
+| Índices por ID | [`Hotel.indexar`, `src/modelo.py` línea 219](../src/modelo.py#L219) |
+| Luminarias | [línea 130](../src/io_datos.py#L130) |
+| Huéspedes y asignaciones | [línea 148](../src/io_datos.py#L148) y [línea 174](../src/io_datos.py#L174) |
+| Validación final | [`_validar`, línea 331](../src/io_datos.py#L331) |
 
 ### Resultado y costo del paso
 
-Sale un `Hotel` con 127 zonas (104 habitaciones y 23 comunes), 154 ventanas, 127 paredes, 127 luminarias y 78 huéspedes asignados.
+Sale un `Hotel` con 127 zonas (104 habitaciones y 23 comunes), 154 ventanas, 127 superficies interiores, 8 fachadas (4 por torre), 127 luminarias y 78 huéspedes asignados.
 
 **Complejidad: lineal, O(Z + V + G)**, con Z zonas, V ventanas y G huéspedes. Aunque el bucle del edificio tiene tres niveles (torre, piso, habitación), pasa una sola vez por cada habitación y hace con ella un trabajo fijo. Las búsquedas de acabado son en diccionario, en tiempo constante. Con los datos del hotel tarda milisegundos, así que este paso nunca es el cuello de botella.
 
@@ -127,27 +130,31 @@ Sale un `Hotel` con 127 zonas (104 habitaciones y 23 comunes), 154 ventanas, 127
 
 **Fin:** organizar la geometría **una sola vez**, antes de recorrer el día, para que en cada media hora se puedan responder rápido dos preguntas:
 
-- ¿La otra torre le tapa el sol a esta ventana? (se usa en el paso 3 para las sombras)
-- ¿Cuánta luz rebota de las paredes a esta ventana? (se usa en el paso 3 para la luz reflejada)
+- ¿La otra torre le tapa el sol a esta ventana? (sombras, paso 3)
+- ¿Cuánta luz le devuelve la fachada de la otra torre a esta ventana? (reflexión exterior, paso 3)
 
-Este paso **no calcula luz**. Construye dos herramientas: el **Octree**, que sirve para buscar cosas en el espacio, y el **grafo de influencia**, que guarda qué pared le refleja luz a qué ventana.
+Este paso **no calcula luz**. Construye dos herramientas: el **Octree**, que sirve para buscar cosas en el espacio, y el **grafo de influencia**, que guarda qué fachada le refleja luz a qué ventana de la otra torre y cuánta.
+
+La reflexión **dentro** de cada cuarto no usa el grafo: se calcula en el paso 3 con la luz que entra y el color de las paredes del cuarto.
 
 ### Dónde está en el código
 
 | Qué | Dónde |
 |---|---|
-| Se arma todo al crear el simulador | [`SimuladorUnificado.__init__`, `src/simulacion.py` líneas 24–26](../src/simulacion.py#L24) |
-| Llenar el Octree con los objetos del hotel | [`_crear_octree`, `src/simulacion.py` línea 70](../src/simulacion.py#L70) |
+| Se arma todo al crear el simulador | [`SimuladorUnificado.__init__`, `src/simulacion.py` líneas 26–28](../src/simulacion.py#L26) |
+| Llenar el Octree con los objetos del hotel | [`_crear_octree`, `src/simulacion.py` línea 73](../src/simulacion.py#L73) |
 | La estructura Octree | [`class Octree`, `src/octree.py` línea 24](../src/octree.py#L24) |
 | Insertar y dividir | [`_insertar`, línea 34](../src/octree.py#L34); [`_dividir`, línea 53](../src/octree.py#L53); [`_hijo_contenedor`, línea 61](../src/octree.py#L61) |
 | Consulta de rayo | [`consultar_rayo`, línea 71](../src/octree.py#L71) |
 | Consulta de radio | [`consultar_radio`, línea 85](../src/octree.py#L85) |
-| Construir el grafo | [`GrafoInfluencia.construir`, `src/influencia.py` línea 29](../src/influencia.py#L29) |
-| Revisar si algo tapa pared → ventana | [`_visible`, `src/influencia.py` línea 70](../src/influencia.py#L70) |
-| Uso de la consulta de rayo para sombras (paso 3) | [`_sombreada`, `src/simulacion.py` línea 118](../src/simulacion.py#L118) |
-| Uso del grafo en cada media hora (paso 3) | [`reflejada_para`, `src/influencia.py` línea 80](../src/influencia.py#L80) |
+| Construir el grafo | [`GrafoInfluencia.construir`, `src/influencia.py` línea 49](../src/influencia.py#L49) |
+| Punto donde la ventana sale a la fachada | [`punto_en_fachada`, `src/influencia.py` línea 18](../src/influencia.py#L18) |
+| Punto más cercano de una fachada | [`punto_mas_cercano`, `src/influencia.py` línea 26](../src/influencia.py#L26) |
+| Revisar si algo tapa la línea | [`_visible`, `src/influencia.py` línea 89](../src/influencia.py#L89) |
+| Uso del rayo para sombras (paso 3) | [`_sombreada`, `src/simulacion.py` línea 129](../src/simulacion.py#L129) |
+| Uso del grafo en cada media hora (paso 3) | [`reflejada_para`, `src/influencia.py` línea 99](../src/influencia.py#L99) |
 
-`GrafoInfluencia.construir` significa «el método `construir` de la clase `GrafoInfluencia`». Está en `src/influencia.py` y se llama desde `src/simulacion.py` línea 26.
+`GrafoInfluencia.construir` significa «el método `construir` de la clase `GrafoInfluencia`». Está en `src/influencia.py` y se llama desde `src/simulacion.py` línea 28.
 
 ### 2.1 Qué es el Octree y cómo se arma
 
@@ -161,7 +168,7 @@ Este paso **no calcula luz**. Construye dos herramientas: el **Octree**, que sir
 2. Si no cabe completo en ningún hijo, porque queda partido entre dos cajas, se queda en el nodo actual.
 3. Si el nodo pasa de **16 objetos** y no ha llegado a **6 niveles**, se parte en 8 (`_dividir`) y reparte los objetos que caben en los hijos.
 
-**Qué se mete (`_crear_octree`):** las 2 torres, las 154 ventanas (cada una como un cubito de 10 cm), las 127 paredes y las 127 luminarias. La caja raíz se calcula para que quepan todos, con 2 m de margen: x de −2 a 91 m, y de −2 a 45 m, z de −2 a 20 m.
+**Qué se mete (`_crear_octree`):** 418 objetos: las 2 torres, las 8 fachadas, las 154 ventanas (cada una como un cubito de 10 cm), las 127 superficies interiores y las 127 luminarias. La caja raíz se calcula para que quepan todos, con 2 m de margen: x de −2 a 91 m, y de −2 a 45 m, z de −2 a 20 m.
 
 **Cómo queda en el escenario base (medido):**
 
@@ -172,7 +179,7 @@ Este paso **no calcula luz**. Construye dos herramientas: el **Octree**, que sir
 | 2 | 56 |
 | 3 | 32 |
 
-- La raíz guarda 44 objetos: las **2 torres** (cada una es enorme y cruza varias cajas, así que nunca baja) y 42 objetos que quedaron justo sobre una línea de corte.
+- La raíz guarda 52 objetos: las **2 torres** y las **8 fachadas** (son enormes y cruzan varias cajas, así que nunca bajan) y 42 objetos que quedaron justo sobre una línea de corte.
 - Ejemplo: la ventana `TP-H-101-V1` bajó 2 niveles y quedó en una caja de x −2 a 21,25 m, y −2 a 9,75 m, z −2 a 3,5 m que comparte con solo otros 2 objetos.
 
 ### 2.2 Las dos consultas del Octree
@@ -181,142 +188,116 @@ Las dos consultas recorren el árbol desde la raíz y **descartan cajas completa
 
 **`consultar_rayo` (rayo): «¿qué cosas cruza esta línea?»**
 
-Recibe un punto de partida y una dirección. En cada nodo revisa si la línea atraviesa la caja; si no, descarta ese nodo y todo lo que tiene debajo. Devuelve los objetos cuya caja cruza la línea.
+Recibe un punto de partida y una dirección. En cada nodo revisa si la línea atraviesa la caja; si no, descarta ese nodo y todo lo que tiene debajo. Se usa para:
 
-Se usa para **dos** cosas, y ninguna es calcular la reflexión:
-
-- **Sombras** (`_sombreada`, paso 3): se lanza una línea desde la ventana hacia el sol. Si cruza **la otra torre**, el sol directo no llega a esa ventana. Ejemplo medido: a las 7:00 el sol sale por el este; la ventana `TP-REC-03-V1` (planta baja de TP, mirando al este) lanza la línea y esta cruza `TG`, que está al este de TP. Esa ventana queda en sombra a esa hora y solo recibe la luz difusa del cielo.
-- **Visibilidad para el grafo** (`_visible`, paso 2.3): se lanza una línea de una pared a una ventana para saber si una torre se interpone.
+- **Sombras** (`_sombreada`, paso 3): una línea desde la ventana hacia el sol. Si cruza **la otra torre**, el sol directo no llega. Ejemplo medido: a las 7:00 el sol sale por el este; la ventana `TP-REC-03-V1` (planta baja de TP, mirando al este) lanza la línea y esta cruza `TG`. Esa ventana queda en sombra a esa hora.
+- **Visibilidad para el grafo** (`_visible`): una línea de la fachada a la ventana, para revisar que nada se interponga.
 
 **`consultar_radio` (radio): «¿qué cosas hay cerca de este punto?»**
 
-Es otra pregunta, independiente del rayo. Recibe un punto y una distancia y devuelve los objetos a esa distancia o menos. En cada nodo mide la distancia del punto a la caja; si la caja entera está más lejos que el radio, la descarta.
-
-Se usa **solo para construir el grafo**: a cada pared se le piden las ventanas a 18 m o menos, para no compararla con las 154. Ejemplo medido: para la pared `TP-H-106-P1` la consulta visitó 49 de los 97 nodos y devolvió 49 ventanas candidatas.
+Es otra pregunta, independiente del rayo. Recibe un punto y una distancia y devuelve los objetos a esa distancia o menos (midiendo hasta el borde de su caja). Se usa **solo para construir el grafo**: a cada ventana se le piden las fachadas a 18 m o menos.
 
 ### 2.3 Cómo se construye el grafo de influencia
 
-**La idea.** Cuando el sol ilumina una pared, parte de esa luz rebota y llega a las ventanas que la pared «ve». El grafo guarda esas relaciones como flechas **pared → ventana**. Cada flecha (arista) tiene un **peso**: la fracción de la luz de la pared que llega a esa ventana.
+**La idea.** El sol ilumina la fachada de una torre. Parte de esa luz rebota y entra por las ventanas de **la otra torre** que la tienen de frente. El grafo guarda esas relaciones como flechas **fachada → ventana**, y cada flecha (arista) tiene un **peso**: la fracción de la luz de la fachada que llega a esa ventana.
 
-**Qué hace `construir`, para cada una de las 127 paredes:**
+Nunca hay flechas entre recintos de la misma torre: dentro de un edificio la luz no atraviesa paredes.
 
-1. **Candidatas.** `consultar_radio` entrega las ventanas a 18 m o menos.
-2. **Distancia.** Descarta la ventana si está a 0 m o a más de 18 m.
-3. **¿Se miran?** La pared debe mirar hacia la ventana y la ventana hacia la pared. Se mide con las flechas del paso 1: `cos_pared` = qué tan de frente mira la pared a la ventana (1 de frente, 0 de lado o de espaldas) y `cos_ventana` lo mismo desde la ventana. Si alguno es 0, se descarta.
-4. **¿Algo se interpone?** `_visible` lanza una línea de la pared a la ventana con `consultar_rayo`. Si cruza una torre, se descarta. Si pared y ventana están en la misma torre, esa torre no cuenta, porque la línea nace dentro de ella.
-5. **Peso.** `peso = reflectancia × cos_pared × cos_ventana / (1 + distancia²)`. Se guarda la arista si el peso pasa de 0,0001.
+**Qué hace `construir`, para cada una de las 154 ventanas:**
 
-**Ejemplo real: la pared `TP-H-106-P1`** (habitación 106, piso 1 de TP, pared blanca ρ = 0,80, mirando al sur):
+1. **Punto de salida** (`punto_en_fachada`). Las ventanas del modelo están cerca del centro de su cuarto, dentro de la torre. Para la reflexión exterior se lleva cada ventana hasta la cara de su torre hacia la que mira. Ejemplo: `TP-H-101-V1` está en x = 11,2 m y mira al este; su punto de salida es x = 32 m, la fachada este de TP.
+2. **Candidatas** (`consultar_radio`). Fachadas a 18 m o menos del punto de salida. Las de su propia torre se descartan.
+3. **Distancia** al punto más cercano de la fachada (`punto_mas_cercano`). Se descarta si es 0 o mayor que 18 m.
+4. **¿Se miran?** La ventana debe mirar hacia la fachada y la fachada hacia la ventana (`cos_ventana` y `cos_fachada` mayores que 0).
+5. **¿Algo se interpone?** `_visible` con `consultar_rayo`.
+6. **Peso:**
 
-- `consultar_radio` devolvió 49 ventanas candidatas.
-- 41 se descartaron porque no se miran con la pared.
-- 8 se convirtieron en aristas:
+   ```
+   vista = área de la fachada / (π × distancia² + área de la fachada)
+   peso  = reflectancia de la fachada × cos_fachada × cos_ventana × vista
+   ```
 
-| Ventana | Distancia | `cos_pared` | `cos_ventana` | Peso |
-|---|---|---|---|---|
-| `TP-H-102-V1` (mira al norte, de frente) | 9,95 m | 1,000 | 1,000 | 0,00800 |
-| `TP-H-110-V1` (igual, un piso arriba) | 10,39 m | 0,957 | 0,957 | 0,00673 |
-| `TP-H-118-V1` | 11,62 m | 0,856 | 0,856 | 0,00431 |
-| `TP-H-126-V1` | 13,42 m | 0,742 | 0,742 | 0,00243 |
-| `TP-H-101-V1` (mira al este, en diagonal) | 14,58 m | 0,717 | 0,697 | 0,00187 |
-| `TP-H-109-V1` | 14,89 m | 0,702 | 0,683 | 0,00172 |
-| `TP-H-117-V1` | 15,77 m | 0,663 | 0,645 | 0,00137 |
-| `TP-H-125-V1` | 17,13 m | 0,610 | 0,593 | 0,00098 |
+   `vista` aproxima qué tanto del campo de visión de la ventana ocupa la fachada: una fachada grande y cercana ocupa mucho. Se guarda la arista si el peso pasa de 0,0001.
+7. **Obstrucción del cielo.** Si la fachada de enfrente ocupa parte de la vista, esa parte del cielo queda tapada. Se guarda `obstruccion = cos_ventana × vista` (como máximo 1). En el paso 3 la luz difusa del cielo de esa ventana se multiplica por `1 − obstruccion`.
 
-Comprobación del primero: 0,80 × 1,000 × 1,000 / (1 + 9,95²) = 0,80 / 100,0 ≈ 0,0080. Se ve que el peso baja con la distancia y con el ángulo.
+**Ejemplo real: `TP-H-101-V1`** (TP, piso 1, ventana al este, frente a TG):
+
+| Dato | Valor |
+|---|---|
+| Punto de salida (fachada este de TP) | x = 32 m, y = 5,2 m, z = 1,5 m |
+| Fachadas candidatas a 18 m | `TP-F-ESTE` y `TP-F-SUR` (propias, se descartan), `TG-F-OESTE` y `TG-F-SUR` |
+| Fachada que la mira | `TG-F-OESTE` (área 43 × 18 = 774 m², gris claro ρ = 0,60) |
+| Distancia | 13,0 m (la separación entre torres) |
+| `cos_ventana`, `cos_fachada` | 1,0 y 1,0 (se miran de frente) |
+| `vista` | 774 / (π × 13² + 774) = 0,593 |
+| Peso | 0,60 × 1 × 1 × 0,593 = 0,356 |
+| Obstrucción del cielo | 0,593 (más de la mitad de su cielo la tapa TG) |
 
 **Dos índices de las mismas aristas** (`agregar_arista`):
 
-- `adyacencias`: por pared → «¿a qué ventanas ilumina esta pared?»
-- `entrantes`: por ventana → «¿qué paredes le llegan a esta ventana?». Por ejemplo, a `TP-H-101-V1` le llegan 4 paredes: `TP-H-106-P1` (0,00187), `TP-H-114-P1` (0,00172), `TP-H-122-P1` (0,00137) y `TP-H-130-P1` (0,00098).
-
-En el paso 3, en cada media hora, cada ventana suma `luz de la pared × peso` de sus entrantes (`reflejada_para`). Es un solo rebote: las ventanas nunca son origen de aristas.
+- `adyacencias`: por fachada → «¿a qué ventanas ilumina esta fachada?»
+- `entrantes`: por ventana → «¿qué fachadas le llegan a esta ventana?»
 
 ### 2.4 Qué guarda el grafo y cómo se usa
 
-**Qué reflexión representa.** Es luz **exterior que rebota entre recintos**, no la luz que rebota dentro de un cuarto. Cada superficie recibe la luz exterior del sol (`E_base`) y la refleja hacia las ventanas de otros cuartos que la tienen de frente a 18 m o menos. Como mira hacia el lado contrario de su propia ventana, de las 521 aristas ninguna une una superficie con la ventana de su mismo recinto. La reflexión interior (luz que entra y rebota en las paredes, techo y piso del propio cuarto) no está modelada.
-
-```
-  TP-H-102 (ventana mira al NORTE ↑)          TP-H-106 (superficie mira al SUR ↓)
-        ┌───────┐                                   ┌───────┐
-        │       │  ventana ↑  ······ luz rebotada ·· ↓ sup.  │
-        └───────┘                                   └───────┘
-     y ≈ 5,7 m          ←—— 9,95 m ——→              y ≈ 15,7 m
-```
-
-**Por qué una superficie tiene varias aristas.** El grafo nace en las superficies (origen) y llega a ventanas (destino). Cada superficie tiene tantas aristas como ventanas de otros cuartos estén a 18 m o menos, la tengan de frente y no tengan una torre en medio. `TP-H-106-P1` tiene 8: las 4 ventanas de su misma columna en los 4 pisos (`102`, `110`, `118`, `126`), que miran al norte hacia ella, y las 4 de la columna vecina (`101`, `109`, `117`, `125`), que la ven en diagonal y reciben menos.
-
 | Parte | Qué es |
 |---|---|
-| Nodos | Las paredes, que originan la luz rebotada, y las ventanas, que la reciben |
-| Arista | Una flecha pared → ventana: «esta pared le pasa luz a esta ventana» |
-| Peso | Qué fracción de la luz de esa pared llega a esa ventana |
+| Nodos de origen | Las 8 fachadas (4 por torre) |
+| Nodos de destino | Las ventanas |
+| Arista | «Esta fachada le devuelve luz a esta ventana de la otra torre» |
+| Peso | Fracción de la luz de la fachada que llega a la ventana |
 
-El radio se mira desde la pared: cada pared busca sus ventanas cercanas, y estas solo son candidatas. Cada par recibe su propio peso, o se descarta. No hay una reflexión igual para todas: más cerca y más de frente pesa más.
+En el escenario base hay 46 aristas:
 
-En el escenario base hay 521 aristas. 85 de las 154 ventanas reciben al menos una (la que más recibe tiene 12). Las otras 69 no reciben luz reflejada porque ninguna pared cercana las mira.
-
-**Uso en cada media hora (paso 3).** `reflejada_para` calcula:
-
-```
-luz reflejada de la ventana = suma de (luz que recibe cada pared × peso de su arista)
-```
-
-La luz reflejada de la zona es el promedio de sus ventanas.
-
-**Ejemplo real: `TP-H-101`.** Tiene una ventana con 4 aristas entrantes, cuyos pesos suman 0,00595.
-
-| Hora | Luz que recibe cada pared | Luz reflejada en `TP-H-101` |
+| Fachada | Ventanas que ilumina | Peso de cada arista |
 |---|---|---|
-| 09:00 | 438,2 lux | 438,2 × 0,00595 ≈ 2,6 lux |
-| 12:00 | 619,7 lux | 619,7 × 0,00595 ≈ 3,7 lux |
-| 20:00 | 0 (noche) | 0 lux |
+| `TP-F-ESTE` (cara este de TP) | 24 ventanas de TG que miran al oeste | 0,249 |
+| `TG-F-OESTE` (cara oeste de TG) | 16 ventanas de TP que miran al este | 0,356 |
+| `TP-F-NORTE` (cara norte de TP) | 6 ventanas de recreaciones de TG | 0,073 |
 
-Los pesos no cambian durante el día; cambia la luz que reciben las paredes. Por eso el grafo se arma una vez.
+Las demás fachadas no tienen ventanas de la otra torre de frente. La fachada oeste de TG es más grande que la este de TP (774 m² contra 376 m²), por eso sus aristas pesan más.
 
-Como referencia de tamaño: a las 12:00 esa habitación recibe 238,3 lux de luz natural (directa y difusa) y solo 3,7 lux reflejados. En este modelo la reflexión es un aporte pequeño. A mediodía, la zona del hotel con más luz reflejada recibe 20,5 lux.
+**Uso en cada media hora (paso 3).** La luz que recibe una fachada depende de la hora: `E_base × (qué tan de frente le da el sol × f_directa + f_difusa)`. `reflejada_para` suma, para cada ventana, `luz de la fachada × peso`, y esa luz se multiplica por la transmitancia del vidrio al entrar.
+
+Ejemplo: a las 12:00 `TG-F-OESTE` recibe 290,6 lux. A `TP-H-101` le entran 290,6 × 0,356 × 0,82 ≈ 84,8 lux reflejados desde la otra torre. Esa misma ventana recibe solo 97,0 lux de luz natural directa y difusa, porque TG le tapa más de la mitad del cielo. Para las ventanas que tienen la otra torre enfrente, la luz reflejada exterior es tan importante como la natural.
 
 ### Resultado y costo del paso
 
 | Medida (escenario base) | Valor |
 |---|---|
-| Pares pared–ventana si se comparara todo contra todo | 19.558 (127 × 154) |
-| Pares candidatos que entrega `consultar_radio` | 5.581 |
-| Nodos del Octree visitados para obtenerlos | 6.911 |
-| Paredes con al menos una arista | 72 de 127 |
-| Aristas del grafo | 521 |
+| Pares fachada–ventana si se comparara todo contra todo | 1.232 (8 × 154) |
+| Fachadas candidatas de la otra torre que entrega `consultar_radio` | 68 |
+| Nodos del Octree visitados para obtenerlas | 7.834 |
+| Aristas del grafo | 46 |
+| Ventanas con parte del cielo tapada por la otra torre | 40 |
 
-**Por qué se descartan los pares candidatos:**
+**Por qué se descartan las candidatas:**
 
-| Motivo | Pares |
+| Motivo | Fachadas |
 |---|---|
-| Pared y ventana no se miran | 4.982 |
-| Fuera de distancia (0 m o más de 18 m) | 56 |
-| Tapados por la otra torre | 0 |
-| Peso despreciable (0,0001 o menos) | 22 |
-| Se convierten en arista | 521 |
-
-La mayoría no se miran porque cada superficie mira en una sola dirección, la contraria a su propia ventana, y solo la ven las ventanas de otros cuartos que miran justo hacia ella.
+| Son de la propia torre | 287 |
+| La ventana y la fachada no se miran | 22 |
+| Se convierten en arista | 46 |
 
 **Complejidad.**
 
 - **Construir el Octree:** O(B log B) en el caso típico, con B objetos: cada objeto baja unos pocos niveles.
-- **Construir el grafo:** con el Octree, O(S × (log B + k)), con S paredes y k candidatas por pared, más una consulta de rayo por cada candidata que pasa los filtros. Sin el Octree sería O(S × V): cada pared contra cada ventana. El costo depende de cuántas ventanas haya cerca de cada pared, no del tamaño total del hotel.
+- **Construir el grafo:** con el Octree, O(V × (log B + k)), con V ventanas y k candidatas por ventana, más una consulta de rayo por cada candidata que pasa los filtros. Sin el Octree sería O(V × F), cada ventana contra cada fachada. Con solo 8 fachadas la diferencia es pequeña; el Octree sirve sobre todo para que el método no dependa del número de fachadas y para las sombras.
 - **Usar el grafo en cada media hora:** O(V + E), lineal en ventanas y aristas.
 
 Las dos estructuras se arman una vez y sirven para los 48 pasos del día.
 
 ### Ideas clave del paso
 
-- **La partición del Octree solo sirve para buscar más rápido; no cambia ningún resultado.** Es como ordenar una biblioteca por estantes: una búsqueda descarta estantes completos sin mirar sus libros. Con o sin Octree los resultados son idénticos; solo cambia cuántos pares se revisan (5.581 en vez de 19.558).
-- **Un objeto que queda entre dos cajas se queda en la caja de arriba.** No se pierde ni se duplica: lo revisa toda búsqueda que pase por esa caja. Solo cuesta que se revise más seguido, por eso conviene que sean pocos (44 de 410 objetos, incluidas las 2 torres).
-- **El rayo responde sí o no:** ¿la línea de la ventana hacia el sol choca con la otra torre? Si choca, no llega luz directa, pero la ventana sigue recibiendo luz difusa del cielo y luz reflejada. Solo las torres cuentan como obstáculo. El rayo no calcula reflexión ni de dónde viene la luz; la dirección del sol se calcula según la hora.
-- **El radio responde qué ventanas están cerca de una pared**, para comparar cada pared solo con sus vecinas. No revisa cuántas ventanas tiene cada habitación ni sus medidas; eso se define en el paso 1. El límite de 18 m se debe a que a esa distancia el peso ya se divide entre 1 + 18² = 325.
+- **La partición del Octree solo sirve para buscar más rápido; no cambia ningún resultado.** Es como ordenar una biblioteca por estantes: una búsqueda descarta estantes completos sin mirar sus libros.
+- **Un objeto que queda entre dos cajas se queda en la caja de arriba.** No se pierde ni se duplica: lo revisa toda búsqueda que pase por esa caja. Por eso las torres y las fachadas, que son grandes, quedan en la raíz.
+- **El rayo responde sí o no:** ¿la línea choca con la otra torre? Para las sombras, si choca no llega luz directa, pero la ventana sigue recibiendo la luz difusa del cielo que no está tapado y la luz reflejada.
+- **El radio responde qué fachadas están cerca de una ventana**, para no comparar cada ventana con todas.
 - **Cada archivo tiene un papel distinto:**
   - `octree.py` es la herramienta de búsqueda.
-  - `influencia.py` guarda qué pared le refleja luz a qué ventana, y cuánta, y en cada media hora suma la luz reflejada de cada ventana.
-  - `simulacion.py` crea las dos estructuras y las usa en cada paso: el Octree para las sombras y el grafo para la luz reflejada.
-- **El Octree descarta por espacio** (lejos o fuera de la línea) y **`influencia.py` descarta por física** (no se miran, hay una torre en medio o el peso es despreciable).
-- **El grafo existe para no repetir trabajo.** Como la geometría no cambia durante el día, se calcula una vez; en cada media hora solo se multiplica la luz de las paredes por los pesos guardados.
+  - `influencia.py` guarda qué fachada le refleja luz a qué ventana y cuánta, y cuánto cielo le tapa a cada ventana.
+  - `simulacion.py` crea las dos estructuras y las usa en cada paso.
+- **El grafo existe para no repetir trabajo.** Como la geometría no cambia durante el día, los pesos se calculan una vez; en cada media hora solo se multiplica la luz de las fachadas por esos pesos.
+- **Limitaciones:** la reflexión exterior es de un solo rebote; las ventanas están cerca del centro de su cuarto y para la reflexión exterior se usa su punto en la fachada.
 
-**Corrección hecha.** Una versión anterior contaba la torre propia como obstáculo en `_visible` y perdía 468 reflexiones dentro de la misma torre (solo quedaban 73 aristas). Ahora la regla coincide con la de las sombras, que tampoco cuenta la torre propia.
+**Historia del cambio.** Una versión anterior del grafo unía la superficie interior de cada cuarto con ventanas de otros cuartos, incluso dentro de la misma torre, como si la luz atravesara las paredes del edificio. Se reemplazó por la reflexión entre fachadas de las dos torres, y la luz que rebota dentro de cada cuarto pasó a calcularse aparte (paso 3).

@@ -79,6 +79,8 @@ Blanco 0,80 | Crema 0,70 | Gris claro 0,60
 Gris medio 0,45 | Oscuro 0,25
 ```
 
+Fachadas: cada torre tiene cuatro (`NORTE`, `SUR`, `ESTE`, `OESTE`), con ID como `TP-F-ESTE`. Su reflectancia sale del campo `fachada` de la torre en el JSON, con los mismos presets de pared; si falta, se usa `GRIS_CLARO` (0,60).
+
 Luminarias equivalentes:
 
 | Actividad | Potencia | Eficacia | CU | MF |
@@ -204,6 +206,14 @@ E_natural(z) = promedio de E_ventana en las ventanas de la zona
 
 Si otra torre bloquea el rayo solar, la componente directa es cero y solo queda la difusa. La difusa usa la VLT del catálogo sin corrección angular.
 
+La otra torre también tapa parte del cielo. Por eso la difusa de cada ventana se multiplica por `1 − obstrucción`:
+
+```text
+obstrucción = min(1, Σ cos_ventana × A_f / (π·d² + A_f))   sobre las fachadas que la ventana tiene enfrente
+```
+
+En el escenario base 40 ventanas tienen obstrucción. `TP-H-101-V1`, al este y frente a TG, tiene 0,593.
+
 `F(θ_i)` es el factor angular de la luz directa (`factor_angular_vidrio` en `geometria.py`). Primero se calcula el ángulo de refracción con Snell:
 
 ```text
@@ -228,23 +238,65 @@ F(θ_i) = (T(θ_i) / T(0°))²
 |---|---:|---:|---:|---:|---:|
 | F(θ_i) | 0,997 | 0,979 | 0,900 | 0,605 | 0,163 |
 
-No se modelan reflexión interna múltiple, absorción según el espesor, dispersión espectral ni marcos detallados.
+No se modelan reflexión múltiple dentro del vidrio, absorción según el espesor, dispersión espectral ni marcos detallados.
 
-## 3.4 Reflexión de primer orden
+## 3.4 Luz reflejada
+
+La luz reflejada sólo existe de día y tiene dos partes:
+
+```text
+E_reflejada(z) = promedio de E_exterior en las ventanas de z + E_ri(z)
+```
+
+### Reflexión exterior entre torres (primer orden)
 
 El grafo crea relaciones como:
 
 ```text
-SuperficiePared → Ventana
+Fachada → Ventana de la otra torre
 ```
 
-Cada pared recibe `E_base`. La reflectancia `ρ` entra una sola vez, en el peso de la arista:
+Los orígenes son las 8 fachadas (4 por torre). Cada fachada recibe luz del sol y del cielo según hacia dónde mira:
 
 ```text
-peso = ρ × cos(origen) × cos(destino) / (1 + d²)
+luz_fachada = E_base × (max(0, n · sol) × f_directa + f_difusa)
 ```
 
-donde `cos(origen)` y `cos(destino)` miden si la pared y la ventana se miran, y `d` es la distancia. Solo se crean aristas con distancia de hasta 18 m, línea de visión libre (ninguna torre en medio; si la pared y la ventana están en la misma torre, esa torre no cuenta como obstáculo) y peso mayor que 0,0001. La luz reflejada de una ventana es la suma de `luz_pared × peso` de sus aristas entrantes, y la de la zona es el promedio de sus ventanas. La luz reflejada no vuelve a ser origen de una segunda reflexión.
+Para cada ventana se toma su punto de salida en la fachada de su torre (`punto_en_fachada`). Desde ahí, `consultar_radio` (18 m) entrega las fachadas candidatas de la otra torre, y `d` es la distancia al punto más cercano de cada una. Se exige que ventana y fachada se miren y que un rayo entre ellas no cruce otra torre (`_visible`). El peso de la arista es:
+
+```text
+peso = ρ_fachada × cos_fachada × cos_ventana × A_f / (π·d² + A_f)
+```
+
+`A_f / (π·d² + A_f)` es un factor de vista aproximado para una superficie grande de área `A_f`. Solo se crean aristas con peso mayor que 0,0001. La luz exterior que entra por una ventana es:
+
+```text
+E_exterior(ventana) = Σ luz_fachada × peso × VLT     sobre sus aristas entrantes
+```
+
+La luz reflejada por una fachada no vuelve a reflejarse en otra. A las 12:00 del escenario base, `TG-F-OESTE` recibe 290,6 lux y su arista hacia `TP-H-101-V1` pesa 0,3559.
+
+### Reflexión interior (flujo dividido)
+
+La luz que entra al recinto rebota en sus superficies interiores:
+
+```text
+E_ri  = Φ × ρ / (A_int × (1 − ρ))
+Φ     = Σ_ventanas (E_ventana + E_exterior) × área_ventana
+A_int = 2 × área + 4 × √área × 3 m
+```
+
+`ρ` es la reflectancia de la pared del recinto. Una habitación de 24 m² tiene `A_int ≈ 106,8 m²`; con pared blanca (`ρ = 0,80`) el factor `ρ / (1 − ρ)` vale 4. La fórmula promedia todos los rebotes interiores, así que no es de primer orden, y hace que el color de la pared cambie la luz de su propio cuarto.
+
+A las 12:00 del escenario base:
+
+| Zona | Situación | Natural (lux) | Reflejada (lux) |
+|---|---|---:|---:|
+| `TP-H-101` | Ventana al este, frente a TG | 97,0 | 98,4 |
+| `TP-H-102` | Ventana al norte, sin torre enfrente | 358,7 | 26,9 (casi toda interior) |
+| `TG-H-101` | Ventana al este, sin torre enfrente | 238,3 | 17,9 |
+
+La luz artificial no recibe reflexión aparte: el `CU = 0,70` del método de lúmenes ya incluye el rebote interior. El `CU` es fijo y no cambia con el color de la pared.
 
 # 4. Estructuras de datos
 
@@ -262,26 +314,26 @@ Hotel
 
 ## 4.2 Octree
 
-El Octree indexa torres, paredes, ventanas y luminarias. Se consulta para:
+El Octree indexa torres, fachadas, paredes, ventanas y luminarias. Se consulta para:
 
 - detectar si una torre bloquea un rayo solar (`consultar_rayo`);
-- encontrar las ventanas cercanas a cada pared al construir el grafo (`consultar_radio`);
-- comprobar visibilidad entre pared y ventana.
+- encontrar las fachadas de la otra torre cercanas a cada ventana al construir el grafo (`consultar_radio`);
+- comprobar visibilidad entre fachada y ventana.
 
 Un objeto que atraviesa varios octantes permanece en el nodo padre. Esto evita duplicar cajas grandes.
 
 ## 4.3 Grafo de influencia
 
-Cada arista contiene `origen` (pared), `destino` (ventana) y `peso`. La distancia, la orientación y la visibilidad se evalúan al construirla y quedan resumidas en el peso. Las aristas se guardan en dos diccionarios: por origen y por destino. El índice por destino permite que, en cada instante, una ventana recorra solo sus aristas entrantes.
+Cada arista contiene `origen` (fachada), `destino` (ventana de la otra torre) y `peso`. La distancia, la orientación, la reflectancia y la visibilidad se evalúan al construirla y quedan resumidas en el peso. Las aristas se guardan en dos diccionarios: por origen y por destino. El índice por destino permite que, en cada instante, una ventana recorra solo sus aristas entrantes. El grafo guarda también la obstrucción del cielo de cada ventana (sección 3.3).
 
-La construcción pide al Octree, para cada pared, las ventanas en un radio de 18 m (`Octree.consultar_radio`), en vez de compararla con todas. En el escenario base:
+La construcción pide al Octree, para cada ventana, las fachadas en un radio de 18 m desde su punto de salida (`Octree.consultar_radio`), en vez de compararla con todas. En el escenario base:
 
 | Medida | Comparación ingenua | Con Octree |
 |---|---:|---:|
-| Pares pared–ventana evaluados | 19.558 (127 × 154) | 5.581 |
-| Aristas recorridas por instante en la luz reflejada | 154 × 521 | 521 |
+| Pares fachada–ventana evaluados | 1.232 (8 × 154) | 68 (7.834 nodos del Octree visitados) |
+| Aristas recorridas por instante en la reflexión exterior | 154 × 46 | 46 |
 
-El grafo resultante tiene 521 aristas. Las salidas son idénticas a las de la comparación ingenua; solo cambia el número de comparaciones.
+El grafo resultante tiene 46 aristas: `TP-F-ESTE` → 24 ventanas de TG, `TG-F-OESTE` → 16 ventanas de TP y `TP-F-NORTE` → 6 ventanas de recreaciones de TG. 40 ventanas tienen obstrucción. Las salidas son idénticas a las de la comparación ingenua; solo cambia el número de comparaciones.
 
 ## 4.4 Árbol AVL: bolsa de habitaciones para la reasignación
 
@@ -301,7 +353,7 @@ Operaciones usadas:
 - `siguiente` (menor clave > x), para seguir dentro del piso cuando el huésped tiene preferencia de orientación;
 - `eliminar` con rebalanceo, cuando una habitación se llena. Así dos huéspedes no reciben la misma cama.
 
-Se eligió AVL porque el trabajo es de lectura: cada huésped hace varias consultas y como máximo una eliminación, y el equilibrio estricto mantiene la altura baja. En el escenario base el AVL tiene 100 habitaciones, altura 8 y 79 rotaciones de construcción. Se construye y se reporta siempre, aunque nadie necesite moverse.
+Se eligió AVL porque el trabajo es de lectura: cada huésped hace varias consultas y como máximo una eliminación, y el equilibrio estricto mantiene la altura baja. En el escenario base el AVL tiene 78 habitaciones habitables libres, altura 7, 58 rotaciones y 417 comparaciones de construcción. Se construye y se reporta siempre, aunque nadie necesite moverse.
 
 ## 4.5 Árbol rojo-negro: índice temporal de resultados
 
@@ -330,9 +382,12 @@ para cada instante t:
         para cada zona con ventana:
             consultar el rayo solar en el Octree
             determinar sombra por la otra torre
-            calcular componente directa (Snell y Fresnel) y difusa (VLT)
+            calcular componente directa (Snell y Fresnel) y difusa (VLT × (1 − obstrucción))
+        calcular la luz de cada fachada
         para cada ventana:
-            sumar las aristas entrantes del grafo (reflexión de primer orden)
+            sumar luz_fachada × peso de sus aristas entrantes, por VLT (reflexión exterior)
+        para cada zona:
+            reflejada = promedio de la exterior de sus ventanas + reflexión interior
 ```
 
 ## 5.2 Balance energético
@@ -398,7 +453,7 @@ para cada huésped en una habitación NO_HABITABLE:
 
 Sin preferencia de orientación, `coincide_orientación` vale 1. Los pesos son `w_luz = 0,5`, `w_actividad = 0,2`, `w_energia = 0,2` y `w_cambio = 0,1`.
 
-El costo es `O(G × F × log H)`, con `G` huéspedes a mover, `F` pisos permitidos y `H` habitaciones en el AVL, contra `O(G × H)` de revisar todas las habitaciones por huésped. En una prueba de carga sobre el escenario base, con 60 de las 78 habitaciones ocupadas marcadas `NO_HABITABLE`, el AVL hizo 2.725 comparaciones contra 6.240 de la búsqueda lineal, con 39 eliminaciones y ninguna habitación con sobrecupo. La habitación elegida coincidió, huésped por huésped, con una búsqueda lineal que descuenta capacidad.
+El costo es `O(G × F × log H)`, con `G` huéspedes a mover, `F` pisos permitidos y `H` habitaciones en el AVL, contra `O(G × H)` de revisar todas las habitaciones por huésped. En una prueba de carga sobre el escenario base, con 60 de las 78 habitaciones ocupadas marcadas `NO_HABITABLE`, el AVL hizo 2.087 comparaciones contra 6.240 de la búsqueda lineal, con 34 eliminaciones y ninguna habitación con sobrecupo; con restricciones mezcladas, 2.045 contra 6.240. La habitación elegida coincidió, huésped por huésped, con una búsqueda lineal que descuenta capacidad.
 
 La estrategia es greedy en el orden de las asignaciones y no garantiza un óptimo global. En el escenario base nadie se reasigna porque ninguna habitación ocupada queda `NO_HABITABLE`. `deficit_severo.json` muestra el caso sin candidata (`SIN_HABITACIONES_HABITABLES_LIBRES`).
 
@@ -411,7 +466,7 @@ La reestructuración busca, para las actividades con zonas casi habitables o no 
 # 6. Flujo completo
 
 1. Validar exactamente dos torres.
-2. Cargar pisos, zonas, ventanas, vidrios, paredes y luminarias.
+2. Cargar pisos, zonas, ventanas, vidrios, paredes, fachadas y luminarias.
 3. Cargar huéspedes, restricciones, ocupaciones y asignaciones.
 4. Cargar clima, horarios de actividad y cierre, y nivel de emergencia.
 5. Construir el Octree y el grafo de influencia.
@@ -427,14 +482,14 @@ La interfaz web (`web/`) se sirve con `python -m src.api`. Tiene formularios par
 
 # 7. Complejidad y casos de prueba
 
-Notación: `V` ventanas, `B` torres, `T` instantes, `S` paredes, `E` aristas, `Z` zonas, `N` nodos del árbol jerárquico, `R` resultados, `k` elementos devueltos, `G` huéspedes a mover, `F` pisos permitidos, `H` habitaciones.
+Notación: `V` ventanas, `B` torres, `T` instantes, `S` fachadas, `E` aristas, `Z` zonas, `N` nodos del árbol jerárquico, `R` resultados, `k` elementos devueltos, `G` huéspedes a mover, `F` pisos permitidos, `H` habitaciones.
 
 ```text
 Sombras sin Octree:            O(V × B × T)
 Sombras con Octree:            O(V × T × (log B + k)) esperado
 Grafo ingenuo:                 O(S × V)
-Grafo con Octree:              O(S × (log V + k)) esperado
-Luz reflejada por instante:    O(E), con aristas indexadas por destino
+Grafo con Octree:              O(V × (log B + k)) esperado
+Luz reflejada por instante:    O(S + V + E), con aristas indexadas por destino
 Balance por instante:          O(Z log Z), con heapq
 Agregación por torre y piso:   O(N)
 Índice rojo-negro:             O(R log R) construcción, O(log R + k) por franja
@@ -443,7 +498,7 @@ Reasignación con AVL:          O(H log H) construcción, O(G × F × log H) con
 Reasignación lineal:           O(G × H)
 ```
 
-Valores medidos en el escenario base: 5.581 pares evaluados en el grafo contra 19.558 ingenuos; 1.029 nodos visitados en la franja 18:00–22:00 contra 6.096 resultados; en la prueba de carga de reasignación, 2.725 comparaciones del AVL contra 6.240 lineales.
+Valores medidos en el escenario base: 68 pares evaluados en el grafo contra 1.232 ingenuos; 1.029 nodos visitados en la franja 18:00–22:00 contra 6.096 resultados; en la prueba de carga de reasignación, 2.087 comparaciones del AVL contra 6.240 lineales.
 
 Los 10 casos de prueba están automatizados con `unittest` en `tests/test_casos_plan.py`. Se ejecutan desde la raíz con `python -m unittest` y todos pasan.
 
@@ -452,7 +507,7 @@ Los 10 casos de prueba están automatizados con `unittest` en `tests/test_casos_
 | 1 | Ventana orientada al sol y sin obstáculo | La luz natural a las 09:00 coincide con la fórmula de 3.3 y supera la sola componente difusa. |
 | 2 | Ventana sombreada por la otra torre | La ventana bloqueada recibe solo la componente difusa. |
 | 3 | Transmisión con cada preset de vidrio | La luz es proporcional a la VLT de cada vidrio; `F(0°) = 1`; `F(75°) < F(30°)`; Snell da `sin θ_t = sin θ_i / 1,5`. |
-| 4 | Reflexión de primer orden sin cascada | La luz reflejada coincide con la suma de aristas entrantes y ninguna ventana es origen de arista. |
+| 4 | Reflexión de primer orden sin cascada | Las aristas van solo de una fachada a ventanas de la otra torre, con peso ≤ reflectancia; la reflejada coincide con la exterior (aristas entrantes) más la interior; una pared oscura da menos reflejada que una blanca; de noche la reflejada es 0. |
 | 5 | Noche con luz natural cero y luminaria activa | De noche la luz natural y la reflejada son cero; una habitación ocupada recibe luz artificial y no queda en déficit. |
 | 6 | Generador suficiente para mínimos, pero no para todos los objetivos | Con una capacidad entre la suma de mínimos y la de objetivos, todas las zonas alcanzan su mínimo, ninguna entra en `EMERGENCIA` y se usa toda la capacidad. |
 | 7 | Habitación ocupada con déficit y habitación compatible disponible | Con una sola habitación habitable de una cama libre, el primer huésped la recibe, la habitación sale del AVL y los demás reciben `SIN_CAPACIDAD`. |
@@ -474,6 +529,10 @@ Limitaciones conocidas:
 
 - Los resultados son aproximaciones educativas en lux de referencia.
 - La precipitación es informativa y no entra en el cálculo.
+- La reflexión exterior entre torres es de primer orden.
+- El `CU` de la luz artificial es fijo y no cambia con el color de la pared.
+- Las superficies interiores de cada recinto se representan con un solo valor de reflectancia.
+- Las ventanas están dentro de la caja de su torre; para la reflexión exterior se usa su punto de salida en la fachada.
 
 # 9. Criterio de éxito
 
