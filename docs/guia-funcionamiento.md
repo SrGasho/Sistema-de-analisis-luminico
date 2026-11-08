@@ -710,6 +710,22 @@ Como recorre en orden (izquierda, nodo, derecha), los resultados salen ordenados
 | Madrugada 00:00–06:00 | 1.524 | 1.532 | 6.096 |
 | Día completo | 6.096 | 6.096 | 6.096 |
 
+**Recorrido real de la consulta de las 12:00** (rango de `(12,0, "")` a `(12,5, "")`, medido con el código). En cada nodo el árbol hace las tres preguntas de arriba:
+
+| Profundidad | Nodo | ¿Está en el rango? | Hacia dónde sigue |
+|---|---|---|---|
+| 0 (raíz) | `(5,0, "TP-H-108")` | No, es antes | Solo a la derecha: a la izquierda todo es aún más temprano |
+| 1 | `(10,5, "TG-H-140")` | No, es antes | Solo a la derecha |
+| 2 | `(16,0, "TG-H-108")` | No, es después | Solo a la izquierda: a la derecha todo es aún más tarde |
+| 3 | `(13,0, "TP-H-108")` | No, es después | Solo a la izquierda |
+| 4 | `(12,0, "TG-H-108")` | **Sí**, primer nodo de las 12:00 | A los dos lados |
+
+En 4 pasos el árbol descartó la raíz y tres ramas enteras: todo lo de antes de las 5:00, todo lo de 5:00 a 10:30 y todo lo de después de las 16:00. Desde el nodo de la profundidad 4 hacia abajo están mezclados los 127 resultados de las 12:00 con algunos de las 11:00, 11:30 y 12:30 en los bordes. La consulta visita 142 nodos: guarda los 127 de las 12:00 y descarta 15 (los 4 del camino de arriba, 5 de las 11:00 y 11:30 y 6 de las 12:30).
+
+Los resultados de una misma hora no quedan uno al lado del otro en el dibujo del árbol; quedan repartidos en una rama y entre distintas profundidades. Lo que sí garantiza el árbol es que, leído en orden (izquierda, nodo, derecha), salen seguidos.
+
+**Cómo llegan al análisis.** `rango` va metiendo en una lista de Python cada nodo que está dentro del rango, en el orden en que los visita. Como visita en orden, la lista sale ordenada: `TG-COC-01`, `TG-COC-02`, … hasta `TP-REC-04`, todos de las 12:00. `IndiceTemporal.franja` devuelve esa lista, y `reporte_franja` la recorre una sola vez con un `for`: por cada resultado suma sus vatios a la energía, a su actividad, a su torre y a su hora, cuenta su estado y, si está en déficit, suma lo que le faltó. Al terminar el `for`, el reporte está listo. El árbol solo se usa para encontrar los resultados; el análisis trabaja con la lista.
+
 Los nodos visitados de más (15 en las 12:00) son los del camino hasta el borde del rango. En «Día completo» no hay ganancia, porque hay que devolver todo. El contador de nodos visitados (`comparaciones`) es el mismo que usa la inserción; `reporte_franja` lo lee antes y después de la consulta y reporta la diferencia.
 
 ### 4.5 Qué calcula cada franja
