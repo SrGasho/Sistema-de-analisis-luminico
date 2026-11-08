@@ -191,10 +191,22 @@ Cualquier error al procesar una solicitud devuelve HTTP 400 con un campo `error`
 
 **`reasignaciones`** es una lista con una entrada por huésped a mover: `huesped_id`, `habitacion_actual`, `habitacion_propuesta`, `estado` (`PROPUESTA` o `NO_HAY_ALTERNATIVA`), `score`, `motivo`, `descartadas` (`habitacion_id`, `score`, `motivo`) y `restricciones`.
 
+## Documentación
+
+| Documento | Contenido |
+|---|---|
+| `docs/guia-funcionamiento.md` | Recorrido paso a paso de lo que hace el sistema con los datos, en el orden en que se ejecuta. |
+| `docs/entregable/architecture-proyecto-cc1-iluminacion.md` | Arquitectura: decisiones, clases, reglas de cálculo, flujo y complejidad. |
+| `docs/entregable/plan-proyecto-cc1-iluminacion.md` | Plan del proyecto: objetivos, alcance, escenario, métricas y casos de prueba. |
+| `docs/entregable/entregable-propuesta-simulacion-luminica.md` | Propuesta de simulación: entradas, salidas, modelo de iluminación y algoritmos. |
+| `docs/entregable/entregable-arquitectura-iluminacion.tex` | Documento del entregable en LaTeX (formato ICONTEC). Usa `diagrama-clases-hotel.png`, que se exporta desde el `.mmd`. |
+| `docs/entregable/diagrama-clases-hotel.mmd` | Diagrama de clases en Mermaid. |
+
 ## Estructura
 
 ```text
 data/datos_hotel.json       Escenario de referencia con torres TP y TG
+docs/                       Guía de funcionamiento y documentos del entregable
 data/casos_prueba/          Ocho casos sobre el hotel completo, cada uno con su historia y resultado esperado
 src/modelo.py               Entidades, enumeraciones y factor de luz del perfil climático
 src/geometria.py            Vectores, cajas, rayos, Snell y Fresnel
