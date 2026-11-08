@@ -1,6 +1,6 @@
 # Guía de funcionamiento del sistema
 
-Esta guía recorre, en el orden en que se ejecuta, lo que hace el sistema con los datos: qué parte del código se encarga de cada paso, con qué fin y cómo lo resuelve. Las cifras corresponden al escenario base (`data/datos_hotel.json`).
+Esta guía recorre, en el orden en que se ejecuta, lo que hace el sistema con los datos: qué parte del código se encarga de cada paso, con qué fin y cómo lo resuelve. Las cifras corresponden al escenario base (`data/datos_hotel.json`) y se obtuvieron ejecutando el código. Cada paso tiene una tabla «Dónde está en el código» con enlaces a la línea exacta; los números de línea corresponden a la versión actual de `main`.
 
 Resumen del recorrido:
 
@@ -98,6 +98,23 @@ Cada zona recibe una `FuenteIluminacion` con la potencia, la eficacia, el CU y e
 - ninguna habitación supere su capacidad;
 - cada asignación apunte a un huésped y una habitación existentes.
 
+### Dónde está en el código
+
+| Qué | Dónde |
+|---|---|
+| Entrada del paso | [`cargar_hotel_data`, `src/io_datos.py` línea 71](../src/io_datos.py#L71) |
+| Valores por defecto | [`_completar_defaults`, línea 55](../src/io_datos.py#L55) |
+| Validar acabados | [`_validar_acabados`, línea 291](../src/io_datos.py#L291) |
+| Perfiles de iluminación y clima | [línea 74](../src/io_datos.py#L74) |
+| Bucle de torres, pisos y zonas | [línea 85](../src/io_datos.py#L85) |
+| Habitación | [`_zona_habitacion`, línea 219](../src/io_datos.py#L219) y [`_room_center`, línea 262](../src/io_datos.py#L262) |
+| Zona común | [`_zona_comun`, línea 237](../src/io_datos.py#L237) y [`_common_center`, línea 271](../src/io_datos.py#L271) |
+| Acabado de cada zona | [`_acabado`, línea 193](../src/io_datos.py#L193) |
+| Índices por ID | [`Hotel.indexar`, `src/modelo.py` línea 207](../src/modelo.py#L207) |
+| Luminarias | [línea 127](../src/io_datos.py#L127) |
+| Huéspedes y asignaciones | [línea 145](../src/io_datos.py#L145) y [línea 171](../src/io_datos.py#L171) |
+| Validación final | [`_validar`, línea 312](../src/io_datos.py#L312) |
+
 ### Resultado y costo del paso
 
 Sale un `Hotel` con 127 zonas (104 habitaciones y 23 comunes), 154 ventanas, 127 paredes, 127 luminarias y 78 huéspedes asignados.
@@ -108,86 +125,124 @@ Sale un `Hotel` con 127 zonas (104 habitaciones y 23 comunes), 154 ventanas, 127
 
 ## Paso 2. Preparar el espacio: Octree y grafo de influencia
 
-**Archivos:** `src/simulacion.py` (`_crear_octree`), `src/octree.py` y `src/influencia.py`.
+**Fin:** organizar la geometría **una sola vez**, antes de recorrer el día, para que en cada media hora se puedan responder rápido dos preguntas:
 
-**Fin:** organizar la geometría una sola vez, antes de recorrer el día. Así, en cada media hora, se puede responder rápido:
+- ¿La otra torre le tapa el sol a esta ventana? (se usa en el paso 3 para las sombras)
+- ¿Cuánta luz rebota de las paredes a esta ventana? (se usa en el paso 3 para la luz reflejada)
 
-- si la otra torre tapa el sol de una ventana;
-- cuánta luz rebota de las paredes hacia cada ventana.
+Este paso **no calcula luz**. Construye dos herramientas: el **Octree**, que sirve para buscar cosas en el espacio, y el **grafo de influencia**, que guarda qué pared le refleja luz a qué ventana.
 
-Este paso no calcula luz. Construye las dos estructuras que los pasos siguientes consultan.
+### Dónde está en el código
 
-### 2.1 El Octree: dividir el espacio en cajas
+| Qué | Dónde |
+|---|---|
+| Se arma todo al crear el simulador | [`SimuladorUnificado.__init__`, `src/simulacion.py` líneas 24–26](../src/simulacion.py#L24) |
+| Llenar el Octree con los objetos del hotel | [`_crear_octree`, `src/simulacion.py` línea 70](../src/simulacion.py#L70) |
+| La estructura Octree | [`class Octree`, `src/octree.py` línea 24](../src/octree.py#L24) |
+| Insertar y dividir | [`_insertar`, línea 34](../src/octree.py#L34); [`_dividir`, línea 53](../src/octree.py#L53); [`_hijo_contenedor`, línea 61](../src/octree.py#L61) |
+| Consulta de rayo | [`consultar_rayo`, línea 71](../src/octree.py#L71) |
+| Consulta de radio | [`consultar_radio`, línea 85](../src/octree.py#L85) |
+| Construir el grafo | [`GrafoInfluencia.construir`, `src/influencia.py` línea 29](../src/influencia.py#L29) |
+| Revisar si algo tapa pared → ventana | [`_visible`, `src/influencia.py` línea 70](../src/influencia.py#L70) |
+| Uso de la consulta de rayo para sombras (paso 3) | [`_sombreada`, `src/simulacion.py` línea 118](../src/simulacion.py#L118) |
+| Uso del grafo en cada media hora (paso 3) | [`reflejada_para`, `src/influencia.py` línea 80](../src/influencia.py#L80) |
 
-**Idea.** Imagina el espacio de las dos torres dentro de una caja grande. Si una caja tiene demasiados objetos, se divide en 8 cajas más pequeñas (mitad de ancho, mitad de fondo y mitad de alto), y cada objeto baja a la caja pequeña que lo contiene. Esto se repite hasta que las cajas tengan pocos objetos. El resultado es un árbol donde cada nodo es una caja y tiene hasta 8 hijos.
+`GrafoInfluencia.construir` significa «el método `construir` de la clase `GrafoInfluencia`». Está en `src/influencia.py` y se llama desde `src/simulacion.py` línea 26.
 
-**Para qué sirve.** Para preguntar "¿qué objetos hay por aquí?" sin revisar todos. Si una caja completa está lejos o fuera del camino, se descarta con todo lo que tiene adentro, sin mirar sus objetos uno por uno.
+### 2.1 Qué es el Octree y cómo se arma
 
-**Cómo se construye (`_crear_octree`).**
+**`src/octree.py` define la estructura** (cómo se guarda y cómo se consulta). **`_crear_octree` en `src/simulacion.py` la llena** con los objetos del hotel.
 
-1. **Qué entra:** las 2 torres, las 154 ventanas (cada una como un cubo de 10 cm), las 127 paredes y las 127 luminarias. Cada objeto entra como una caja con su posición.
-2. **Tamaño de la raíz:** se calcula a partir de todos esos objetos, con 2 m de margen. En el escenario va de x = −2 a 91 m, y = −2 a 45 m y z = −2 a 20 m.
-3. **Reglas de inserción (`Octree.insertar`):**
-   - un nodo admite hasta 16 objetos; cuando se pasa, se divide en 8 hijos y reparte los objetos;
-   - un objeto que no cabe completo en un solo hijo se queda en el padre. Así no se duplican objetos grandes, como las torres, que cruzan varias cajas;
-   - se divide como máximo hasta 6 niveles de profundidad.
+**La idea.** Todo el hotel cabe en una caja grande. Si una caja tiene muchos objetos, se parte en 8 cajas iguales (se corta a la mitad a lo ancho, a lo largo y a lo alto) y cada objeto baja a la caja pequeña donde cabe completo. Las cajas que vuelven a llenarse se parten otra vez. Queda un árbol: la raíz es la caja grande y cada nodo tiene 0 u 8 hijos.
 
-En el escenario base el árbol queda con 97 nodos y 4 niveles. La raíz guarda 44 objetos: las torres y los que quedan justo en las líneas de división.
+**Cómo inserta (`_insertar`):**
 
-**Dos tipos de consulta:**
+1. Si el nodo ya tiene hijos, busca el hijo donde el objeto **cabe completo** (`_hijo_contenedor`) y baja ahí.
+2. Si no cabe completo en ningún hijo, porque queda partido entre dos cajas, se queda en el nodo actual.
+3. Si el nodo pasa de **16 objetos** y no ha llegado a **6 niveles**, se parte en 8 (`_dividir`) y reparte los objetos que caben en los hijos.
 
-- **`consultar_rayo`:** recibe un rayo, que es un punto de partida y una dirección, y devuelve los objetos cuya caja cruza. Si el rayo no atraviesa la caja de un nodo, descarta ese nodo y todo lo que tiene debajo. Se usa para las sombras (paso 3) y para revisar si hay algo entre una pared y una ventana.
-- **`consultar_radio`:** recibe un punto y una distancia, y devuelve los objetos a esa distancia o menos. Si una caja completa queda más lejos que el radio, la descarta. Se usa para construir el grafo.
+**Qué se mete (`_crear_octree`):** las 2 torres, las 154 ventanas (cada una como un cubito de 10 cm), las 127 paredes y las 127 luminarias. La caja raíz se calcula para que quepan todos, con 2 m de margen: x de −2 a 91 m, y de −2 a 45 m, z de −2 a 20 m.
 
-### 2.2 El grafo de influencia: quién le refleja luz a quién
+**Cómo queda en el escenario base (medido):**
 
-**Idea.** La luz del sol que pega en una pared rebota y parte de ella llega a ventanas cercanas. El grafo guarda esas relaciones como flechas pared → ventana, y cada flecha (arista) lleva un peso que dice qué fracción de la luz de esa pared llega a esa ventana.
+| Nivel | Nodos |
+|---|---|
+| 0 (raíz) | 1 |
+| 1 | 8 |
+| 2 | 56 |
+| 3 | 32 |
 
-**Cómo se construye (`GrafoInfluencia.construir`).** Para cada una de las 127 paredes:
+- La raíz guarda 44 objetos: las **2 torres** (cada una es enorme y cruza varias cajas, así que nunca baja) y 42 objetos que quedaron justo sobre una línea de corte.
+- Ejemplo: la ventana `TP-H-101-V1` bajó 2 niveles y quedó en una caja de x −2 a 21,25 m, y −2 a 9,75 m, z −2 a 3,5 m que comparte con solo otros 2 objetos.
 
-1. **Candidatas.** Se piden al Octree las ventanas a 18 m o menos (`consultar_radio`).
-2. **Se miran.** Para cada ventana candidata se revisa que la pared mire hacia la ventana y que la ventana mire hacia la pared. Es la misma comparación de flechas del paso 1: si alguna da cero o negativa, no hay rebote posible.
-3. **Visibilidad.** Se lanza un rayo de la pared a la ventana (`_visible`) y se revisa que ninguna torre esté en medio. Si la pared y la ventana están en la misma torre, esa torre no cuenta como obstáculo: el rayo nace dentro de ella y siempre la cruza, aunque nada le tape el paso.
-4. **Peso.** Si pasa los filtros, el peso es:
+### 2.2 Las dos consultas del Octree
 
-   ```
-   peso = reflectancia × qué tan de frente mira la pared × qué tan de frente mira la ventana / (1 + distancia²)
-   ```
+Las dos consultas recorren el árbol desde la raíz y **descartan cajas completas** sin mirar lo que tienen adentro. Esa es la ganancia.
 
-   - Una pared blanca (0,80) refleja más que una oscura (0,25).
-   - Mirarse de frente cuenta más que mirarse de lado.
-   - El peso cae rápido con la distancia: a 1 m vale la mitad que pegado, y a 3 m, la décima parte.
-5. **Se guarda** solo si el peso supera 0,0001, porque menos que eso no cambia el resultado.
+**`consultar_rayo` (rayo): «¿qué cosas cruza esta línea?»**
 
-**Dos índices de las mismas aristas:**
+Recibe un punto de partida y una dirección. En cada nodo revisa si la línea atraviesa la caja; si no, descarta ese nodo y todo lo que tiene debajo. Devuelve los objetos cuya caja cruza la línea.
 
-- `adyacencias`: por pared de origen, es decir, qué ventanas ilumina cada pared.
-- `entrantes`: por ventana de destino, es decir, qué paredes le llegan a cada ventana.
+Se usa para **dos** cosas, y ninguna es calcular la reflexión:
 
-En cada media hora el sistema necesita la segunda pregunta. Con `entrantes`, cada ventana recorre solo sus propias aristas en vez de todas.
+- **Sombras** (`_sombreada`, paso 3): se lanza una línea desde la ventana hacia el sol. Si cruza **la otra torre**, el sol directo no llega a esa ventana. Ejemplo medido: a las 7:00 el sol sale por el este; la ventana `TP-REC-03-V1` (planta baja de TP, mirando al este) lanza la línea y esta cruza `TG`, que está al este de TP. Esa ventana queda en sombra a esa hora y solo recibe la luz difusa del cielo.
+- **Visibilidad para el grafo** (`_visible`, paso 2.3): se lanza una línea de una pared a una ventana para saber si una torre se interpone.
 
-**Primer orden.** La luz que llega a una ventana por el grafo no vuelve a rebotar: las ventanas nunca son origen de aristas. Es una simplificación que mantiene el cálculo simple.
+**`consultar_radio` (radio): «¿qué cosas hay cerca de este punto?»**
+
+Es otra pregunta, independiente del rayo. Recibe un punto y una distancia y devuelve los objetos a esa distancia o menos. En cada nodo mide la distancia del punto a la caja; si la caja entera está más lejos que el radio, la descarta.
+
+Se usa **solo para construir el grafo**: a cada pared se le piden las ventanas a 18 m o menos, para no compararla con las 154. Ejemplo medido: para la pared `TP-H-106-P1` la consulta visitó 49 de los 97 nodos y devolvió 49 ventanas candidatas.
+
+### 2.3 Cómo se construye el grafo de influencia
+
+**La idea.** Cuando el sol ilumina una pared, parte de esa luz rebota y llega a las ventanas que la pared «ve». El grafo guarda esas relaciones como flechas **pared → ventana**. Cada flecha (arista) tiene un **peso**: la fracción de la luz de la pared que llega a esa ventana.
+
+**Qué hace `construir`, para cada una de las 127 paredes:**
+
+1. **Candidatas.** `consultar_radio` entrega las ventanas a 18 m o menos.
+2. **Distancia.** Descarta la ventana si está a 0 m o a más de 18 m.
+3. **¿Se miran?** La pared debe mirar hacia la ventana y la ventana hacia la pared. Se mide con las flechas del paso 1: `cos_pared` = qué tan de frente mira la pared a la ventana (1 de frente, 0 de lado o de espaldas) y `cos_ventana` lo mismo desde la ventana. Si alguno es 0, se descarta.
+4. **¿Algo se interpone?** `_visible` lanza una línea de la pared a la ventana con `consultar_rayo`. Si cruza una torre, se descarta. Si pared y ventana están en la misma torre, esa torre no cuenta, porque la línea nace dentro de ella.
+5. **Peso.** `peso = reflectancia × cos_pared × cos_ventana / (1 + distancia²)`. Se guarda la arista si el peso pasa de 0,0001.
+
+**Ejemplo real: la pared `TP-H-106-P1`** (habitación 106, piso 1 de TP, pared blanca ρ = 0,80, mirando al sur):
+
+- `consultar_radio` devolvió 49 ventanas candidatas.
+- 41 se descartaron porque no se miran con la pared.
+- 8 se convirtieron en aristas:
+
+| Ventana | Distancia | `cos_pared` | `cos_ventana` | Peso |
+|---|---|---|---|---|
+| `TP-H-102-V1` (mira al norte, de frente) | 9,95 m | 1,000 | 1,000 | 0,00800 |
+| `TP-H-110-V1` (igual, un piso arriba) | 10,39 m | 0,957 | 0,957 | 0,00673 |
+| `TP-H-118-V1` | 11,62 m | 0,856 | 0,856 | 0,00431 |
+| `TP-H-126-V1` | 13,42 m | 0,742 | 0,742 | 0,00243 |
+| `TP-H-101-V1` (mira al este, en diagonal) | 14,58 m | 0,717 | 0,697 | 0,00187 |
+| `TP-H-109-V1` | 14,89 m | 0,702 | 0,683 | 0,00172 |
+| `TP-H-117-V1` | 15,77 m | 0,663 | 0,645 | 0,00137 |
+| `TP-H-125-V1` | 17,13 m | 0,610 | 0,593 | 0,00098 |
+
+Comprobación del primero: 0,80 × 1,000 × 1,000 / (1 + 9,95²) = 0,80 / 100,0 ≈ 0,0080. Se ve que el peso baja con la distancia y con el ángulo.
+
+**Dos índices de las mismas aristas** (`agregar_arista`):
+
+- `adyacencias`: por pared → «¿a qué ventanas ilumina esta pared?»
+- `entrantes`: por ventana → «¿qué paredes le llegan a esta ventana?». Por ejemplo, a `TP-H-101-V1` le llegan 4 paredes: `TP-H-106-P1` (0,00187), `TP-H-114-P1` (0,00172), `TP-H-122-P1` (0,00137) y `TP-H-130-P1` (0,00098).
+
+En el paso 3, en cada media hora, cada ventana suma `luz de la pared × peso` de sus entrantes (`reflejada_para`). Es un solo rebote: las ventanas nunca son origen de aristas.
 
 ### Resultado y costo del paso
 
 | Medida (escenario base) | Valor |
 |---|---|
 | Pares pared–ventana si se comparara todo contra todo | 19.558 (127 × 154) |
-| Pares que el Octree entrega como candidatos | 5.581 |
+| Pares candidatos que entrega `consultar_radio` | 5.581 |
 | Nodos del Octree visitados para obtenerlos | 6.911 |
+| Paredes con al menos una arista | 72 de 127 |
 | Aristas del grafo | 521 |
 
-**Complejidad.**
-
-- **Construir el Octree:** O(B log B) en el caso típico, con B objetos. Cada objeto baja un nivel por cada división, y hay pocos niveles.
-- **Construir el grafo:** con el Octree cuesta O(S × (log B + k)), con S paredes y k candidatas por pared. Sin él costaría O(S × V), comparando cada pared con cada ventana. Por cada candidata que pasa los filtros se hace además una consulta de rayo. El costo depende de cuántas ventanas haya cerca de cada pared, más que del tamaño total del hotel.
-- **Usar el grafo en cada media hora:** recorrer las aristas entrantes de todas las ventanas cuesta O(V + E). Es lineal y no se repite la construcción.
-
-Las dos estructuras se arman una vez y se usan en los 48 pasos del día, así que su costo se reparte entre todos ellos.
-
-### Por qué los pares se descartan
-
-De los 5.581 pares candidatos del escenario base, la mayoría se descarta porque la pared y la ventana no se miran: cada pared mira hacia la ventana de su propio recinto, no hacia las demás.
+**Por qué se descartan los pares candidatos:**
 
 | Motivo | Pares |
 |---|---|
@@ -197,4 +252,14 @@ De los 5.581 pares candidatos del escenario base, la mayoría se descarta porque
 | Peso despreciable (0,0001 o menos) | 22 |
 | Se convierten en arista | 521 |
 
-Una versión anterior del código contaba también la torre propia como obstáculo y perdía 468 reflexiones dentro de la misma torre (solo quedaban 73 aristas). Se corrigió para que la regla coincida con la de las sombras del sol, que tampoco cuenta la torre propia.
+La mayoría no se miran porque cada pared mira hacia la ventana de su propio recinto, no hacia todas.
+
+**Complejidad.**
+
+- **Construir el Octree:** O(B log B) en el caso típico, con B objetos: cada objeto baja unos pocos niveles.
+- **Construir el grafo:** con el Octree, O(S × (log B + k)), con S paredes y k candidatas por pared, más una consulta de rayo por cada candidata que pasa los filtros. Sin el Octree sería O(S × V): cada pared contra cada ventana. El costo depende de cuántas ventanas haya cerca de cada pared, no del tamaño total del hotel.
+- **Usar el grafo en cada media hora:** O(V + E), lineal en ventanas y aristas.
+
+Las dos estructuras se arman una vez y sirven para los 48 pasos del día.
+
+**Corrección hecha.** Una versión anterior contaba la torre propia como obstáculo en `_visible` y perdía 468 reflexiones dentro de la misma torre (solo quedaban 73 aristas). Ahora la regla coincide con la de las sombras, que tampoco cuenta la torre propia.
