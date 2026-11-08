@@ -301,3 +301,199 @@ Las dos estructuras se arman una vez y sirven para los 48 pasos del día.
 - **Limitaciones:** las fachadas son superficies opacas de un solo color, y lo que el vidrio de una ventana refleja hacia afuera se pierde (no ilumina la otra torre); la reflexión exterior es de un solo rebote; las ventanas están cerca del centro de su cuarto y para la reflexión exterior se usa su punto en la fachada.
 
 **Historia del cambio.** Una versión anterior del grafo unía la superficie interior de cada cuarto con ventanas de otros cuartos, incluso dentro de la misma torre, como si la luz atravesara las paredes del edificio. Se reemplazó por la reflexión entre fachadas de las dos torres, y la luz que rebota dentro de cada cuarto pasó a calcularse aparte (paso 3).
+
+---
+
+## Paso 3. Simular el día en 48 pasos de media hora
+
+**Fin:** calcular, para cada una de las 127 zonas y en cada media hora del día, cuánta luz tiene y si esa luz está bien, falta o sobra. Es el corazón del sistema: los pasos 4 a 6 solo resumen lo que este paso produce.
+
+**Entrada:** el hotel del paso 1 y las dos herramientas del paso 2 (Octree y grafo).
+**Salida:** 6.096 resultados (127 zonas × 48 pasos), cada uno con hora, periodo, modo, luz natural, luz reflejada, luz artificial, luz total, potencia asignada y estado.
+
+### Dónde está en el código
+
+| Qué | Dónde |
+|---|---|
+| Bucle de las 48 medias horas | [`SimuladorUnificado.ejecutar`, `src/simulacion.py` línea 30](../src/simulacion.py#L30) |
+| Luz base y dirección del sol | [`luz_base`, `src/clima.py` línea 9](../src/clima.py#L9); [`direccion_solar`, línea 16](../src/clima.py#L16); [`periodo`, línea 21](../src/clima.py#L21); [`_cielo`, `src/simulacion.py` línea 101](../src/simulacion.py#L101) |
+| Factor del clima | [`PerfilClimatico.factor_luz`, `src/modelo.py` línea 95](../src/modelo.py#L95) |
+| Luz natural por ventana | [`_aportes_naturales`, `src/simulacion.py` línea 106](../src/simulacion.py#L106) y [`_calcular_naturales`, línea 122](../src/simulacion.py#L122) |
+| Sombra | [`_sombreada`, línea 129](../src/simulacion.py#L129) |
+| Snell y Fresnel | [`factor_angular_vidrio`, `src/geometria.py` línea 121](../src/geometria.py#L121) |
+| Luz que recibe cada fachada | [`luz_fachadas`, `src/simulacion.py` línea 133](../src/simulacion.py#L133) |
+| Luz reflejada (exterior + interior) | [`_calcular_reflejadas`, línea 140](../src/simulacion.py#L140); [`area_interior`, línea 164](../src/simulacion.py#L164); [`reflexion_interior`, línea 169](../src/simulacion.py#L169) |
+| Modo por horario | [`horario_modo`, `src/balance.py` línea 26](../src/balance.py#L26); [`PerfilIluminacion.para_modo`, `src/modelo.py` línea 78](../src/modelo.py#L78) |
+| Balance del generador | [`balancear`, `src/balance.py` línea 52](../src/balance.py#L52); [`_categoria`, línea 38](../src/balance.py#L38); [`_demanda`, línea 114](../src/balance.py#L114); [`_asignar`, línea 124](../src/balance.py#L124) |
+| Luz artificial | [`_luz_artificial`, `src/simulacion.py` línea 153](../src/simulacion.py#L153) |
+| Clasificar el resultado | [`_estado`, `src/simulacion.py` línea 65](../src/simulacion.py#L65); [`clasificar`, `src/evaluacion.py` línea 25](../src/evaluacion.py#L25) |
+| Guardar en el índice por hora | [`IndiceTemporal.insertar`, `src/temporal.py` línea 24](../src/temporal.py#L24) |
+
+### 3.0 La forma del bucle
+
+```
+para hora = 0:00, 0:30, 1:00, ..., 23:30:
+    1. luz natural de cada ventana y de cada zona
+    2. luz reflejada de cada zona (exterior + interior)
+    3. balance: modo de cada zona y reparto del generador
+    4. para cada zona: luz artificial, luz total, estado; guardar el resultado
+```
+
+Los cuatro pasos se repiten 48 veces. La geometría no cambia; lo que cambia en cada vuelta es la hora, y con ella el sol y los horarios.
+
+### 3.1 El cielo de esa hora
+
+`_cielo` reúne cuatro números que valen para todo el hotel en esa media hora:
+
+- **Luz base** (`luz_base`): `E_base = 900 × curva(hora) × factor_luz`. La curva es un seno: vale 0 a las 6:00, sube a 1 a las 12:00 y vuelve a 0 a las 18:00. Fuera de 6:00–18:00 vale 0. Con nubes parciales, `factor_luz` = 4,863 / 7,063 = 0,689.
+- **Dirección del sol** (`direccion_solar`): una flecha que gira de este a oeste durante el día.
+- **Reparto por nubosidad** (c = 0,709 en nubes parciales): luz directa `f_directa = max(0,10; 1 − c)` = 0,291 y luz difusa `f_difusa = 0,15 + 0,45 × c` = 0,469.
+- **Periodo** (`periodo`): NOCHE antes de las 6:00 y desde las 18:00; TRANSICION de 6:00 a 7:00 y de 17:00 a 18:00; DIA el resto.
+
+| Hora | Periodo | Luz base |
+|---|---|---|
+| 06:00 | TRANSICION | 0 |
+| 07:00 | DIA | 160,4 lux |
+| 09:00 | DIA | 438,2 lux |
+| 12:00 | DIA | 619,7 lux |
+| 15:00 | DIA | 438,2 lux |
+| 17:30 | TRANSICION | 80,9 lux |
+| 18:00 | NOCHE | 0 |
+
+### 3.2 Luz natural por ventana
+
+Para cada ventana (`_aportes_naturales`):
+
+1. **¿Le da el sol de frente?** `coseno = flecha de la ventana · dirección del sol` (0 si el sol está de lado o detrás).
+2. **¿La tapa la otra torre?** `_sombreada` lanza un rayo hacia el sol con el Octree (paso 2). Si choca con la otra torre, `coseno = 0`.
+3. **¿Cuánto deja pasar el vidrio según el ángulo?** `factor_angular_vidrio` aplica Snell y Fresnel: de frente pasa todo lo que dice el catálogo; muy de lado pasa menos.
+4. **Suma directa + difusa:**
+
+   ```
+   luz de la ventana = E_base × VLT × (coseno × factor_angular × f_directa + f_difusa × (1 − obstrucción))
+   ```
+
+   `VLT` es la transmitancia del vidrio (0,82 el claro) y `obstrucción` es la parte del cielo que tapa la otra torre (paso 2).
+
+La luz natural de la zona es el promedio de sus ventanas (`_calcular_naturales`). Una zona sin ventanas, como el parqueadero, tiene luz natural 0.
+
+### 3.3 Luz reflejada
+
+`_calcular_reflejadas` suma dos partes por zona:
+
+- **Exterior:** para cada ventana, `luz de la fachada de enfrente × peso de la arista × VLT` (paso 2). La luz de cada fachada es `E_base × (qué tan de frente le da el sol × f_directa + f_difusa)` (`luz_fachadas`).
+- **Interior** (`reflexion_interior`): toda la luz que entró (natural + exterior, por el área de cada ventana) rebota en las paredes del cuarto:
+
+  ```
+  reflexión interior = flujo que entra × ρ / (área interior × (1 − ρ))
+  ```
+
+  `ρ` es la reflectancia del color de la pared y el área interior es piso + techo + 4 paredes de 3 m (106,8 m² en una habitación de 24 m²). Con pared blanca (ρ = 0,80), `ρ / (1 − ρ)` = 4; con pared oscura (0,25), 0,33. Por eso el color de la pared importa.
+
+De noche las dos partes valen 0.
+
+### 3.4 Balance del generador
+
+`balancear` decide cuántos vatios recibe cada zona en esa media hora. Lo hace en este orden:
+
+**a) Modo de cada zona** (`horario_modo`): ACTIVA dentro de su horario, CERRADA en su franja de cierre, REDUCIDA el resto. El parqueadero siempre está ACTIVA. En modo REDUCIDA los niveles se multiplican por 0,30 (`para_modo`): una habitación pasa de pedir 100 / 200 / 300 lux a pedir 30 / 60 / 90.
+
+**b) Cuánto le falta a cada zona** (`_demanda`): la luz artificial convierte vatios en lux con el método de lúmenes:
+
+```
+lux por vatio = eficacia × CU × MF / área          (habitación: 100 × 0,70 × 0,80 / 24 = 2,33 lux/W)
+vatios que faltan = max(0, (nivel pedido − luz natural − luz reflejada) / lux por vatio)
+```
+
+Se calculan tres demandas: para llegar al nivel de emergencia (10 lux), al mínimo y al objetivo. Ninguna puede pasar de la potencia de la luminaria (habitación 72 W, que da como máximo 168 lux).
+
+**c) Prioridad** de cada zona: `prioridad de la actividad × (1 + 0,10 × (piso − 1)) × 1,4 si es una habitación ocupada`.
+
+**d) Tres repartos**, cada uno hasta agotar los 22 kW (`_asignar` nunca entrega más de lo que queda):
+
+1. **Emergencia:** a todas las zonas abiertas, lo que necesitan para llegar a 10 lux. Las zonas CERRADA no reciben nada.
+2. **Mínimos**, en este orden (`_categoria`): primero el parqueadero (seguridad), luego las habitaciones ocupadas, luego el resto; dentro de cada grupo, por prioridad. La zona que no alcanza su mínimo porque el generador se agotó queda en **EMERGENCIA**.
+3. **Objetivos**, por prioridad, con una cola `heapq`. Las zonas en EMERGENCIA no participan.
+
+### 3.5 Luz artificial, total y estado
+
+Para cada zona (`ejecutar`):
+
+- **Luz artificial** (`_luz_artificial`): `vatios asignados × lux por vatio`.
+- **Luz total** = natural + reflejada + artificial.
+- **Estado** (`_estado` y `clasificar`): se compara la luz total con el mínimo y el máximo del modo de esa hora.
+
+  | Estado | Regla |
+  |---|---|
+  | DEFICIT_SEVERO | menos de la mitad del mínimo |
+  | DEFICIT_LEVE | entre la mitad del mínimo y el mínimo |
+  | CONFORTABLE | entre el mínimo y el máximo |
+  | EXCESO_LEVE | hasta 1,25 veces el máximo |
+  | EXCESO_SEVERO | más de 1,25 veces el máximo |
+  | DATOS_INSUFICIENTES | zona CERRADA o con datos incompletos |
+
+  Una zona en EMERGENCIA se compara con el mínimo de su modo de horario, así que ese paso cuenta como déficit.
+- El resultado se guarda en la zona y se inserta en el árbol rojo-negro (paso 4).
+
+**Análisis sin balance.** La pestaña «Diagnóstico» de la interfaz ejecuta el mismo bucle sin el paso 3.4: no asigna energía y marca la noche como DATOS_INSUFICIENTES. Sirve para ver cómo está el hotel solo con luz natural.
+
+### 3.6 Un día de cuatro zonas (escenario base, medido)
+
+**`TP-H-102`** (habitación ocupada, ventana al norte, sin torre enfrente):
+
+| Hora | Modo | Natural | Reflejada | Artificial | Total | Vatios | Estado |
+|---|---|---|---|---|---|---|---|
+| 02:00 | REDUCIDA | 0 | 0 | 60,0 | 60,0 | 25,7 | CONFORTABLE |
+| 06:00 | ACTIVA | 0 | 0 | 168,0 | 168,0 | 72,0 | CONFORTABLE |
+| 09:00 | ACTIVA | 225,6 | 16,9 | 0 | 242,5 | 0 | CONFORTABLE |
+| 12:00 | ACTIVA | 358,7 | 26,9 | 0 | 385,6 | 0 | EXCESO_SEVERO |
+| 19:00 | ACTIVA | 0 | 0 | 168,0 | 168,0 | 72,0 | CONFORTABLE |
+| 23:00 | REDUCIDA | 0 | 0 | 60,0 | 60,0 | 25,7 | CONFORTABLE |
+
+De día el sol basta y el generador no le da nada. A mediodía la luz pasa de 375 lux (1,25 × 300) y queda en exceso severo: es una de las 26 zonas casi habitables por exceso solar.
+
+**`TP-H-101`** (habitación ocupada, ventana al este, con la Torre Grande enfrente):
+
+| Hora | Natural | Reflejada | Artificial | Total | Vatios |
+|---|---|---|---|---|---|
+| 09:00 | 125,6 | 73,9 | 0,5 | 200,0 | 0,2 |
+| 12:00 | 97,0 | 98,4 | 4,6 | 200,0 | 2,0 |
+| 15:00 | 68,6 | 92,8 | 38,7 | 200,0 | 16,6 |
+
+TG le tapa más de la mitad del cielo, pero le devuelve casi tanta luz como la que le quita. El generador completa justo hasta el objetivo (200 lux).
+
+**`TP-COC-01`** (cocina): CERRADA a las 02:00 y 23:00 (0 vatios, DATOS_INSUFICIENTES); de día recibe entre 91 y 140 W para completar sus 400 lux de objetivo; de noche usa sus 200 W completos y llega a 320 lux.
+
+**`TP-PAR-01`** (parqueadero, sin ventanas): recibe sus 720 W durante las 24 horas y queda en 89,6 lux, por encima de su mínimo de 50.
+
+**Potencia total del generador a lo largo del día:**
+
+| Hora | 00:00 | 06:00 | 09:00 | 12:00 | 15:00 | 17:30 | 18:00 | 22:00 |
+|---|---|---|---|---|---|---|---|---|
+| Vatios | 4.834 | 11.648 | 5.649 | 3.893 | 5.743 | 15.275 | 15.934 | 9.870 |
+
+El pico, 15.934 W, se da entre las 18:00 y las 22:00: ya no hay sol y todo está en modo activo. Al mediodía el generador trabaja menos porque el sol hace casi todo.
+
+Estados de los 6.096 resultados: 5.602 confortables, 156 en exceso leve, 78 en exceso severo y 260 cerrados. No hay déficit: los 22 kW alcanzan.
+
+### Resultado y costo del paso
+
+**Complejidad por media hora:**
+
+- Luz natural: un rayo por ventana, O(V × (log B + k)).
+- Luz reflejada: O(V + E).
+- Balance: construir y ordenar las demandas con `heapq` cuesta O(Z log Z). Pero `_asignar` suma todo lo ya asignado en cada llamada, y eso lo vuelve O(Z²) en la implementación actual (ver «Observaciones»).
+- Clasificar y guardar: O(Z), más O(log R) por inserción en el rojo-negro.
+
+En total, T = 48 veces lo anterior. Con 127 zonas el día completo se simula en menos de un segundo.
+
+### Datos que conviene saber
+
+- **La luminaria de una habitación no alcanza su objetivo de noche.** 72 W dan como máximo 168 lux y el objetivo es 200. Como 168 está entre el mínimo (100) y el máximo (300), el estado igual es CONFORTABLE.
+- **El parqueadero tampoco alcanza su objetivo** (89,6 lux contra 100), pero sí su mínimo.
+- **Al mediodía el sol puede sobrar** en las habitaciones que miran al norte: el sistema no apaga la luz natural ni corre cortinas, solo lo reporta como exceso.
+
+### Observaciones pendientes
+
+- **Recorrido del sol.** `direccion_solar` mueve el sol de este a oeste por el lado norte, con una altura fija de unos 35°. En Bogotá en febrero (el perfil base) el sol de mediodía está alto, cerca de 73°, y hacia el sur. Esto decide qué fachadas reciben sol directo y explica por qué las habitaciones con ventana al norte quedan en exceso. Es una simplificación del modelo que cambia resultados si se corrige.
+- **Costo del balance.** `_asignar` recalcula la suma de lo ya asignado en cada llamada. El resultado es correcto, pero el costo real del balance es O(Z²) por media hora y no O(Z log Z) como dicen los documentos. Se arregla llevando un total acumulado.
