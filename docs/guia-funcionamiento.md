@@ -595,3 +595,215 @@ Una versión anterior de este paso tenía dos simplificaciones que se corrigiero
 
 - **El sol era inventado.** Giraba de este a oeste por el lado norte con una altura fija de unos 35°, y la luz se repartía con `f_directa = max(0,10; 1 − nubosidad)` y `f_difusa = 0,15 + 0,45 × nubosidad`. Esas dos fracciones no sumaban 1, y un día nublado salía más claro que uno despejado. Las habitaciones al norte quedaban en exceso severo a mediodía, cuando en febrero en Bogotá no reciben sol directo. Hoy se usa la posición real del sol, la correlación de Erbs para la parte difusa y el cielo isotrópico de Liu y Jordan para pasar la luz a superficies verticales.
 - **El balance volvía a sumar todo.** Una función `_asignar` recalculaba lo ya entregado en cada llamada, lo que costaba O(Z²) por media hora. `Reparto` lleva el total acumulado y da el mismo reparto (diferencias menores a 0,000000001 W) en O(Z log Z). Este cambio no tiene relación con los árboles AVL o rojo-negro: el balance usa una cola de prioridad (`heapq`).
+
+---
+
+## Paso 4. Reportes por franja horaria con el árbol rojo-negro
+
+**Fin:** responder preguntas como «¿qué pasó en el hotel entre las 18:00 y las 22:00?» sin recorrer los 6.096 resultados del paso 3. Para eso, cada resultado se guarda, apenas se calcula, en un árbol rojo-negro ordenado por hora. Después se piden al árbol solo los resultados de la franja, y con ellos se arma un reporte de energía, pico del generador, déficit y estado de cada zona.
+
+**Entrada:** los 6.096 resultados del paso 3, que llegan uno a uno.
+**Salida:** 6 reportes, uno por franja, que la interfaz muestra en la pestaña «3. Plano».
+
+Este paso no cambia ningún resultado: solo los ordena y los resume.
+
+### Dónde está en el código
+
+| Qué | Dónde |
+|---|---|
+| Las 6 franjas | [`FRANJAS`, `src/temporal.py` línea 9](../src/temporal.py#L9) |
+| El índice por hora | [`class IndiceTemporal`, línea 19](../src/temporal.py#L19); [`insertar`, línea 24](../src/temporal.py#L24); [`franja`, línea 30](../src/temporal.py#L30); [`estadisticas`, línea 33](../src/temporal.py#L33) |
+| Se crea el índice y se inserta cada resultado | [`src/simulacion.py` línea 34](../src/simulacion.py#L34) y [línea 55](../src/simulacion.py#L55) |
+| Se arman los reportes al final del día | [`src/simulacion.py` línea 58](../src/simulacion.py#L58); [`reporte_temporal`, `src/temporal.py` línea 111](../src/temporal.py#L111) |
+| Reporte de una franja | [`reporte_franja`, línea 54](../src/temporal.py#L54); [`_minimo`, línea 40](../src/temporal.py#L40); [`_conversion`, línea 46](../src/temporal.py#L46) |
+| El árbol rojo-negro | [`class IndiceRojoNegro`, `src/arboles.py` línea 173](../src/arboles.py#L173); [`insertar`, línea 180](../src/arboles.py#L180); [`_reparar`, línea 220](../src/arboles.py#L220); [`_rotar_izq`, línea 255](../src/arboles.py#L255); [`_rotar_der`, línea 271](../src/arboles.py#L271) |
+| Consulta por rango | [`IndiceRojoNegro.rango`, `src/arboles.py` línea 203](../src/arboles.py#L203) |
+| AVL de comparación | [`class IndiceAVL`, `src/arboles.py` línea 17](../src/arboles.py#L17); se pide en [`src/api.py` línea 137](../src/api.py#L137) |
+| Se envía a la interfaz | [`src/api.py` líneas 170–171](../src/api.py#L170) |
+| Selector y reporte en la interfaz | [`renderFranjaSelector`, `web/app.js` línea 93](../web/app.js#L93); [`renderFranjaReport`, línea 103](../web/app.js#L103); [`claveVisual`, línea 86](../web/app.js#L86); [`renderComplexity`, línea 129](../web/app.js#L129) |
+
+### 4.1 Qué se guarda y con qué clave
+
+Cada nodo del árbol guarda un `ResultadoIluminacion` del paso 3 (hora, zona, modo, las tres luces, total, vatios y estado). El nodo no copia el resultado: apunta al mismo objeto que ya está en la zona.
+
+La **clave** con la que se ordena es la pareja `(hora, zona_id)`. Python compara parejas por partes: primero la hora y, si es la misma, el identificador en orden alfabético. Así, todos los resultados de las 0:00 quedan antes que los de las 0:30, y dentro de la misma hora `TG-…` queda antes que `TP-…` porque «G» va antes que «P». La pareja es única: una zona tiene un solo resultado por media hora.
+
+Ejemplo del orden: `(0,0, "TG-COC-01") < (0,0, "TP-H-101") < (0,5, "TG-COC-01")`.
+
+### 4.2 Por qué hace falta un árbol balanceado
+
+El paso 3 inserta los resultados en el orden en que los calcula: hora por hora y, dentro de cada hora, primero las 41 zonas de TP y luego las 86 de TG. Ese orden está casi ordenado: en 5.759 de los 6.095 pares seguidos, la clave nueva es mayor que la anterior.
+
+Un árbol binario de búsqueda sin balancear se deforma con datos así. Cada clave nueva va casi siempre a la derecha de la anterior y el árbol se vuelve una cadena larga. Medido con las mismas 6.096 claves:
+
+| Árbol | Altura | Comparaciones para insertar todo | Rotaciones |
+|---|---|---|---|
+| Búsqueda sin balancear | 640 | 1.891.104 | 0 |
+| Rojo-negro | 22 | 112.587 | 9.099 |
+| AVL (solo para comparar) | 14 | — | 7.232 |
+
+La altura es el número de nodos del camino más largo de la raíz a una hoja, y marca lo que cuesta llegar a cualquier resultado. El árbol sin balancear no llega a 6.096 de altura porque cada hora trae claves de TG menores que las de TP de la misma hora; aun así, cada inserción recorre en promedio unos 310 nodos. El rojo-negro recorre en promedio unos 18.
+
+El rojo-negro garantiza una altura de como máximo 2 × log₂(n + 1), que con n = 6.096 da 25,1. La medida, 22, está dentro del límite.
+
+### 4.3 Cómo inserta el árbol rojo-negro
+
+Cada nodo tiene un color, rojo o negro, y el árbol cumple siempre cuatro reglas:
+
+1. La raíz es negra.
+2. Un nodo rojo no puede tener un hijo rojo.
+3. Todos los caminos de un nodo hasta el fondo del árbol cruzan el mismo número de nodos negros (la **altura negra**).
+4. Los huecos vacíos del fondo cuentan como negros.
+
+Las reglas 2 y 3 juntas impiden que un camino sea más del doble de largo que otro: el camino más corto puede ser todo negro, y el más largo solo puede intercalar un rojo entre cada par de negros.
+
+**`insertar`** baja desde la raíz como en cualquier árbol de búsqueda: a la izquierda si la clave nueva es menor y a la derecha si no. Cuelga el nodo nuevo en el hueco donde termina, siempre de color **rojo**. Un nodo rojo nuevo no cambia la altura negra, así que la regla 3 se mantiene. Solo puede romperse la regla 2, si el padre también es rojo.
+
+**`_reparar`** arregla la regla 2 mirando al **tío** del nodo nuevo (el otro hijo del abuelo):
+
+- **Tío rojo:** se cambian colores. Padre y tío pasan a negro y el abuelo a rojo. El problema puede subir al abuelo, así que se repite desde ahí.
+- **Tío negro o vacío:** se hacen una o dos **rotaciones**. Una rotación gira tres nodos para que el del medio quede arriba, sin romper el orden de las claves. Después se ajustan los colores y se termina.
+
+Al final la raíz se pinta de negro.
+
+**Ejemplo con las cuatro primeras claves de las 0:00** (medido con el código):
+
+| Se inserta | Qué pasa | Árbol resultante | Rotaciones |
+|---|---|---|---|
+| `TP-H-101` | Es la raíz; se pinta de negro | 101 (N) | 0 |
+| `TP-H-102` | Va a la derecha de 101, rojo; su padre es negro, no hay nada que arreglar | 101 (N) → derecha 102 (R) | 0 |
+| `TP-H-103` | Va a la derecha de 102. Padre rojo y tío vacío: se rota a la izquierda sobre 101 | 102 (N), con 101 (R) a la izquierda y 103 (R) a la derecha | 1 |
+| `TP-H-104` | Va a la derecha de 103. Padre rojo y tío (101) rojo: se cambian colores; 101 y 103 pasan a negro | 102 (N), con 101 (N) y 103 (N), y 104 (R) debajo de 103 | 1 |
+
+Sin la rotación del tercer paso, las tres claves quedarían en una línea, que es justo lo que le pasa al árbol sin balancear.
+
+**Cómo queda el árbol completo** en el escenario base: 6.096 nodos, altura 22, altura negra 11, 780 nodos rojos y la raíz en `(5,0, "TP-H-108")`.
+
+### 4.4 La consulta por rango
+
+`IndiceTemporal.franja(inicio, fin)` le pide al árbol todos los resultados con clave entre `(inicio, "")` y `(fin, "")`. La cadena vacía `""` es menor que cualquier identificador, así que:
+
+- `(inicio, "")` queda justo antes del primer resultado de la hora `inicio`: esa hora **entra**.
+- `(fin, "")` queda justo antes del primer resultado de la hora `fin`: esa hora **no entra**.
+
+Por eso cada franja es un intervalo `[inicio, fin)`. La franja 18:00–22:00 incluye las 18:00 y las 21:30, pero no las 22:00, que son de la franja de cierre. Ningún resultado cae en dos franjas, salvo en «Día completo», que contiene todas.
+
+`rango` recorre el árbol desde la raíz y poda:
+
+- baja a la izquierda solo si la clave del nodo es mayor que el mínimo (a la izquierda puede haber claves del rango);
+- guarda el nodo si su clave está dentro del rango;
+- baja a la derecha solo si la clave del nodo es menor que el máximo.
+
+Como recorre en orden (izquierda, nodo, derecha), los resultados salen ordenados por hora y zona. El costo es O(log R + k): unos pocos nodos para llegar al borde del rango más los k nodos que se devuelven. Medido en el escenario base:
+
+| Consulta | Resultados (k) | Nodos visitados | Recorrer la lista completa |
+|---|---|---|---|
+| Solo las 12:00 | 127 | 142 | 6.096 |
+| Noche 18:00–22:00 | 1.016 | 1.029 | 6.096 |
+| Madrugada 00:00–06:00 | 1.524 | 1.532 | 6.096 |
+| Día completo | 6.096 | 6.096 | 6.096 |
+
+Los nodos visitados de más (15 en las 12:00) son los del camino hasta el borde del rango. En «Día completo» no hay ganancia, porque hay que devolver todo. El contador de nodos visitados (`comparaciones`) es el mismo que usa la inserción; `reporte_franja` lo lee antes y después de la consulta y reporta la diferencia.
+
+### 4.5 Qué calcula cada franja
+
+Las franjas están fijas en el código (`FRANJAS`):
+
+| Franja | Desde | Hasta (sin incluir) | Medias horas | Resultados |
+|---|---|---|---|---|
+| Día completo | 0:00 | 24:00 | 48 | 6.096 |
+| Madrugada | 0:00 | 6:00 | 12 | 1.524 |
+| Mañana | 6:00 | 12:00 | 12 | 1.524 |
+| Tarde | 12:00 | 18:00 | 12 | 1.524 |
+| Noche | 18:00 | 22:00 | 8 | 1.016 |
+| Cierre | 22:00 | 24:00 | 4 | 508 |
+
+`reporte_franja` recorre una vez los resultados de la franja y calcula:
+
+| Campo | Qué es | Cómo se calcula |
+|---|---|---|
+| `energia_wh`, `energia_kwh` | Energía que entregó el generador | Suma de `vatios × 0,5 h` |
+| `energia_por_actividad_wh`, `energia_por_torre_wh` | La misma energía repartida | Suma por actividad y por torre |
+| `hora_pico`, `potencia_pico_w` | Media hora en que el generador entregó más | Suma de vatios por hora y se toma la mayor; si hay empate, la más temprana |
+| `deficit_residual_lux_h` | Cuánta luz faltó, sumada en el tiempo | Para cada resultado en déficit: `(mínimo − luz total) × 0,5 h` |
+| `energia_no_asignada_wh` | Energía que habría hecho falta para llegar al mínimo | Para cada resultado en déficit: `(mínimo − luz total) / lux por vatio × 0,5 h` |
+| `zonas_con_deficit`, `horas_deficit_por_zona` | Qué zonas tuvieron déficit y cuántas horas | Cada resultado en déficit suma 0,5 h a su zona |
+| `zonas_criticas` | Las 10 zonas con más horas de déficit | Orden por horas, de mayor a menor; si empatan, por identificador |
+| `horas_con_deficit` | Medias horas en las que alguna zona tuvo déficit | Conjunto de horas, ordenado |
+| `estados_por_zona` | Estado predominante de cada zona en la franja | El estado que más se repite, sin contar `DATOS_INSUFICIENTES`; si hay empate, gana el que apareció primero |
+| `comparaciones_arbol`, `comparaciones_lineales` | Costo de la consulta | Nodos visitados contra los 6.096 de una lista |
+
+Dos detalles:
+
+- **El mínimo de una zona en EMERGENCIA** (`_minimo`) es el de su modo de horario, igual que en el paso 3.5. Si a las 19:00 una habitación quedó en EMERGENCIA, su mínimo es el del modo ACTIVA, 100 lux, y no el de emergencia.
+- **Lux por vatio** (`_conversion`) es la misma conversión del balance: `eficacia × CU × MF / área`, 2,33 lux/W en una habitación.
+
+**Escenario base (medido):**
+
+| Franja | Energía | Pico | Zonas con estado | Estado predominante |
+|---|---|---|---|---|
+| Día completo | 208,08 kWh | 15.934 W a las 18:00 | 127 | 127 CONFORTABLE |
+| Madrugada | 29,76 kWh | 5.584 W a las 5:00 | 117 | 117 CONFORTABLE |
+| Mañana | 47,47 kWh | 11.648 W a las 6:00 | 127 | 109 CONFORTABLE, 18 EXCESO_LEVE |
+| Tarde | 51,12 kWh | 13.080 W a las 17:30 | 127 | 119 CONFORTABLE, 8 EXCESO_LEVE |
+| Noche | 63,74 kWh | 15.934 W a las 18:00 | 127 | 127 CONFORTABLE |
+| Cierre | 15,99 kWh | 9.870 W a las 22:00 | 127 | 127 CONFORTABLE |
+
+- No hay déficit en ninguna franja: déficit residual, energía no asignada y zonas críticas valen 0.
+- En la madrugada solo 117 zonas tienen estado. Las otras 10 están CERRADA durante toda la franja y solo tienen resultados `DATOS_INSUFICIENTES`, que no se cuentan. En el plano se pintan como `DATOS_INSUFICIENTES`.
+- En el día completo las 52 habitaciones con exceso leve aparecen como CONFORTABLE, porque el exceso dura a lo sumo 7 de sus 48 medias horas. Las franjas de mañana y tarde sí lo muestran: 18 habitaciones al este en la mañana y 8 al oeste en la tarde.
+- La noche es la franja que más gasta (63,74 kWh en 4 horas): no hay sol y casi todo está en modo ACTIVA.
+- Energía del día por actividad: habitaciones 81,96 kWh, parqueaderos 51,84, recreación 44,97 y cocinas 29,30. Por torre: TG 136,18 kWh y TP 71,90.
+
+**Un caso con déficit: `luminarias_danadas`** (16 habitaciones de TP sin luminaria). En la franja de noche:
+
+| Campo | Valor | De dónde sale |
+|---|---|---|
+| Zonas con déficit | 16 | Las 16 habitaciones sin luminaria |
+| Horas de déficit por zona | 4,0 | Las 8 medias horas de la franja |
+| Déficit residual | 6.400 lux·h | 16 zonas × 4 h × 100 lux (tienen 0 lux y su mínimo es 100) |
+| Energía no asignada | 2.742,9 Wh | 6.400 / 2,33 lux/W |
+| Pico | 14.782 W a las 18:00 | Menos que en el base (15.934 W) porque esas 16 luminarias no consumen |
+
+En el día completo, las zonas más críticas son `TP-H-102`, `TP-H-106`, `TP-H-110` y `TP-H-114`, con 16,5 horas de déficit cada una. Son las que miran al norte. Además de las 12 horas de noche, sin sol directo su luz natural queda por debajo del mínimo de 100 lux de 6:00 a 8:00 y de 16:00 a 17:30.
+
+### 4.6 El AVL al lado, solo para comparar
+
+Si el simulador se crea con `comparar_arboles=True`, `IndiceTemporal` inserta cada resultado también en un árbol AVL (el mismo tipo de árbol del paso 6). La API lo pide siempre que devuelve resultados completos ([`src/api.py` línea 137](../src/api.py#L137)). El AVL no se usa para ningún reporte: solo se miden su altura y sus rotaciones, y la pestaña «6. Detalle técnico» muestra las dos medidas lado a lado.
+
+Con estos datos el AVL queda más bajo (altura 14 contra 22) y hace menos rotaciones (7.232 contra 9.099). Queda más bajo porque su regla es más estricta: las dos ramas de cada nodo difieren en altura a lo sumo en 1. El rojo-negro admite ramas más desiguales, y muchas de sus reparaciones solo cambian colores sin rotar. Al insertar, los dos hacen como máximo dos rotaciones por clave. Los dos responden la consulta en O(log R + k) y devuelven los mismos resultados.
+
+### 4.7 Dónde se ve en la interfaz
+
+- **Pestaña «3. Plano», selector «Franja horaria».** Con «Veredicto del día (sin franja)» el plano usa el veredicto del paso 5 o el estado de la zona, según el selector de color. Al elegir una franja, cada zona se pinta con su estado predominante en esa franja (`estados_por_zona`), y debajo del plano aparece el reporte: energía, pico, déficit residual, energía no asignada, horas con déficit, tablas por actividad y por torre, zonas críticas y los nodos visitados del rojo-negro contra los 6.096 de la lista.
+- **Pestaña «6. Detalle técnico».** Muestra el tamaño, la altura y las rotaciones del rojo-negro y del AVL.
+
+### Resultado y costo del paso
+
+| Operación | Costo | Escenario base |
+|---|---|---|
+| Insertar un resultado | O(log R) | 18 nodos en promedio |
+| Insertar los R resultados del día | O(R log R) | 112.587 comparaciones, 9.099 rotaciones, 0,01 s |
+| Consultar una franja | O(log R + k) | Entre 142 y 6.096 nodos |
+| Armar el reporte de la franja | O(k) | Una pasada por los k resultados |
+| Memoria | O(R) | 6.096 nodos que apuntan a los resultados, sin copiarlos |
+
+R = 6.096 resultados (127 zonas × 48 medias horas). El árbol se construye durante el bucle del paso 3; los 6 reportes se arman una vez, al final del día.
+
+### Ideas clave del paso
+
+- **El árbol ordena por tiempo, no por zona.** La clave `(hora, zona_id)` hace que todos los resultados de una hora queden juntos y en orden, y así una franja es un trozo seguido del árbol.
+- **El balanceo importa porque los datos llegan casi ordenados.** Sin él, el árbol de búsqueda tendría altura 640 y costaría 17 veces más comparaciones insertar el día completo.
+- **Las rotaciones no cambian el orden.** Solo cambian quién está arriba, para que ningún camino sea demasiado largo.
+- **La consulta por rango poda.** Se salta las ramas que quedan completas antes del inicio o después del fin, y la ganancia crece cuanto más corta es la franja.
+- **El reporte es una suma sencilla** sobre lo que devolvió la consulta: energía, pico, déficit y estado predominante.
+
+### Observaciones pendientes
+
+- **Déficit por redondeo.** El balance entrega justo la potencia del mínimo: `(mínimo − luz natural − reflejada) / lux por vatio`. Al volver a convertir esos vatios en lux, el resultado puede quedar 0,00000000000001 lux por debajo del mínimo, y `clasificar` usa `nivel < mínimo`, así que lo marca como `DEFICIT_LEVE`. Medido:
+  - En `deficit_leve`, 851 de los 867 resultados en déficit son de este tipo. Con una tolerancia de 0,000000001 lux el caso pasaría de 73/53/1 a 125/1/1 (habitables/casi habitables/no habitables).
+  - En `deficit_severo`, 903 de 1.563. El caso pasaría de 3/56/68 a 59/0/68, con las mismas 22 reasignaciones.
+  - En la madrugada de `deficit_severo` aparecen 34 zonas con déficit y 0,0 lux·h de déficit residual: son estos casos, porque el faltante es casi 0.
+  - El escenario base y los demás casos no tienen ningún resultado en este borde.
+- **La energía no asignada no mira la luminaria.** Calcula los vatios que harían falta para llegar al mínimo, aunque la luminaria no pueda darlos. En `luminarias_danadas` reporta 5.529,5 Wh en el día, cuando al generador le sobraba potencia: lo que faltaba era la luminaria.
+- **Las franjas están fijas en el código.** No se pueden cambiar desde el JSON ni desde la interfaz.
