@@ -885,7 +885,7 @@ Este paso no usa árboles: es un conteo sobre los resultados de cada zona.
 | Veredicto, causa y recomendación de una zona | [`evaluar_zona`, línea 61](../src/habitabilidad.py#L61); [`_causa`, línea 28](../src/habitabilidad.py#L28); [`CAUSA_RECOMENDACION`, línea 7](../src/habitabilidad.py#L7) |
 | Puntaje del hotel | [`evaluar_hotel`, línea 110](../src/habitabilidad.py#L110); [`_promedio_ponderado`, línea 102](../src/habitabilidad.py#L102) |
 | Conteos que se envían a la interfaz | [`src/api.py` líneas 159–168](../src/api.py#L159) |
-| Tarjetas y recomendaciones en la interfaz | [`renderVeredictos`, `web/app.js` línea 201](../web/app.js#L201); se usa en [línea 530](../web/app.js#L530) (Diagnóstico) y [línea 1216](../web/app.js#L1216) (Balance) |
+| Tarjetas y recomendaciones en la interfaz | [`renderVeredictos`, `web/app.js` línea 201](../web/app.js#L201); se usa en [línea 530](../web/app.js#L530) (Diagnóstico) y [línea 1298](../web/app.js#L1298) (Balance) |
 | Color del plano por veredicto | [`claveVisual`, `web/app.js` línea 86](../web/app.js#L86) |
 
 ### 5.0 La idea con una habitación
@@ -1161,7 +1161,7 @@ Es un paso lineal y no necesita ninguna estructura especial.
 | Elegir y ocupar la cama | [líneas 97–101](../src/reasignacion.py#L97) |
 | Motivo cuando no hay alternativa | [líneas 105–111](../src/reasignacion.py#L105) |
 | El árbol AVL | [`class IndiceAVL`, `src/arboles.py` línea 17](../src/arboles.py#L17); [`sucesor`, línea 32](../src/arboles.py#L32); [`siguiente`, línea 44](../src/arboles.py#L44); [`eliminar`, línea 56](../src/arboles.py#L56); [`_rebalancear`, línea 83](../src/arboles.py#L83); [`_insertar`, línea 112](../src/arboles.py#L112) |
-| Propuestas en la interfaz | [`renderResult`, `web/app.js` línea 1311](../web/app.js#L1311); textos de los motivos en [`MOTIVOS_REASIGNACION`, línea 252](../web/app.js#L252) |
+| Propuestas en la interfaz | [`renderResult`, `web/app.js` línea 1313](../web/app.js#L1313); textos de los motivos en [`MOTIVOS_REASIGNACION`, línea 252](../web/app.js#L252) |
 | Pruebas | [`test_07` y `test_08`, `tests/test_casos_plan.py` líneas 154 y 170](../tests/test_casos_plan.py#L154); [`test_luminarias_danadas…` y `test_reasignacion_restringida`, `tests/test_casos_json.py` líneas 172 y 189](../tests/test_casos_json.py#L172) |
 
 ### 6.1 Quién se mueve
