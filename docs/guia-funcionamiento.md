@@ -340,7 +340,7 @@ Las dos estructuras se arman una vez y sirven para los 48 pasos del día.
 | Modo por horario | [`horario_modo`, `src/balance.py` línea 26](../src/balance.py#L26); [`PerfilIluminacion.para_modo`, `src/modelo.py` línea 78](../src/modelo.py#L78) |
 | Balance del generador | [`balancear`, `src/balance.py` línea 52](../src/balance.py#L52); [`_categoria`, línea 38](../src/balance.py#L38); [`_demanda`, línea 115](../src/balance.py#L115); [`Reparto`, línea 125](../src/balance.py#L125) |
 | Luz artificial | [`_luz_artificial`, `src/simulacion.py` línea 154](../src/simulacion.py#L154) |
-| Clasificar el resultado | [`_estado`, `src/simulacion.py` línea 67](../src/simulacion.py#L67); [`clasificar`, `src/evaluacion.py` línea 25](../src/evaluacion.py#L25) |
+| Clasificar el resultado | [`_estado`, `src/simulacion.py` línea 67](../src/simulacion.py#L67); [`clasificar`, `src/evaluacion.py` línea 26](../src/evaluacion.py#L26) |
 | Guardar en el índice por hora | [`IndiceTemporal.insertar`, `src/temporal.py` línea 24](../src/temporal.py#L24) |
 
 ### 3.0 La forma del bucle
@@ -520,7 +520,7 @@ Para cada zona (`ejecutar`):
   | EXCESO_SEVERO | más de 1,25 veces el máximo |
   | DATOS_INSUFICIENTES | zona CERRADA o con datos incompletos |
 
-  Una zona en EMERGENCIA se compara con el mínimo de su modo de horario, así que ese paso cuenta como déficit.
+  Una zona en EMERGENCIA se compara con el mínimo de su modo de horario, así que ese paso cuenta como déficit. Cada comparación acepta una diferencia de 0,000000001 lux (`TOLERANCIA_LUX`): si el balance entregó justo los vatios del mínimo, el redondeo de vatios a lux no la deja en déficit.
 - El resultado se guarda en la zona y se inserta en el árbol rojo-negro (paso 4).
 
 **Análisis sin balance.** La pestaña «Diagnóstico» de la interfaz ejecuta el mismo bucle sin el paso 3.4: no asigna energía y marca la noche como DATOS_INSUFICIENTES. Sirve para ver cómo está el hotel solo con luz natural.
@@ -614,7 +614,7 @@ Este paso no cambia ningún resultado: solo los ordena y los resume.
 | Las 6 franjas | [`FRANJAS`, `src/temporal.py` línea 9](../src/temporal.py#L9) |
 | El índice por hora | [`class IndiceTemporal`, línea 19](../src/temporal.py#L19); [`insertar`, línea 24](../src/temporal.py#L24); [`franja`, línea 30](../src/temporal.py#L30); [`estadisticas`, línea 33](../src/temporal.py#L33) |
 | Se crea el índice y se inserta cada resultado | [`src/simulacion.py` línea 34](../src/simulacion.py#L34) y [línea 55](../src/simulacion.py#L55) |
-| Se arman los reportes al final del día | [`src/simulacion.py` línea 58](../src/simulacion.py#L58); [`reporte_temporal`, `src/temporal.py` línea 111](../src/temporal.py#L111) |
+| Se arman los reportes al final del día | [`src/simulacion.py` línea 58](../src/simulacion.py#L58); [`reporte_temporal`, `src/temporal.py` línea 112](../src/temporal.py#L112) |
 | Reporte de una franja | [`reporte_franja`, línea 54](../src/temporal.py#L54); [`_minimo`, línea 40](../src/temporal.py#L40); [`_conversion`, línea 46](../src/temporal.py#L46) |
 | El árbol rojo-negro | [`class IndiceRojoNegro`, `src/arboles.py` línea 173](../src/arboles.py#L173); [`insertar`, línea 180](../src/arboles.py#L180); [`_reparar`, línea 220](../src/arboles.py#L220); [`_rotar_izq`, línea 255](../src/arboles.py#L255); [`_rotar_der`, línea 271](../src/arboles.py#L271) |
 | Consulta por rango | [`IndiceRojoNegro.rango`, `src/arboles.py` línea 203](../src/arboles.py#L203) |
@@ -759,7 +759,7 @@ Las franjas están fijas en el código (`FRANJAS`):
 | `energia_por_actividad_wh`, `energia_por_torre_wh` | La misma energía repartida | Suma por actividad y por torre |
 | `hora_pico`, `potencia_pico_w` | Media hora en que el generador entregó más | Suma de vatios por hora y se toma la mayor; si hay empate, la más temprana |
 | `deficit_residual_lux_h` | Cuánta luz faltó, sumada en el tiempo | Para cada resultado en déficit: `(mínimo − luz total) × 0,5 h` |
-| `energia_no_asignada_wh` | Energía que habría hecho falta para llegar al mínimo | Para cada resultado en déficit: `(mínimo − luz total) / lux por vatio × 0,5 h` |
+| `energia_no_asignada_wh` | Energía que el generador habría tenido que entregar para llegar al mínimo | Para cada resultado en déficit: `min((mínimo − luz total) / lux por vatio, potencia de la luminaria − vatios asignados) × 0,5 h`. No cuenta lo que la luminaria no puede dar |
 | `zonas_con_deficit`, `horas_deficit_por_zona` | Qué zonas tuvieron déficit y cuántas horas | Cada resultado en déficit suma 0,5 h a su zona |
 | `zonas_criticas` | Las 10 zonas con más horas de déficit | Orden por horas, de mayor a menor; si empatan, por identificador |
 | `horas_con_deficit` | Medias horas en las que alguna zona tuvo déficit | Conjunto de horas, ordenado |
@@ -795,8 +795,10 @@ Dos detalles:
 | Zonas con déficit | 16 | Las 16 habitaciones sin luminaria |
 | Horas de déficit por zona | 4,0 | Las 8 medias horas de la franja |
 | Déficit residual | 6.400 lux·h | 16 zonas × 4 h × 100 lux (tienen 0 lux y su mínimo es 100) |
-| Energía no asignada | 2.742,9 Wh | 6.400 / 2,33 lux/W |
+| Energía no asignada | 0 Wh | Las luminarias tienen 0 W: aunque el generador tuviera energía de sobra, no hay por dónde entregarla |
 | Pico | 14.782 W a las 18:00 | Menos que en el base (15.934 W) porque esas 16 luminarias no consumen |
+
+La energía no asignada sí aparece cuando lo que falta es generador. En `deficit_severo` (4 kW), la noche tiene 69 zonas con déficit, 36.633,3 lux·h de déficit residual y 25.578,6 Wh de energía no asignada: lo que el generador habría tenido que entregar, sin pasar de la potencia de cada luminaria, para que esas zonas llegaran a su mínimo.
 
 En el día completo, las zonas más críticas son `TP-H-102`, `TP-H-106`, `TP-H-110` y `TP-H-114`, con 16,5 horas de déficit cada una. Son las que miran al norte. Además de las 12 horas de noche, sin sol directo su luz natural queda por debajo del mínimo de 100 lux de 6:00 a 8:00 y de 16:00 a 17:30.
 
@@ -831,12 +833,15 @@ R = 6.096 resultados (127 zonas × 48 medias horas). El árbol se construye dura
 - **La consulta por rango poda.** Se salta las ramas que quedan completas antes del inicio o después del fin, y la ganancia crece cuanto más corta es la franja.
 - **El reporte es una suma sencilla** sobre lo que devolvió la consulta: energía, pico, déficit y estado predominante.
 
-### Observaciones pendientes
+### Datos que conviene saber
 
-- **Déficit por redondeo.** El balance entrega justo la potencia del mínimo: `(mínimo − luz natural − reflejada) / lux por vatio`. Al volver a convertir esos vatios en lux, el resultado puede quedar 0,00000000000001 lux por debajo del mínimo, y `clasificar` usa `nivel < mínimo`, así que lo marca como `DEFICIT_LEVE`. Medido:
-  - En `deficit_leve`, 851 de los 867 resultados en déficit son de este tipo. Con una tolerancia de 0,000000001 lux el caso pasaría de 73/53/1 a 125/1/1 (habitables/casi habitables/no habitables).
-  - En `deficit_severo`, 903 de 1.563. El caso pasaría de 3/56/68 a 59/0/68, con las mismas 22 reasignaciones.
-  - En la madrugada de `deficit_severo` aparecen 34 zonas con déficit y 0,0 lux·h de déficit residual: son estos casos, porque el faltante es casi 0.
-  - El escenario base y los demás casos no tienen ningún resultado en este borde.
-- **La energía no asignada no mira la luminaria.** Calcula los vatios que harían falta para llegar al mínimo, aunque la luminaria no pueda darlos. En `luminarias_danadas` reporta 5.529,5 Wh en el día, cuando al generador le sobraba potencia: lo que faltaba era la luminaria.
 - **Las franjas están fijas en el código.** No se pueden cambiar desde el JSON ni desde la interfaz.
+
+### Historia del cambio (D17)
+
+Al escribir este paso aparecieron dos errores, que se corrigieron:
+
+- **Déficit por redondeo.** El balance entrega justo la potencia del mínimo: `(mínimo − luz natural − reflejada) / lux por vatio`. Al volver a convertir esos vatios en lux, el total podía quedar 0,00000000000001 lux por debajo del mínimo, y `clasificar` lo marcaba como `DEFICIT_LEVE` porque comparaba con `nivel < mínimo`. En el caso `deficit_leve` de entonces (generador de 10 kW), 851 de sus 867 resultados en déficit eran de este tipo; en `deficit_severo`, 903 de 1.563. Hoy `clasificar` acepta una diferencia de 0,000000001 lux (`TOLERANCIA_LUX`, [`src/evaluacion.py` línea 8](../src/evaluacion.py#L8)) y la prueba `test_sin_deficit_por_redondeo` revisa que ningún déficit de ningún caso quede a menos de 0,000001 lux del mínimo.
+  - Con el arreglo, el generador de 10 kW ya no producía un déficit leve: casi todo el hotel quedaba habitable (125/1/1). La razón es que, cuando falta generador, el balance cubre los mínimos completos o deja la zona en EMERGENCIA con 10 lux, que es déficit severo. Un déficit leve real aparece cuando la luminaria no alcanza el mínimo, así que `deficit_leve` pasó a ser el caso de 12 habitaciones con luminarias viejas de 30 W (70 lux como máximo): 115/12/0.
+  - `deficit_severo` (4 kW) pasó de 3/56/68 a 59/0/68. Las habitaciones ocupadas de los pisos 2 en adelante sí alcanzan su mínimo y quedan habitables, y los 22 huéspedes afectados se mueven a sus camas libres. El caso «nadie tiene a dónde ir» lo muestra ahora `apagon_generador`.
+- **La energía no asignada no miraba la luminaria.** Contaba los vatios que harían falta para llegar al mínimo aunque la luminaria no pudiera darlos. En `luminarias_danadas` reportaba 5.529,5 Wh en el día cuando al generador le sobraba potencia. Ahora no pasa de `potencia de la luminaria − vatios asignados` y en ese caso da 0.

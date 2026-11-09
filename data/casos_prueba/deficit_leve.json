@@ -1,23 +1,22 @@
 {
   "caso": {
     "nombre": "deficit_leve",
-    "historia": "Falla parcial: el generador solo entrega 10 kW. Hay energía para los mínimos de casi todo el hotel, pero no para los objetivos de la noche.",
+    "historia": "Las 12 habitaciones ocupadas del piso 2 de la Torre Grande (TG-H-113 a TG-H-124) tienen luminarias viejas de 30 W en vez de 72 W. Con 30 W dan como máximo 70 lux, por debajo de los 100 lux mínimos de una habitación activa. El generador tiene energía de sobra.",
     "que_se_espera": [
-      "Aparecen zonas CASI_HABITABLE nuevas frente al escenario base; todas empeoran porque baja su puntaje nocturno.",
-      "Las recreaciones, con la prioridad más baja entre las zonas con ventanas, son las únicas que entran en EMERGENCIA; una de ellas (TG-REC-06) queda NO_HABITABLE.",
-      "El parqueadero, que es seguridad, nunca queda en déficit.",
-      "Las habitaciones ocupadas siguen habitables, así que nadie se reasigna."
+      "Las 12 habitaciones quedan CASI_HABITABLE con causa DEFICIT_NOCTURNO: en las horas activas de la noche tienen 70 lux, entre la mitad del mínimo (50) y el mínimo (100).",
+      "Ningún paso queda en DEFICIT_SEVERO y ninguna zona entra en EMERGENCIA: el problema es la luminaria, no el generador.",
+      "Como no son NO_HABITABLE, nadie se reasigna.",
+      "El resto del hotel queda igual que en el escenario base."
     ],
     "resultado_esperado": {
       "conteo_veredictos": {
-        "CASI_HABITABLE": 53,
-        "HABITABLE": 73,
-        "NO_HABITABLE": 1
+        "CASI_HABITABLE": 12,
+        "HABITABLE": 115
       },
-      "puntaje_hotel": 0.8953,
-      "energia_wh": 180960.1,
+      "puntaje_hotel": 0.9621,
+      "energia_wh": 204840.2,
       "estado_generador": "CAPACIDAD_LIMITADA",
-      "pasos_emergencia": 16,
+      "pasos_emergencia": 0,
       "pasos_cerrada": 260,
       "reasignaciones": {}
     }
@@ -246,7 +245,7 @@
     }
   },
   "generador": {
-    "capacidad_kw": 10.0,
+    "capacidad_kw": 22.0,
     "reserva": 0.2
   },
   "parametros_evaluacion": {
@@ -378,5 +377,42 @@
       "orientaciones": []
     }
   },
-  "zonas_personalizadas": {}
+  "zonas_personalizadas": {
+    "TG-H-113": {
+      "luminaria_w": 30
+    },
+    "TG-H-114": {
+      "luminaria_w": 30
+    },
+    "TG-H-115": {
+      "luminaria_w": 30
+    },
+    "TG-H-116": {
+      "luminaria_w": 30
+    },
+    "TG-H-117": {
+      "luminaria_w": 30
+    },
+    "TG-H-118": {
+      "luminaria_w": 30
+    },
+    "TG-H-119": {
+      "luminaria_w": 30
+    },
+    "TG-H-120": {
+      "luminaria_w": 30
+    },
+    "TG-H-121": {
+      "luminaria_w": 30
+    },
+    "TG-H-122": {
+      "luminaria_w": 30
+    },
+    "TG-H-123": {
+      "luminaria_w": 30
+    },
+    "TG-H-124": {
+      "luminaria_w": 30
+    }
+  }
 }

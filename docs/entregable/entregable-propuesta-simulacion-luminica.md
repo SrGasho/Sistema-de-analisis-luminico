@@ -131,7 +131,7 @@ energía en Wh y kWh
 energía por actividad y por torre
 hora pico y potencia pico del generador
 déficit residual (lux·h bajo el mínimo)
-energía no asignada (Wh que habrían cerrado ese déficit)
+energía no asignada (Wh que habrían cerrado ese déficit, hasta la potencia de la luminaria)
 zonas críticas (las 10 con más horas en déficit)
 horas con déficit por zona e instantes con déficit
 estado predominante de cada zona en la franja
@@ -498,7 +498,7 @@ Sin preferencia de orientación, `coincide_orientación` vale 1. Los pesos son `
 
 El costo es `O(G × F × log H)`, con `G` huéspedes a mover, `F` pisos permitidos y `H` habitaciones en el AVL, contra `O(G × H)` de revisar todas las habitaciones por huésped. En una prueba de carga sobre el escenario base, con 60 de las 78 habitaciones ocupadas marcadas `NO_HABITABLE`, el AVL hizo 2.792 comparaciones contra 6.240 de la búsqueda lineal, con 39 eliminaciones y ninguna habitación con sobrecupo; con restricciones mezcladas, 3.289 contra 6.240. La habitación elegida coincidió, huésped por huésped, con una búsqueda lineal que descuenta capacidad.
 
-La estrategia es greedy en el orden de las asignaciones y no garantiza un óptimo global. En el escenario base nadie se reasigna porque ninguna habitación ocupada queda `NO_HABITABLE`. `deficit_severo.json` muestra el caso sin candidata (`SIN_HABITACIONES_HABITABLES_LIBRES`, 22 huéspedes). `luminarias_danadas.json` deja con `luminaria_w = 0` las 16 habitaciones ocupadas de TP en los pisos 1 y 2 (`TP-H-101` a `TP-H-116`): quedan `NO_HABITABLE` por `DEFICIT_NOCTURNO` y sus 16 huéspedes se mueven; H-001 (`MISMA_TORRE`) va a `TP-H-120`, H-002 (`PISO_MAXIMO:2`) a `TG-H-112` y H-003 (`ORIENTACION:ESTE`) a `TG-H-101`. `reasignacion_restringida.json` deja sin luminaria las 24 habitaciones ocupadas de TP: 16 huéspedes con `MISMA_TORRE` llenan las 16 camas del piso 4 de TP, H-017 y H-018 reciben `SIN_CAPACIDAD`, H-019 y H-020 (además `PISO_MAXIMO:2`) reciben `RESTRICCIONES`, y H-021 a H-024 van a TG.
+La estrategia es greedy en el orden de las asignaciones y no garantiza un óptimo global. En el escenario base nadie se reasigna porque ninguna habitación ocupada queda `NO_HABITABLE`. `apagon_generador.json` muestra el caso sin candidata (`SIN_HABITACIONES_HABITABLES_LIBRES`, 78 huéspedes). En `deficit_severo.json` (4 kW) los 22 huéspedes de habitaciones no habitables reciben la cama libre de una habitación habitable. `luminarias_danadas.json` deja con `luminaria_w = 0` las 16 habitaciones ocupadas de TP en los pisos 1 y 2 (`TP-H-101` a `TP-H-116`): quedan `NO_HABITABLE` por `DEFICIT_NOCTURNO` y sus 16 huéspedes se mueven; H-001 (`MISMA_TORRE`) va a `TP-H-120`, H-002 (`PISO_MAXIMO:2`) a `TG-H-112` y H-003 (`ORIENTACION:ESTE`) a `TG-H-101`. `reasignacion_restringida.json` deja sin luminaria las 24 habitaciones ocupadas de TP: 16 huéspedes con `MISMA_TORRE` llenan las 16 camas del piso 4 de TP, H-017 y H-018 reciben `SIN_CAPACIDAD`, H-019 y H-020 (además `PISO_MAXIMO:2`) reciben `RESTRICCIONES`, y H-021 a H-024 van a TG.
 
 ## 5.4 Mejoras medidas y reestructuración
 
@@ -543,7 +543,7 @@ Reasignación lineal:           O(G × H)
 
 Valores medidos en el escenario base: 68 pares evaluados en el grafo contra 1.232 ingenuos; 1.029 nodos visitados en la franja 18:00–22:00 contra 6.096 resultados; en la prueba de carga de reasignación, 2.792 comparaciones del AVL contra 6.240 lineales.
 
-Los 10 casos de prueba están automatizados con `unittest` en `tests/test_casos_plan.py`. `tests/test_casos_json.py` ejecuta además el escenario base y los nueve casos de `data/casos_prueba/`. Son 22 pruebas; se ejecutan desde la raíz con `python -m unittest` y todas pasan.
+Los 10 casos de prueba están automatizados con `unittest` en `tests/test_casos_plan.py`. `tests/test_casos_json.py` ejecuta además el escenario base y los nueve casos de `data/casos_prueba/`. Son 23 pruebas; se ejecutan desde la raíz con `python -m unittest` y todas pasan.
 
 | # | Caso | Qué verifica |
 |---|---|---|
@@ -554,7 +554,7 @@ Los 10 casos de prueba están automatizados con `unittest` en `tests/test_casos_
 | 5 | Noche con luz natural cero y luminaria activa | De noche la luz natural y la reflejada son cero; una habitación ocupada recibe luz artificial y no queda en déficit. |
 | 6 | Generador suficiente para mínimos, pero no para todos los objetivos | Con una capacidad entre la suma de mínimos y la de objetivos, todas las zonas alcanzan su mínimo, ninguna entra en `EMERGENCIA` y se usa toda la capacidad. |
 | 7 | Habitación ocupada con déficit y habitación compatible disponible | Con una sola habitación habitable de una cama libre, el primer huésped la recibe, la habitación sale del AVL y los demás reciben `SIN_CAPACIDAD`. |
-| 8 | Habitación ocupada con déficit sin alternativa | `deficit_severo.json` da `SIN_HABITACIONES_HABITABLES_LIBRES`; con `MISMA_TORRE` y la única candidata en la otra torre, el motivo es `RESTRICCIONES`. |
+| 8 | Habitación ocupada con déficit sin alternativa | `apagon_generador.json` da `SIN_HABITACIONES_HABITABLES_LIBRES`; con `MISMA_TORRE` y la única candidata en la otra torre, el motivo es `RESTRICCIONES`. |
 | 9 | Zona cerrada y habitación en descanso sin falso déficit | `TP-COC-01` a las 02:00 está `CERRADA`, sin potencia y fuera del puntaje; `TP-H-101` a las 23:00 está `REDUCIDA` sin déficit. |
 | 10 | Clima nublado contra cielo despejado | `factor_luz = radiación / 7,063` y el cielo despejado da más luz natural que el nublado. |
 

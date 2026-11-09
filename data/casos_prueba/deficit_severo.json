@@ -1,25 +1,24 @@
 {
   "caso": {
     "nombre": "deficit_severo",
-    "historia": "Falla grave: el generador solo entrega 4 kW para todo el hotel durante la noche.",
+    "historia": "Falla grave: el generador solo entrega 4 kW para todo el hotel.",
     "que_se_espera": [
-      "La mayoría de las zonas quedan NO_HABITABLE por déficit nocturno.",
-      "Habitaciones, cocinas y recreaciones entran en EMERGENCIA; el parqueadero no, porque va primero.",
-      "Solo los 3 parqueaderos quedan HABITABLE, así que los huéspedes en habitaciones no habitables no tienen a dónde ir (SIN_HABITACIONES_HABITABLES_LIBRES)."
+      "El generador va primero a los parqueaderos y luego a las habitaciones ocupadas, con más prioridad cuanto más alto es el piso. Quedan HABITABLE los 3 parqueaderos y 56 habitaciones ocupadas de los pisos 2 en adelante.",
+      "Las 68 zonas restantes entran en EMERGENCIA y quedan NO_HABITABLE por déficit nocturno: las 20 habitaciones ocupadas del piso 1, 2 del piso 2 de TG, las 26 habitaciones vacías, las 10 cocinas y las 10 recreaciones.",
+      "Los 22 huéspedes de habitaciones no habitables reciben la cama libre de una habitación habitable que ya tiene un huésped."
     ],
     "resultado_esperado": {
       "conteo_veredictos": {
-        "CASI_HABITABLE": 56,
-        "HABITABLE": 3,
+        "HABITABLE": 59,
         "NO_HABITABLE": 68
       },
-      "puntaje_hotel": 0.7812,
+      "puntaje_hotel": 0.86,
       "energia_wh": 96000.0,
       "estado_generador": "CAPACIDAD_LIMITADA",
       "pasos_emergencia": 660,
       "pasos_cerrada": 260,
       "reasignaciones": {
-        "NO_HAY_ALTERNATIVA:SIN_HABITACIONES_HABITABLES_LIBRES": 22
+        "PROPUESTA:PROPUESTA": 22
       }
     }
   },

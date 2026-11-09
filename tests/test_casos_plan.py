@@ -168,7 +168,7 @@ class CasosDelPlan(unittest.TestCase):
         self.assertLess(estadisticas["comparaciones_avl"], estadisticas["comparaciones_lineales"])
 
     def test_08_habitacion_ocupada_con_deficit_sin_alternativa(self):
-        sim = simulador(leer("casos_prueba/deficit_severo.json"))
+        sim = simulador(leer("casos_prueba/apagon_generador.json"))
         _, _, propuestas = sim.ejecutar()
         self.assertTrue(propuestas)
         self.assertTrue(all(p["estado"] == "NO_HAY_ALTERNATIVA" and p["motivo"] == "SIN_HABITACIONES_HABITABLES_LIBRES" for p in propuestas))

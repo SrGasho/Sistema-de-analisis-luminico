@@ -5,6 +5,7 @@ from collections import Counter, defaultdict
 from .modelo import Actividad, EstadoIluminacion, ModoOperacion, PerfilIluminacion, ResultadoIluminacion, ZonaHotel
 
 ZONAS_SIN_VENTANAS = {Actividad.PARQUEADERO}
+TOLERANCIA_LUX = 1e-9
 
 
 def datos_zona_completos(zona: ZonaHotel) -> bool:
@@ -23,14 +24,15 @@ def estado_predominante(resultados: list[ResultadoIluminacion]) -> EstadoIlumina
 
 
 def clasificar(nivel: float, perfil: PerfilIluminacion, modo: ModoOperacion) -> EstadoIluminacion:
+    """La tolerancia evita que el redondeo de vatios a lux deje justo bajo el mínimo a una zona que lo alcanzó."""
     minimo, _, maximo = perfil.para_modo(modo)
-    if nivel < 0.5 * minimo:
+    if nivel < 0.5 * minimo - TOLERANCIA_LUX:
         return EstadoIluminacion.DEFICIT_SEVERO
-    if nivel < minimo:
+    if nivel < minimo - TOLERANCIA_LUX:
         return EstadoIluminacion.DEFICIT_LEVE
-    if nivel <= maximo:
+    if nivel <= maximo + TOLERANCIA_LUX:
         return EstadoIluminacion.CONFORTABLE
-    if nivel <= 1.25 * maximo:
+    if nivel <= 1.25 * maximo + TOLERANCIA_LUX:
         return EstadoIluminacion.EXCESO_LEVE
     return EstadoIluminacion.EXCESO_SEVERO
 

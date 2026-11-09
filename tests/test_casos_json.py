@@ -5,6 +5,7 @@ from pathlib import Path
 
 from src.api import ejecutar_balance
 from src.io_datos import cargar_hotel_data
+from src.modelo import ModoOperacion
 
 CASOS = Path(__file__).resolve().parent.parent / "data" / "casos_prueba"
 BASE = Path(__file__).resolve().parent.parent / "data" / "datos_hotel.json"
@@ -101,24 +102,33 @@ class CasosJson(unittest.TestCase):
 
     def test_deficit_leve(self):
         v = self.veredictos("deficit_leve")
-        base = self.veredictos("base")
-        empeoran = [z for z in v.values() if z["veredicto"] != "HABITABLE" and base[z["zona_id"]]["veredicto"] == "HABITABLE"]
-        self.assertTrue(empeoran)
-        self.assertTrue(all(z["puntaje_noche"] < base[z["zona_id"]]["puntaje_noche"] for z in empeoran))
-        emergencia = {x["zona_id"].split("-")[1] for x in self.pasos("deficit_leve", lambda x: x["modo"] == "EMERGENCIA")}
-        self.assertEqual(emergencia, {"REC"})
-        self.assertEqual(self.pasos("deficit_leve", lambda x: "-PAR-" in x["zona_id"] and x["estado"].startswith("DEFICIT")), [])
-        self.assertTrue(all(v[h]["veredicto"] != "NO_HABITABLE" for h in self.ocupadas("deficit_leve")))
+        viejas = {f"TG-H-{n}" for n in range(113, 125)}
+        self.assertEqual({z for z in v if v[z]["veredicto"] != "HABITABLE"}, viejas)
+        self.assertTrue(all(v[h]["veredicto"] == "CASI_HABITABLE" and v[h]["causa"] == "DEFICIT_NOCTURNO" for h in viejas))
+        estados = {x["estado"] for x in self.pasos("deficit_leve", lambda x: x["estado"].startswith("DEFICIT"))}
+        self.assertEqual(estados, {"DEFICIT_LEVE"})
+        self.assertEqual(self.pasos("deficit_leve", lambda x: x["modo"] == "EMERGENCIA"), [])
+        self.assertEqual(self.r("deficit_leve")["reasignaciones"], [])
+
+    def test_sin_deficit_por_redondeo(self):
+        for nombre in self.resultados:
+            hotel = cargar_hotel_data(leer(nombre) if nombre != "base" else json.loads(BASE.read_text(encoding="utf-8")))
+            with self.subTest(caso=nombre):
+                for x in self.pasos(nombre, lambda x: x["estado"] == "DEFICIT_LEVE" and x["modo"] != "EMERGENCIA"):
+                    minimo = hotel.perfiles_iluminacion[hotel.zonas[x["zona_id"]].actividad].para_modo(ModoOperacion(x["modo"]))[0]
+                    self.assertLess(x["luz_total"], minimo - 1e-6, x)
 
     def test_deficit_severo(self):
         v = self.veredictos("deficit_severo")
         no_habitables = [z for z in v.values() if z["veredicto"] == "NO_HABITABLE"]
         self.assertGreater(len(no_habitables), len(v) / 2)
         self.assertTrue(all(z["causa"] == "DEFICIT_NOCTURNO" for z in no_habitables))
-        self.assertEqual({z for z in v if v[z]["veredicto"] == "HABITABLE"}, {"TP-PAR-01", "TG-PAR-01", "TG-PAR-02"})
+        self.assertTrue({"TP-PAR-01", "TG-PAR-01", "TG-PAR-02"} <= {z for z in v if v[z]["veredicto"] == "HABITABLE"})
         self.assertEqual(self.pasos("deficit_severo", lambda x: "-PAR-" in x["zona_id"] and x["modo"] == "EMERGENCIA"), [])
-        motivos = {p["motivo"] for p in self.r("deficit_severo")["reasignaciones"]}
-        self.assertEqual(motivos, {"SIN_HABITACIONES_HABITABLES_LIBRES"})
+        propuestas = self.r("deficit_severo")["reasignaciones"]
+        ocupadas = self.ocupadas("deficit_severo")
+        self.assertEqual(len(propuestas), len([h for h in ocupadas if v[h]["veredicto"] == "NO_HABITABLE"]))
+        self.assertTrue(all(p["estado"] == "PROPUESTA" and p["habitacion_propuesta"] in ocupadas for p in propuestas))
 
     def test_apagon_generador(self):
         r = self.r("apagon_generador")
@@ -163,6 +173,9 @@ class CasosJson(unittest.TestCase):
         self.assertEqual(hotel.habitaciones[propuestas["H-001"]["habitacion_propuesta"]].torre_id, "TP")
         self.assertLessEqual(hotel.habitaciones[propuestas["H-002"]["habitacion_propuesta"]].piso, 2)
         self.assertEqual(hotel.habitaciones[propuestas["H-003"]["habitacion_propuesta"]].ventanas[0].normal.x, 1)
+        dia = r["temporal"][0]
+        self.assertEqual(dia["zonas_con_deficit"], 16)
+        self.assertEqual(dia["energia_no_asignada_wh"], 0.0)
 
     def test_reasignacion_restringida(self):
         propuestas = {p["huesped_id"]: p for p in self.r("reasignacion_restringida")["reasignaciones"]}

@@ -85,10 +85,10 @@ Desde la raíz del repositorio:
 python3 -m unittest
 ```
 
-Son 22 pruebas en dos archivos y tardan unos 8 segundos:
+Son 23 pruebas en dos archivos y tardan unos 8 segundos:
 
 - `tests/test_casos_plan.py` cubre los 10 casos de prueba del plan del proyecto: ventana al sol sin obstáculo (además comprueba que directa horizontal + difusa horizontal = `G`), ventana sombreada por la otra torre, transmisión con cada vidrio (incluye Snell y Fresnel), luz reflejada (aristas solo de fachada a ventanas de la otra torre, peso ≤ reflectancia, reflejada = exterior + interior, pared oscura con menos reflejada que una blanca), noche, generador que alcanza para mínimos pero no para objetivos, reasignación con y sin candidata, zona cerrada y cielo nublado contra despejado.
-- `tests/test_casos_json.py` ejecuta el escenario base y cada caso de `data/casos_prueba/`. Comprueba que el resultado coincida con el bloque `caso.resultado_esperado` del JSON, que se cumplan las reglas comunes (de noche no hay luz natural, una zona cerrada no consume, un paso en emergencia cuenta como déficit, el generador no se pasa de su capacidad, ninguna habitación recibe más huéspedes que camas libres) y el comportamiento propio de cada caso.
+- `tests/test_casos_json.py` ejecuta el escenario base y cada caso de `data/casos_prueba/`. Comprueba que el resultado coincida con el bloque `caso.resultado_esperado` del JSON, que se cumplan las reglas comunes (de noche no hay luz natural, una zona cerrada no consume, un paso en emergencia cuenta como déficit, el generador no se pasa de su capacidad, ninguna habitación recibe más huéspedes que camas libres, ningún déficit sale de un error de redondeo) y el comportamiento propio de cada caso.
 
 ### Casos de prueba
 
@@ -102,8 +102,8 @@ Los resultados de los casos se dan como habitables / casi habitables / no habita
 |---|---|---|
 | `temporada_lluvias` | Abril, cielo cubierto | 127/0/0; la energía sube a 210.495,2 Wh porque hay menos luz natural. |
 | `generador_alta_demanda` | Generador de 17 kW | 127/0/0, los mismos veredictos del escenario base, pero el generador queda en `ALTA_DEMANDA`. |
-| `deficit_leve` | Generador de 10 kW | 73/53/1; las zonas empeoran por la noche; solo las recreaciones entran en `EMERGENCIA` (16 pasos) y `TG-REC-06` queda no habitable; el parqueadero nunca queda en déficit. |
-| `deficit_severo` | Generador de 4 kW | 3/56/68; 660 pasos en `EMERGENCIA`; 22 huéspedes sin alternativa porque solo los parqueaderos quedan habitables. |
+| `deficit_leve` | Las 12 habitaciones ocupadas del piso 2 de TG (`TG-H-113` a `TG-H-124`) con luminarias viejas de 30 W (`luminaria_w = 30`) | 115/12/0; con 30 W dan como máximo 70 lux, entre la mitad del mínimo y el mínimo de 100, así que las 12 quedan casi habitables por `DEFICIT_NOCTURNO`; ningún paso es `DEFICIT_SEVERO`, nadie entra en `EMERGENCIA` y nadie se reasigna. |
+| `deficit_severo` | Generador de 4 kW | 59/0/68; el generador alcanza para los parqueaderos y las habitaciones ocupadas de los pisos 2 en adelante; las del piso 1, las vacías, cocinas y recreaciones pasan 660 pasos en `EMERGENCIA`; los 22 huéspedes de habitaciones no habitables reciben la cama libre de una habitación habitable. |
 | `apagon_generador` | Generador de 0 kW | 0/0/127; los 78 huéspedes sin alternativa. |
 | `cielo_despejado` | Febrero con cielo despejado | 75/52/0; las 52 casi habitables son habitaciones con ventana al este o al oeste, con causa `EXCESO_SOLAR` por el sol bajo de la mañana o de la tarde; nadie se reasigna. |
 | `exceso_severo` | Cielo despejado y las 24 habitaciones ocupadas de TP con vidrio claro y ventana al este | 69/58/0; 18 de esas 24 quedan casi habitables, con `EXCESO_SEVERO` entre las 6:30 y las 10:00; las otras 6 siguen habitables porque TG les hace sombra en la mañana; nadie se reasigna. |
@@ -130,7 +130,7 @@ En una prueba de carga sobre el escenario base, con 60 de las 78 habitaciones oc
 
 Cada resultado de la simulación se inserta en un árbol rojo-negro con clave `(hora, zona_id)` apenas se calcula. Una franja `[inicio, fin)` se consulta con un recorrido de rango en `O(log R + k)`, contra `O(R)` de recorrer la lista.
 
-Las franjas fijas son: día completo, 00–06, 06–12, 12–18, 18–22 y 22–24. Para cada una se reporta energía en Wh y kWh, energía por actividad y por torre, hora y potencia pico del generador, déficit residual (lux·h bajo el mínimo), energía no asignada (Wh que habrían cerrado ese déficit), zonas críticas (las 10 con más horas en déficit), horas con déficit por zona, instantes con déficit y estado predominante de cada zona.
+Las franjas fijas son: día completo, 00–06, 06–12, 12–18, 18–22 y 22–24. Para cada una se reporta energía en Wh y kWh, energía por actividad y por torre, hora y potencia pico del generador, déficit residual (lux·h bajo el mínimo), energía no asignada (Wh que habrían cerrado ese déficit, sin pasar de la potencia de la luminaria), zonas críticas (las 10 con más horas en déficit), horas con déficit por zona, instantes con déficit y estado predominante de cada zona.
 
 En `/api/balancear` los mismos resultados se insertan también en un AVL para comparar rotaciones:
 

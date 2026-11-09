@@ -81,7 +81,8 @@ def reporte_franja(hotel: Hotel, indice: IndiceTemporal, etiqueta: str, inicio: 
             deficit_lux_h += faltante * paso_horas
             conversion = _conversion(hotel, resultado.zona_id)
             if conversion > 0:
-                no_asignada_wh += faltante / conversion * paso_horas
+                margen = max(0.0, hotel.fuentes[zona.fuente_id].potencia_maxima - resultado.potencia_asignada)
+                no_asignada_wh += min(faltante / conversion, margen) * paso_horas
 
     hora_pico, potencia_pico = max(potencia_por_hora.items(), key=lambda item: (item[1], -item[0]), default=(None, 0.0))
     criticas = sorted(horas_deficit.items(), key=lambda item: (-item[1], item[0]))[:10]

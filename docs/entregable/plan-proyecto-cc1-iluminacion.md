@@ -381,7 +381,7 @@ Todas las entregas pasan por un `Reparto` (`balance.py`), que guarda en `usado` 
 
 El peso sólo determina prioridad. No convierte una zona oscura en confortable.
 
-En el escenario base el generador de 22 kW alcanza: el pico es 15.933,7 W a las 18:00, la demanda objetivo máxima es 18.110,7 W y ninguna zona entra en `EMERGENCIA`. Con un generador de 10 kW (`deficit_leve.json`) solo las recreaciones entran en `EMERGENCIA` (16 pasos), el parqueadero nunca queda en déficit por su prioridad de seguridad y las habitaciones ocupadas siguen habitables.
+En el escenario base el generador de 22 kW alcanza: el pico es 15.933,7 W a las 18:00, la demanda objetivo máxima es 18.110,7 W y ninguna zona entra en `EMERGENCIA`. Con un generador de 4 kW (`deficit_severo.json`) el parqueadero nunca queda en déficit por su prioridad de seguridad, las habitaciones ocupadas de los pisos 2 en adelante siguen habitables y las demás zonas pasan 660 pasos en `EMERGENCIA`.
 
 ## 11. Métricas y complejidad
 
@@ -442,18 +442,18 @@ Los 10 casos son pruebas automáticas con `unittest` en `tests/test_casos_plan.p
 | 5 | Noche con luz natural cero y luminaria artificial activa | Natural y reflejada son cero de noche y una habitación ocupada no queda en déficit a las 20:00. |
 | 6 | Generador suficiente para mínimos pero insuficiente para todos los objetivos | Con la capacidad entre la suma de mínimos y la de objetivos, todas las zonas reciben su mínimo, ninguna entra en `EMERGENCIA` y se usa toda la capacidad. |
 | 7 | Habitación ocupada `NO_HABITABLE` con habitación compatible disponible | Para controlar exactamente cuántas camas quedan libres, se arma con veredictos modificados sobre el escenario base (`luminarias_danadas.json` muestra el caso con datos completos): todas las habitaciones quedan `NO_HABITABLE` menos una ocupada con una cama libre. El primer huésped la recibe, la habitación sale del AVL y los demás reciben `SIN_CAPACIDAD`. El AVL hace menos comparaciones que la búsqueda lineal. |
-| 8 | Habitación ocupada `NO_HABITABLE` sin alternativa disponible | Con `deficit_severo.json` todas las propuestas son `SIN_HABITACIONES_HABITABLES_LIBRES`. Aparte, un huésped con `MISMA_TORRE` y la única candidata en la otra torre recibe `RESTRICCIONES`. |
+| 8 | Habitación ocupada `NO_HABITABLE` sin alternativa disponible | Con `apagon_generador.json` las 78 propuestas son `SIN_HABITACIONES_HABITABLES_LIBRES`. Aparte, un huésped con `MISMA_TORRE` y la única candidata en la otra torre recibe `RESTRICCIONES`. |
 | 9 | Zona cerrada y habitación en descanso sin falso déficit | La cocina a las 02:00 está `CERRADA`, sin energía y fuera del puntaje; la habitación a las 23:00 está `REDUCIDA` sin déficit. |
 | 10 | Comparación entre clima nublado y cielo despejado | `factor_luz` es radiación / 7,063 y la luz natural con cielo despejado supera la del nublado. |
 
-Además, `tests/test_casos_json.py` ejecuta el escenario base y los nueve casos de `data/casos_prueba/` y compara cada uno con el bloque `caso.resultado_esperado` de su JSON. En total son 22 pruebas. Resultados, como habitables / casi habitables / no habitables:
+Además, `tests/test_casos_json.py` ejecuta el escenario base y los nueve casos de `data/casos_prueba/` y compara cada uno con el bloque `caso.resultado_esperado` de su JSON. En total son 23 pruebas. Resultados, como habitables / casi habitables / no habitables:
 
 | Caso | Situación | Resultado |
 |---|---|---|
 | `temporada_lluvias` | Abril, cielo cubierto | 127/0/0; nadie se reasigna. |
 | `generador_alta_demanda` | Generador de 17 kW | 127/0/0; generador en `ALTA_DEMANDA`. |
-| `deficit_leve` | Generador de 10 kW | 73/53/1; solo recreaciones en `EMERGENCIA` (16 pasos). |
-| `deficit_severo` | Generador de 4 kW | 3/56/68; 660 pasos en `EMERGENCIA`; 22 huéspedes sin alternativa. |
+| `deficit_leve` | 12 habitaciones de TG con luminarias de 30 W | 115/12/0; déficit nocturno leve, sin `EMERGENCIA` ni reasignaciones. |
+| `deficit_severo` | Generador de 4 kW | 59/0/68; 660 pasos en `EMERGENCIA`; 22 huéspedes reasignados. |
 | `apagon_generador` | Generador de 0 kW | 0/0/127; 78 huéspedes sin alternativa. |
 | `cielo_despejado` | Febrero con cielo despejado | 75/52/0; causa `EXCESO_SOLAR` en habitaciones con ventana al este u oeste; nadie se reasigna. |
 | `exceso_severo` | Cielo despejado; 24 habitaciones ocupadas de TP con vidrio claro y ventana al este | 69/58/0; 18 de esas 24 quedan casi habitables con `EXCESO_SEVERO` entre las 6:30 y las 10:00; 6 siguen habitables porque TG les hace sombra en la mañana; nadie se reasigna. |
