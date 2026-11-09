@@ -73,7 +73,7 @@ Los resultados son propuestas. La propuesta de reestructuración se puede cargar
 
 ### 2.5 Interfaz web y pruebas
 
-La interfaz web (`web/`, servida con `python -m src.api`) se organiza en seis pestañas: configurar, diagnóstico, plano por torre y piso con selector de franja horaria, balance, mejoras (mejoras medidas y reestructuración) y detalle técnico (estructuras de datos con sus conteos de comparaciones y rotaciones). Tiene modo oscuro y claro. `python -m unittest` ejecuta 24 pruebas: los 10 casos de prueba del Plan y los nueve escenarios de `data/casos_prueba/`, cada uno con su historia y su resultado esperado.
+La interfaz web (`web/`, servida con `python -m src.api`) se organiza en seis pestañas: configurar, diagnóstico, plano por torre y piso con selector de franja horaria, balance, mejoras (mejoras medidas y reestructuración) y detalle técnico (estructuras de datos con sus conteos de comparaciones y rotaciones). Tiene modo oscuro y claro. `python -m unittest` ejecuta 25 pruebas: los 10 casos de prueba del Plan y los diez escenarios de `data/casos_prueba/`, cada uno con su historia y su resultado esperado.
 
 ## 3. Datos sintéticos comunes
 

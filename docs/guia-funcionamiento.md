@@ -1068,6 +1068,7 @@ En el escenario base:
 | Caso | Habitables / casi / no | Puntaje del hotel | Causas |
 |---|---|---|---|
 | Escenario base | 127 / 0 / 0 | 0,9718 | — |
+| `mayo_nublado` | 127 / 0 / 0 | 0,9996 | — |
 | `cielo_despejado` | 75 / 52 / 0 | 0,9236 | 52 casi por `EXCESO_SOLAR` |
 | `exceso_severo` | 69 / 58 / 0 | 0,9152 | 58 casi por `EXCESO_SOLAR` |
 | `deficit_leve` | 115 / 12 / 0 | 0,9621 | 12 casi por `DEFICIT_NOCTURNO` |

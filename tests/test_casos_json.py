@@ -145,6 +145,24 @@ class CasosJson(unittest.TestCase):
         self.assertEqual(r["resumen"]["energia_total_wh"], 0.0)
         self.assertEqual(len(r["reasignaciones"]), 78)
 
+    def test_mayo_nublado_el_sol_va_por_el_norte(self):
+        self.assertEqual(self.r("mayo_nublado")["habitabilidad"]["conteo"], {"HABITABLE": 127})
+
+        def energia_por_ventana(nombre):
+            hotel = cargar_hotel_data(leer(nombre) if nombre != "base" else json.loads(BASE.read_text(encoding="utf-8")))
+            energia = Counter()
+            for h in hotel.habitaciones.values():
+                energia[(h.ventanas[0].normal.x, h.ventanas[0].normal.y)] += self.r(nombre)["resumen_zonas"][h.id]["energia_wh"]
+            return energia[(0, 1)], energia[(0, -1)]
+
+        norte, sur = energia_por_ventana("base")
+        self.assertGreater(norte, sur)
+        norte, sur = energia_por_ventana("mayo_nublado")
+        self.assertLess(norte, sur)
+        mediodia = {x["zona_id"]: x for x in self.pasos("mayo_nublado", lambda x: x["hora"] == 12.0)}
+        self.assertEqual(mediodia["TP-H-102"]["potencia_asignada"], 0.0)
+        self.assertGreater(mediodia["TP-H-104"]["potencia_asignada"], 0.0)
+
     def test_cielo_despejado(self):
         v = self.veredictos("cielo_despejado")
         hotel = cargar_hotel_data(leer("cielo_despejado"))

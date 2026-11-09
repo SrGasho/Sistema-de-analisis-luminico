@@ -3,7 +3,8 @@
     "nombre": "exceso_severo",
     "historia": "Cielo despejado y las 24 habitaciones ocupadas de la Torre Pequeña (TP-H-101 a TP-H-124) con vidrio claro y ventana al este, de cara al sol de la mañana.",
     "que_se_espera": [
-      "La mayoría de esas habitaciones pasa de las 6:30 a las 10:00 en EXCESO_SEVERO (más de 375 lux) y queda CASI_HABITABLE; las que tienen la Torre Grande enfrente reciben su sombra en la mañana y siguen HABITABLE.",
+      "18 de esas 24 habitaciones pasan entre las 6:30 y las 10:00 en EXCESO_SEVERO (más de 375 lux) y quedan CASI_HABITABLE.",
+      "Las otras 6 (TP-H-104, TP-H-106, TP-H-108, TP-H-112, TP-H-114 y TP-H-116, de los pisos 1 y 2) quedan en la sombra de la Torre Grande en la mañana y siguen HABITABLE.",
       "Aunque el exceso es severo, dura unas cuatro horas: no basta para que la habitación sea NO_HABITABLE, así que nadie se reasigna.",
       "El reporte las marca con causa EXCESO_SOLAR y recomienda protección solar."
     ],

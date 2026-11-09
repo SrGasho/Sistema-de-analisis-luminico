@@ -1,0 +1,380 @@
+{
+  "caso": {
+    "nombre": "mayo_nublado",
+    "historia": "15 de mayo en Bogotá: cielo nublado (85,8 % de nubosidad, 4,477 kWh/m²/día). En mayo la declinación del sol es +18,8°, mayor que la latitud de Bogotá (4,7°), así que el sol del mediodía pasa por el norte, a 75,9° de altura. El resto es el escenario base.",
+    "que_se_espera": [
+      "Todas las zonas son habitables.",
+      "Se invierte lo que pasa en febrero: las habitaciones con ventana al norte reciben sol directo y las de ventana al sur no. A las 12:00, TP-H-102 (norte) no necesita luz artificial y TP-H-104 (sur) necesita 14,2 W.",
+      "Por eso las habitaciones con ventana al sur son las que más energía gastan en el día, cuando en febrero eran las del norte.",
+      "Nadie se reasigna."
+    ],
+    "resultado_esperado": {
+      "conteo_veredictos": {
+        "HABITABLE": 127
+      },
+      "puntaje_hotel": 0.9996,
+      "energia_wh": 206211.6,
+      "estado_generador": "OPERACION_NORMAL",
+      "pasos_emergencia": 0,
+      "pasos_cerrada": 260,
+      "reasignaciones": {}
+    }
+  },
+  "hotel": {
+    "id": "HOTEL-BOGOTA-MAYO-NUBLADO",
+    "perfil_climatico": "NUBLADO"
+  },
+  "torres": [
+    {
+      "id": "TP",
+      "nombre": "Torre Pequeña",
+      "fachada": "GRIS_CLARO",
+      "area_referencia": 4013,
+      "pisos": 4,
+      "habitaciones_por_piso": 8,
+      "habitaciones_ocupadas": 24,
+      "caja": {
+        "min_x": 0,
+        "max_x": 32,
+        "min_y": 0,
+        "max_y": 31.35,
+        "min_z": 0,
+        "max_z": 12
+      },
+      "zonas_comunes": [
+        {
+          "codigo": "COC",
+          "actividad": "COCINA",
+          "cantidad": 4,
+          "area": 35,
+          "ventanas": 2,
+          "area_ventana": 1.5
+        },
+        {
+          "codigo": "REC",
+          "actividad": "RECREACION",
+          "cantidad": 4,
+          "area": 80,
+          "ventanas": 3,
+          "area_ventana": 2.0
+        },
+        {
+          "codigo": "PAR",
+          "actividad": "PARQUEADERO",
+          "cantidad": 1,
+          "area": 450,
+          "ventanas": 0,
+          "area_ventana": 0
+        }
+      ]
+    },
+    {
+      "id": "TG",
+      "nombre": "Torre Grande",
+      "fachada": "GRIS_CLARO",
+      "area_referencia": 11346,
+      "pisos": 6,
+      "habitaciones_por_piso": 12,
+      "habitaciones_ocupadas": 54,
+      "caja": {
+        "min_x": 45,
+        "max_x": 89,
+        "min_y": 0,
+        "max_y": 43,
+        "min_z": 0,
+        "max_z": 18
+      },
+      "zonas_comunes": [
+        {
+          "codigo": "COC",
+          "actividad": "COCINA",
+          "cantidad": 6,
+          "area": 35,
+          "ventanas": 2,
+          "area_ventana": 1.5
+        },
+        {
+          "codigo": "REC",
+          "actividad": "RECREACION",
+          "cantidad": 6,
+          "area": 80,
+          "ventanas": 3,
+          "area_ventana": 2.0
+        },
+        {
+          "codigo": "PAR",
+          "actividad": "PARQUEADERO",
+          "cantidad": 2,
+          "area": 450,
+          "ventanas": 0,
+          "area_ventana": 0
+        }
+      ]
+    }
+  ],
+  "perfiles_iluminacion": {
+    "HABITACION": {
+      "minimo": 100,
+      "objetivo": 200,
+      "maximo": 300,
+      "prioridad": 3
+    },
+    "COCINA": {
+      "minimo": 300,
+      "objetivo": 400,
+      "maximo": 500,
+      "prioridad": 3
+    },
+    "RECREACION": {
+      "minimo": 200,
+      "objetivo": 300,
+      "maximo": 500,
+      "prioridad": 2
+    },
+    "PARQUEADERO": {
+      "minimo": 50,
+      "objetivo": 100,
+      "maximo": 150,
+      "prioridad": 1
+    }
+  },
+  "perfiles_climaticos": {
+    "NUBES_PARCIALES": {
+      "dia_del_anio": 46,
+      "radiacion": 4.863,
+      "nubosidad": 0.7089,
+      "precipitacion": 2.51
+    },
+    "NUBLADO": {
+      "dia_del_anio": 135,
+      "radiacion": 4.477,
+      "nubosidad": 0.8582,
+      "precipitacion": 6.68
+    },
+    "LLUVIOSO": {
+      "dia_del_anio": 105,
+      "radiacion": 4.454,
+      "nubosidad": 0.8487,
+      "precipitacion": 6.97
+    },
+    "CIELO_DESPEJADO": {
+      "dia_del_anio": 46,
+      "radiacion": 7.063,
+      "nubosidad": 0.0,
+      "precipitacion": 0.0
+    }
+  },
+  "vidrios": {
+    "VIDRIO_CLARO": {
+      "transmitancia_visible": 0.82,
+      "indice_refraccion": 1.5
+    },
+    "VIDRIO_LOW_E": {
+      "transmitancia_visible": 0.71,
+      "indice_refraccion": 1.5
+    },
+    "VIDRIO_CONTROL_SOLAR": {
+      "transmitancia_visible": 0.52,
+      "indice_refraccion": 1.5
+    }
+  },
+  "paredes": {
+    "BLANCO": {
+      "reflectancia": 0.8
+    },
+    "CREMA": {
+      "reflectancia": 0.7
+    },
+    "GRIS_CLARO": {
+      "reflectancia": 0.6
+    },
+    "GRIS_MEDIO": {
+      "reflectancia": 0.45
+    },
+    "OSCURO": {
+      "reflectancia": 0.25
+    }
+  },
+  "horarios": {
+    "HABITACION": {
+      "inicio_activa": 6,
+      "fin_activa": 22
+    },
+    "COCINA": {
+      "inicio_activa": 6,
+      "fin_activa": 22,
+      "cierre_inicio": 23,
+      "cierre_fin": 5
+    },
+    "RECREACION": {
+      "inicio_activa": 8,
+      "fin_activa": 23,
+      "cierre_inicio": 0,
+      "cierre_fin": 7
+    },
+    "PARQUEADERO": {
+      "inicio_activa": 0,
+      "fin_activa": 24
+    }
+  },
+  "luminarias": {
+    "HABITACION": {
+      "potencia_w": 72,
+      "eficacia_lm_w": 100,
+      "cu": 0.7,
+      "mf": 0.8
+    },
+    "COCINA": {
+      "potencia_w": 200,
+      "eficacia_lm_w": 100,
+      "cu": 0.7,
+      "mf": 0.8
+    },
+    "RECREACION": {
+      "potencia_w": 450,
+      "eficacia_lm_w": 100,
+      "cu": 0.7,
+      "mf": 0.8
+    },
+    "PARQUEADERO": {
+      "potencia_w": 720,
+      "eficacia_lm_w": 100,
+      "cu": 0.7,
+      "mf": 0.8
+    }
+  },
+  "generador": {
+    "capacidad_kw": 22.0,
+    "reserva": 0.2
+  },
+  "parametros_evaluacion": {
+    "ubicacion": {
+      "latitud": 4.711,
+      "longitud": -74.072
+    },
+    "luz": {
+      "lux_por_irradiancia": 900.0,
+      "radiacion_cielo_despejado": 7.063,
+      "reflectancia_suelo": 0.2
+    },
+    "emergencia": {
+      "nivel_lux": 10.0
+    },
+    "puntaje": {
+      "q_confortable": 1.0,
+      "q_leve": 0.5,
+      "q_severo": 0.0
+    },
+    "habitabilidad": {
+      "umbral_habitable": 0.9,
+      "umbral_casi": 0.75,
+      "maximo_deficit_severo": 0.05
+    },
+    "reasignacion": {
+      "w_luz": 0.5,
+      "w_actividad": 0.2,
+      "w_energia": 0.2,
+      "w_cambio": 0.1
+    },
+    "reestructuracion": {
+      "presupuesto_evaluaciones": 30,
+      "rondas_maximas": 3,
+      "paredes": [
+        "BLANCO",
+        "CREMA",
+        "GRIS_CLARO"
+      ],
+      "vidrios": [
+        "VIDRIO_CLARO",
+        "VIDRIO_LOW_E",
+        "VIDRIO_CONTROL_SOLAR"
+      ],
+      "orientaciones": [
+        [
+          "ESTE",
+          "NORTE",
+          "OESTE",
+          "SUR"
+        ],
+        [
+          "ESTE",
+          "NORTE",
+          "OESTE"
+        ],
+        [
+          "NORTE",
+          "SUR"
+        ]
+      ],
+      "fracciones_objetivo": [
+        0.0,
+        0.5,
+        1.0
+      ],
+      "horarios": {
+        "COCINA": {
+          "inicio_activa": [
+            6,
+            8
+          ],
+          "fin_activa": [
+            22,
+            24
+          ]
+        },
+        "RECREACION": {
+          "inicio_activa": [
+            8,
+            10
+          ],
+          "fin_activa": [
+            22,
+            23
+          ]
+        }
+      }
+    }
+  },
+  "huespedes": {
+    "total": 78,
+    "actividad": "HABITACION",
+    "prioridad": 1.0
+  },
+  "asignaciones": [],
+  "acabados": {
+    "HABITACION": {
+      "pared": "BLANCO",
+      "vidrio": "VIDRIO_CLARO",
+      "orientaciones": [
+        "ESTE",
+        "NORTE",
+        "OESTE",
+        "SUR"
+      ]
+    },
+    "COCINA": {
+      "pared": "BLANCO",
+      "vidrio": "VIDRIO_LOW_E",
+      "orientaciones": [
+        "ESTE",
+        "NORTE",
+        "OESTE"
+      ]
+    },
+    "RECREACION": {
+      "pared": "BLANCO",
+      "vidrio": "VIDRIO_LOW_E",
+      "orientaciones": [
+        "ESTE",
+        "NORTE",
+        "OESTE"
+      ]
+    },
+    "PARQUEADERO": {
+      "pared": "BLANCO",
+      "vidrio": null,
+      "orientaciones": []
+    }
+  },
+  "zonas_personalizadas": {}
+}

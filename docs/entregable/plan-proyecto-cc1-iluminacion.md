@@ -446,11 +446,12 @@ Los 10 casos son pruebas automáticas con `unittest` en `tests/test_casos_plan.p
 | 9 | Zona cerrada y habitación en descanso sin falso déficit | La cocina a las 02:00 está `CERRADA`, sin energía y fuera del puntaje; la habitación a las 23:00 está `REDUCIDA` sin déficit. |
 | 10 | Comparación entre clima nublado y cielo despejado | `factor_luz` es radiación / 7,063 y la luz natural con cielo despejado supera la del nublado. |
 
-Además, `tests/test_casos_json.py` ejecuta el escenario base y los nueve casos de `data/casos_prueba/` y compara cada uno con el bloque `caso.resultado_esperado` de su JSON. En total son 24 pruebas. Resultados, como habitables / casi habitables / no habitables:
+Además, `tests/test_casos_json.py` ejecuta el escenario base y los diez casos de `data/casos_prueba/` y compara cada uno con el bloque `caso.resultado_esperado` de su JSON. En total son 25 pruebas. Resultados, como habitables / casi habitables / no habitables:
 
 | Caso | Situación | Resultado |
 |---|---|---|
 | `temporada_lluvias` | Abril, cielo cubierto | 127/0/0; nadie se reasigna. |
+| `mayo_nublado` | Mayo, cielo nublado; sol del mediodía por el norte | 127/0/0; las habitaciones al sur gastan más que las del norte, al revés que en febrero. |
 | `generador_alta_demanda` | Generador de 17 kW | 127/0/0; generador en `ALTA_DEMANDA`. |
 | `deficit_leve` | 12 habitaciones de TG con luminarias de 30 W | 115/12/0; déficit nocturno leve, sin `EMERGENCIA` ni reasignaciones. |
 | `deficit_severo` | Generador de 4 kW | 59/0/68; 660 pasos en `EMERGENCIA`; 22 huéspedes reasignados. |

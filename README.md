@@ -85,7 +85,7 @@ Desde la raíz del repositorio:
 python3 -m unittest
 ```
 
-Son 24 pruebas en dos archivos y tardan unos 8 segundos:
+Son 25 pruebas en dos archivos y tardan unos 8 segundos:
 
 - `tests/test_casos_plan.py` cubre los 10 casos de prueba del plan del proyecto: ventana al sol sin obstáculo (además comprueba que directa horizontal + difusa horizontal = `G`), ventana sombreada por la otra torre, transmisión con cada vidrio (incluye Snell y Fresnel), luz reflejada (aristas solo de fachada a ventanas de la otra torre, peso ≤ reflectancia, reflejada = exterior + interior, pared oscura con menos reflejada que una blanca), noche, generador que alcanza para mínimos pero no para objetivos, reasignación con y sin candidata, zona cerrada y cielo nublado contra despejado.
 - `tests/test_casos_json.py` ejecuta el escenario base y cada caso de `data/casos_prueba/`. Comprueba que el resultado coincida con el bloque `caso.resultado_esperado` del JSON, que se cumplan las reglas comunes (de noche no hay luz natural, una zona cerrada no consume, un paso en emergencia cuenta como déficit, el generador no se pasa de su capacidad, ninguna habitación recibe más huéspedes que camas libres, ningún déficit sale de un error de redondeo) y el comportamiento propio de cada caso.
@@ -101,6 +101,7 @@ Los resultados de los casos se dan como habitables / casi habitables / no habita
 | Caso | Situación | Qué muestra |
 |---|---|---|
 | `temporada_lluvias` | Abril, cielo cubierto | 127/0/0; la energía sube a 210.495,2 Wh porque hay menos luz natural. |
+| `mayo_nublado` | 15 de mayo, cielo nublado; el sol del mediodía pasa por el norte (75,9° de altura) | 127/0/0; se invierte febrero: las habitaciones con ventana al sur gastan más energía (24.950 Wh en el día, contra 19.753 de las del norte); a las 12:00 `TP-H-102` (norte) no usa luz artificial y `TP-H-104` (sur) usa 14,2 W. |
 | `generador_alta_demanda` | Generador de 17 kW | 127/0/0, los mismos veredictos del escenario base, pero el generador queda en `ALTA_DEMANDA`. |
 | `deficit_leve` | Las 12 habitaciones ocupadas del piso 2 de TG (`TG-H-113` a `TG-H-124`) con luminarias viejas de 30 W (`luminaria_w = 30`) | 115/12/0; con 30 W dan como máximo 70 lux, entre la mitad del mínimo y el mínimo de 100, así que las 12 quedan casi habitables por `DEFICIT_NOCTURNO`; ningún paso es `DEFICIT_SEVERO`, nadie entra en `EMERGENCIA` y nadie se reasigna. |
 | `deficit_severo` | Generador de 4 kW | 59/0/68; el generador alcanza para los parqueaderos y las habitaciones ocupadas de los pisos 2 en adelante; las del piso 1, las vacías, cocinas y recreaciones pasan 660 pasos en `EMERGENCIA`; los 22 huéspedes de habitaciones no habitables reciben la cama libre de una habitación habitable. |
