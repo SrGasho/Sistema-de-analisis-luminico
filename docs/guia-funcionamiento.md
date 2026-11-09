@@ -870,6 +870,53 @@ Este paso no usa árboles: es un conteo sobre los resultados de cada zona.
 | Tarjetas y recomendaciones en la interfaz | [`renderVeredictos`, `web/app.js` línea 201](../web/app.js#L201); se usa en [línea 530](../web/app.js#L530) (Diagnóstico) y [línea 1216](../web/app.js#L1216) (Balance) |
 | Color del plano por veredicto | [`claveVisual`, `web/app.js` línea 86](../web/app.js#L86) |
 
+### 5.0 La idea con una habitación
+
+Antes de las reglas, un ejemplo completo. `TG-H-113`, en el caso `deficit_leve`, tiene una luminaria vieja de 30 W que da como máximo 70 lux. Su día, en las 48 medias horas que calculó el paso 3, fue así:
+
+| Horas | Medias horas | Qué pasó | Estado |
+|---|---|---|---|
+| 0:00 a 5:30 | 12 | Modo reducido; pide 30 lux y tiene 60 | CONFORTABLE |
+| 6:00 | 1 | Ya es modo activo (pide 100) y aún no hay sol: 70 lux | DEFICIT_LEVE |
+| 6:30 a 9:30 | 7 | El sol de la mañana entra por su ventana al este: unos 310 a 340 lux, pasa del máximo de 300 | EXCESO_LEVE |
+| 10:00 a 17:00 | 15 | Luz natural más luminaria, dentro del rango | CONFORTABLE |
+| 17:30 | 1 | Queda poco sol: 89 lux | DEFICIT_LEVE |
+| 18:00 a 21:30 | 8 | De noche, modo activo, solo la luminaria: 70 lux | DEFICIT_LEVE |
+| 22:00 a 23:30 | 4 | Modo reducido otra vez | CONFORTABLE |
+
+**Puntaje: una nota por media hora.** Es como calificar cada media hora del día y sacar el promedio:
+
+- cada media hora confortable vale **1** punto: 12 + 15 + 4 = 31 medias horas, **31 puntos**;
+- cada media hora con un problema leve vale **0,5**: 10 de déficit leve y 7 de exceso leve, 17 × 0,5 = **8,5 puntos**;
+- una media hora con un problema severo valdría **0** (esta habitación no tiene ninguna).
+
+Puntaje = (31 + 8,5) / 48 = 39,5 / 48 = **0,8229**, es decir, un 82 %.
+
+**Veredicto: dónde cae el puntaje en la escala.**
+
+```
+0 ─────────── 0,75 ─────────── 0,90 ─────────── 1
+  NO_HABITABLE    CASI_HABITABLE     HABITABLE
+                        ↑
+                     0,8229
+```
+
+0,8229 está entre 0,75 y 0,90: **CASI_HABITABLE**. Para ser habitable le faltan 0,90 − 0,8229 = 0,0771 (la **brecha**).
+
+Además de la escala hay un control aparte: si la zona pasó **más del 5 % de su tiempo a oscuras** (déficit severo, menos de la mitad del mínimo), es NO_HABITABLE aunque su puntaje sea bueno. `TG-H-113` nunca estuvo a oscuras, así que este control no la afecta.
+
+**Causa: qué problema se repitió más.** Se toman solo las medias horas con problema y se les pone una etiqueta según el tipo y la hora:
+
+| Etiqueta | Medias horas de `TG-H-113` |
+|---|---|
+| Falta luz de noche (`DEFICIT_NOCTURNO`) | 8 (de 18:00 a 21:30) |
+| Sobra sol (`EXCESO_SOLAR`) | 7 (de 6:30 a 9:30) |
+| Falta luz de día (`DEFICIT_DIURNO`) | 2 (6:00 y 17:30) |
+
+La que más se repite es `DEFICIT_NOCTURNO`, y esa es la **causa** de la zona. Con la causa se elige la recomendación: «ampliar el horario de iluminación de la zona o revisar la potencia de sus luminarias», que es justo su problema real.
+
+Las secciones siguientes explican cada parte con detalle.
+
 ### 5.1 Qué resultados cuentan
 
 De los 48 resultados de una zona solo cuentan los **evaluables**: se descartan los `DATOS_INSUFICIENTES`, que son las medias horas en que la zona estaba CERRADA (o, en el diagnóstico sin balance, la noche). Una zona cerrada no puede estar bien ni mal iluminada.
@@ -1049,4 +1096,13 @@ Es un paso lineal y no necesita ninguna estructura especial.
 
 ### Observaciones pendientes
 
-- **La causa puede no ser lo que decidió el veredicto.** La causa es la etiqueta más frecuente, pero el veredicto puede venir de otra. En el diagnóstico del escenario base, `TP-H-103` (ventana al oeste) es NO_HABITABLE por sus 3 pasos en déficit severo de 6:00 a 7:00 (12,5 %) y por su puntaje (0,6875), pero su causa es `EXCESO_SOLAR`, porque tiene 7 pasos de exceso leve en la tarde contra 5 de déficit. Lo mismo pasa con 31 de las 101 zonas no habitables del diagnóstico, y la interfaz las cuenta como «exceso solar». En los casos con balance esto no ocurre: todas sus no habitables tienen causa de déficit.
+- **La causa puede no ser lo que decidió el veredicto.** La causa es la etiqueta más frecuente, pero el veredicto puede venir de otra. Medias horas de `TP-H-103` en el diagnóstico (solo cuenta el día, 24 medias horas):
+
+  | Horas | Luz | Estado | Etiqueta |
+  |---|---|---|---|
+  | 6:00 a 7:00 (3) | 0 a 41 lux | DEFICIT_SEVERO | `DEFICIT_DIURNO` |
+  | 7:30 a 8:00 (2) | 62 y 82 lux | DEFICIT_LEVE | `DEFICIT_DIURNO` |
+  | 8:30 a 14:00 (12) | dentro del rango | CONFORTABLE | — |
+  | 14:30 a 17:30 (7) | 302 a 336 lux | EXCESO_LEVE | `EXCESO_SOLAR` |
+
+  Puntaje = (12 + 9 × 0,5) / 24 = 0,6875. En el diagnóstico del escenario base, `TP-H-103` (ventana al oeste) es NO_HABITABLE por sus 3 pasos en déficit severo de 6:00 a 7:00 (12,5 %) y por su puntaje (0,6875), pero su causa es `EXCESO_SOLAR`, porque tiene 7 pasos de exceso leve en la tarde contra 5 de déficit. Lo mismo pasa con 31 de las 101 zonas no habitables del diagnóstico, y la interfaz las cuenta como «exceso solar». En los casos con balance esto no ocurre: todas sus no habitables tienen causa de déficit.
