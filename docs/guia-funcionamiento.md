@@ -845,3 +845,208 @@ Al escribir este paso aparecieron dos errores, que se corrigieron:
   - Con el arreglo, el generador de 10 kW ya no producía un déficit leve: casi todo el hotel quedaba habitable (125/1/1). La razón es que, cuando falta generador, el balance cubre los mínimos completos o deja la zona en EMERGENCIA con 10 lux, que es déficit severo. Un déficit leve real aparece cuando la luminaria no alcanza el mínimo, así que `deficit_leve` pasó a ser el caso de 12 habitaciones con luminarias viejas de 30 W (70 lux como máximo): 115/12/0.
   - `deficit_severo` (4 kW) pasó de 3/56/68 a 59/0/68. Las habitaciones ocupadas de los pisos 2 en adelante sí alcanzan su mínimo y quedan habitables, y los 22 huéspedes afectados se mueven a sus camas libres. El caso «nadie tiene a dónde ir» lo muestra ahora `apagon_generador`.
 - **La energía no asignada no miraba la luminaria.** Contaba los vatios que harían falta para llegar al mínimo aunque la luminaria no pudiera darlos. En `luminarias_danadas` reportaba 5.529,5 Wh en el día cuando al generador le sobraba potencia. Ahora no pasa de `potencia de la luminaria − vatios asignados` y en ese caso da 0.
+
+---
+
+## Paso 5. Veredicto de habitabilidad por zona
+
+**Fin:** convertir los 48 estados que tiene cada zona en el día (paso 3) en una sola respuesta: ¿se puede usar esta zona? La respuesta es uno de tres veredictos, **HABITABLE**, **CASI_HABITABLE** o **NO_HABITABLE**, con un puntaje entre 0 y 1, la causa principal del problema y, si está cerca de ser habitable, una recomendación.
+
+**Entrada:** los resultados que el paso 3 guardó en cada zona (`zona.resultados`) y los umbrales de `parametros_evaluacion` del JSON.
+**Salida:** un veredicto por zona (127), el conteo de veredictos y el puntaje del hotel completo. El paso 6 usa estos veredictos para decidir quién se cambia de habitación y a dónde.
+
+Este paso no usa árboles: es un conteo sobre los resultados de cada zona.
+
+### Dónde está en el código
+
+| Qué | Dónde |
+|---|---|
+| Se llama al terminar el día | [`src/simulacion.py` línea 59](../src/simulacion.py#L59) |
+| Umbrales y valores de cada estado | [`umbrales`, `src/habitabilidad.py` línea 15](../src/habitabilidad.py#L15); en el JSON, [`parametros_evaluacion.puntaje` y `.habitabilidad`, `data/datos_hotel.json` líneas 242–251](../data/datos_hotel.json#L242) |
+| Puntaje de una lista de resultados | [`_puntaje`, línea 36](../src/habitabilidad.py#L36) |
+| Veredicto, causa y recomendación de una zona | [`evaluar_zona`, línea 61](../src/habitabilidad.py#L61); [`_causa`, línea 28](../src/habitabilidad.py#L28); [`CAUSA_RECOMENDACION`, línea 7](../src/habitabilidad.py#L7) |
+| Puntaje del hotel | [`evaluar_hotel`, línea 108](../src/habitabilidad.py#L108); [`_promedio_ponderado`, línea 100](../src/habitabilidad.py#L100) |
+| Conteos que se envían a la interfaz | [`src/api.py` líneas 159–168](../src/api.py#L159) |
+| Tarjetas y recomendaciones en la interfaz | [`renderVeredictos`, `web/app.js` línea 201](../web/app.js#L201); se usa en [línea 530](../web/app.js#L530) (Diagnóstico) y [línea 1216](../web/app.js#L1216) (Balance) |
+| Color del plano por veredicto | [`claveVisual`, `web/app.js` línea 86](../web/app.js#L86) |
+
+### 5.1 Qué resultados cuentan
+
+De los 48 resultados de una zona solo cuentan los **evaluables**: se descartan los `DATOS_INSUFICIENTES`, que son las medias horas en que la zona estaba CERRADA (o, en el diagnóstico sin balance, la noche). Una zona cerrada no puede estar bien ni mal iluminada.
+
+| Zona (escenario base) | Resultados | Cerrados | Evaluables |
+|---|---|---|---|
+| `TP-H-101` (habitación) | 48 | 0 | 48 |
+| `TP-COC-01` (cocina) | 48 | 12 | 36 |
+| `TP-REC-01` (recreación) | 48 | 14 | 34 |
+| `TP-PAR-01` (parqueadero) | 48 | 0 | 48 |
+
+Si una zona no tiene ningún resultado evaluable, su veredicto es `DATOS_INSUFICIENTES`.
+
+### 5.2 El puntaje
+
+Cada estado vale un número `q` (`parametros_evaluacion.puntaje`):
+
+| Estado | q |
+|---|---|
+| CONFORTABLE | 1,0 |
+| DEFICIT_LEVE o EXCESO_LEVE | 0,5 |
+| DEFICIT_SEVERO o EXCESO_SEVERO | 0,0 |
+
+El **puntaje** de la zona es el promedio de `q` en sus resultados evaluables:
+
+```
+puntaje = suma de q / número de resultados evaluables
+```
+
+Ejemplos del escenario base:
+
+- `TP-H-101` (ventana al este): 42 confortables y 6 en exceso leve. Puntaje = (42 × 1 + 6 × 0,5) / 48 = 45 / 48 = **0,9375**.
+- `TP-H-103` (ventana al oeste): 41 confortables y 7 en exceso leve. Puntaje = (41 + 3,5) / 48 = **0,9271**.
+- `TP-H-102` (ventana al norte): 48 confortables. Puntaje = **1,0**.
+- `TP-COC-01`: 36 evaluables, todos confortables. Puntaje = **1,0**; las 12 medias horas cerradas no le bajan el puntaje.
+
+El puntaje mide la fracción del tiempo en que la zona estuvo bien, y da media nota a los ratos en que estuvo un poco mal.
+
+### 5.3 El veredicto
+
+`evaluar_zona` aplica tres reglas, en este orden (`parametros_evaluacion.habitabilidad`):
+
+1. **NO_HABITABLE** si más del 5 % de los resultados evaluables son `DEFICIT_SEVERO` (`maximo_deficit_severo` = 0,05), **o** si el puntaje es menor que 0,75 (`umbral_casi`).
+2. **HABITABLE** si el puntaje es 0,90 o más (`umbral_habitable`).
+3. **CASI_HABITABLE** en el resto: puntaje entre 0,75 y 0,90, sin pasar del 5 % de déficit severo.
+
+La primera regla tiene dos partes porque mide dos cosas distintas. El puntaje mide cuánto tiempo estuvo mal la zona. El límite de déficit severo mide si estuvo **a oscuras**, aunque fuera poco tiempo: una habitación con menos de la mitad del mínimo de luz no se puede usar, por bien que esté el resto del día. El exceso severo no tiene ese límite: sobra luz, pero se puede usar con una cortina.
+
+**Qué significan los umbrales en una habitación con 48 resultados evaluables:**
+
+| Si los únicos problemas son… | HABITABLE | CASI_HABITABLE | NO_HABITABLE |
+|---|---|---|---|
+| Pasos leves (q = 0,5) | hasta 9 (4,5 h) | de 10 a 24 | 25 o más |
+| Pasos en exceso severo (q = 0) | hasta 4 (2 h) | de 5 a 12 | 13 o más |
+| Pasos en déficit severo (q = 0) | hasta 2 (1 h) | — | 3 o más (1,5 h) |
+
+Con 2 pasos en déficit severo la proporción es 2/48 = 4,2 %; con 3 es 6,25 % y ya pasa del 5 %. Por eso hora y media a oscuras basta para que una habitación sea no habitable.
+
+**Ejemplos medidos:**
+
+| Caso y zona | Estados evaluables | Puntaje | Déficit severo | Veredicto |
+|---|---|---|---|---|
+| Base, `TP-H-101` | 42 confortables, 6 exceso leve | 0,9375 | 0 % | HABITABLE |
+| `exceso_severo`, `TP-H-101` | 39 confortables, 1 exceso leve, 8 exceso severo | 0,8229 | 0 % | CASI_HABITABLE |
+| `deficit_leve`, `TG-H-113` | 31 confortables, 10 déficit leve, 7 exceso leve | 0,8229 | 0 % | CASI_HABITABLE |
+| `deficit_leve`, `TG-H-114` | 37 confortables, 11 déficit leve | 0,8854 | 0 % | CASI_HABITABLE |
+| `deficit_severo`, `TP-COC-01` | 27 confortables, 9 déficit severo (de 36) | 0,7500 | 25,0 % | NO_HABITABLE |
+| `deficit_severo`, `TG-H-170` | 39 confortables, 9 déficit severo | 0,8125 | 18,75 % | NO_HABITABLE |
+| `luminarias_danadas`, `TP-H-101` | 17 confortables, 6 exceso leve, 25 déficit severo | 0,4167 | 52,1 % | NO_HABITABLE |
+
+- `TP-COC-01` en `deficit_severo` tiene puntaje 0,75 justo, que no es menor que 0,75. Queda no habitable solo por la regla del déficit severo.
+- `TG-H-170` tiene un puntaje que sería casi habitable (0,8125), pero pasó 4,5 horas a oscuras. La regla del déficit severo la vuelve no habitable.
+- En `deficit_severo` las 68 zonas no habitables lo son por el déficit severo; 28 de ellas también tienen puntaje menor que 0,75.
+
+### 5.4 Puntaje de día y de noche
+
+`evaluar_zona` calcula además el puntaje con los resultados de día y con los de noche por separado. «Día» es todo lo que no es NOCHE, es decir, de 6:00 a 17:30 (24 medias horas, contando la transición); «noche» es de 18:00 a 5:30 (24 medias horas).
+
+| Caso y zona | Día | Noche | Total |
+|---|---|---|---|
+| Base, `TP-H-101` | 0,875 | 1,0 | 0,9375 |
+| `deficit_leve`, `TG-H-113` | 0,8125 | 0,8333 | 0,8229 |
+| `luminarias_danadas`, `TP-H-101` | 0,8333 | 0,0 | 0,4167 |
+
+Estos dos puntajes **no deciden el veredicto**; solo ayudan a ver cuándo está el problema. En `luminarias_danadas` la habitación está bien de día y a oscuras toda la noche. En `deficit_leve`, de noche tiene 70 lux en las 8 medias horas activas (de 18:00 a 21:30) y está bien en las 16 de modo reducido, donde el mínimo es 30.
+
+### 5.5 Causa y recomendación
+
+`_causa` le pone una etiqueta a cada resultado evaluable que no está confortable:
+
+| Etiqueta | Cuándo |
+|---|---|
+| `DEFICIT_NOCTURNO` | Déficit (leve o severo) de noche |
+| `DEFICIT_DIURNO` | Déficit de día |
+| `EXCESO_SOLAR` | Exceso con más luz natural que artificial |
+| `EXCESO_ARTIFICIAL` | Exceso con más luz artificial que natural |
+
+La **causa** de la zona es la etiqueta que más se repite. Si dos empatan, gana la que apareció primero en el día. Ejemplo: `TG-H-113` en `deficit_leve` tiene 8 pasos `DEFICIT_NOCTURNO`, 7 `EXCESO_SOLAR` (la mañana, por su ventana al este) y 2 `DEFICIT_DIURNO` (las 6:00 y las 17:30). Su causa es `DEFICIT_NOCTURNO` por un solo paso.
+
+Cada causa tiene una recomendación fija (`CAUSA_RECOMENDACION`):
+
+| Causa | Recomendación |
+|---|---|
+| `DEFICIT_NOCTURNO` | Ampliar el horario de iluminación de la zona o revisar la potencia de sus luminarias |
+| `DEFICIT_DIURNO` | Usar iluminación complementaria en las horas de luz natural baja o revisar la orientación de la ventana |
+| `EXCESO_SOLAR` | Aplicar protección solar (cortinas o persianas) en las horas de exceso |
+| `EXCESO_ARTIFICIAL` | Reducir la potencia asignada a la zona en las horas de exceso |
+
+La recomendación y la **brecha** (cuánto le falta para 0,90) solo se dan a las zonas **CASI_HABITABLE**. Ejemplo: `TG-H-114` en `deficit_leve` tiene brecha 0,90 − 0,8854 = 0,0146. Las zonas habitables no la necesitan, y para las no habitables el sistema solo da el diagnóstico, sin proponer cambios automáticos. La causa sí se calcula para todas: en el escenario base, `TP-H-101` es habitable y su causa es `EXCESO_SOLAR`.
+
+### 5.6 El puntaje del hotel
+
+El puntaje del hotel es el promedio de los puntajes de las zonas, **ponderado** por la importancia de cada una:
+
+```
+peso = prioridad de la actividad × (1 + 0,10 × (piso − 1))
+puntaje del hotel = suma de (peso × puntaje) / suma de pesos
+```
+
+Las prioridades son 3 para habitaciones y cocinas, 2 para recreaciones y 1 para parqueaderos. Una habitación del piso 1 pesa 3,0 y una del piso 6, 4,5. Este peso no tiene el factor 1,4 de habitación ocupada que usa el balance (paso 3.4).
+
+En el escenario base:
+
+- Los pesos suman 433,4.
+- El puntaje ponderado es **0,9718**; el promedio simple sería 0,9738. Baja un poco porque las 52 habitaciones con exceso leve pesan en promedio 3,66, más que el promedio de todas las zonas (3,41).
+- El puntaje de día es 0,9436 y el de noche 1,0. Se calculan igual, con los puntajes de día y de noche de cada zona.
+- Los puntajes de las 127 zonas son: 75 zonas con 1,0; 3 con 0,9688; 3 con 0,9583; 4 con 0,9479; 16 con 0,9375 y 26 con 0,9271. Todas pasan de 0,90: **127 habitables**.
+
+### 5.7 Veredictos de todos los casos
+
+| Caso | Habitables / casi / no | Puntaje del hotel | Causas |
+|---|---|---|---|
+| Escenario base | 127 / 0 / 0 | 0,9718 | — |
+| `cielo_despejado` | 75 / 52 / 0 | 0,9236 | 52 casi por `EXCESO_SOLAR` |
+| `exceso_severo` | 69 / 58 / 0 | 0,9152 | 58 casi por `EXCESO_SOLAR` |
+| `deficit_leve` | 115 / 12 / 0 | 0,9621 | 12 casi por `DEFICIT_NOCTURNO` |
+| `deficit_severo` | 59 / 0 / 68 | 0,8600 | 68 no por `DEFICIT_NOCTURNO` |
+| `luminarias_danadas` | 111 / 0 / 16 | 0,9026 | 16 no por `DEFICIT_NOCTURNO` |
+| `apagon_generador` | 0 / 0 / 127 | 0,3569 | 107 no por `DEFICIT_NOCTURNO` y 20 por `DEFICIT_DIURNO` |
+
+El exceso solar, aunque sea severo, nunca vuelve una zona no habitable en estos casos: dura pocas horas y no tiene límite propio. El déficit severo sí, porque basta con hora y media.
+
+### 5.8 El diagnóstico antes del balance
+
+La pestaña «2. Diagnóstico» ejecuta el paso 3 sin repartir energía (paso 3.5, «Análisis sin balance») y luego este mismo paso. De noche todo es `DATOS_INSUFICIENTES`, así que el veredicto solo mira el día, con 24 resultados evaluables por zona. Sirve para ver cómo estaría el hotel solo con luz natural.
+
+En el escenario base da 0 / 26 / 101 y un puntaje de 0,7031:
+
+- `TP-PAR-01` no tiene ventanas: sus 24 resultados de día son déficit severo, puntaje 0 y NO_HABITABLE.
+- `TP-COC-01` necesita 300 lux y solo con luz natural tiene 17 pasos en déficit severo: puntaje 0,1458.
+- `TP-H-101` queda casi habitable (0,8333): solo tiene 1 paso en déficit severo, a las 6:00, y 1 de 24 es el 4,2 %.
+
+### 5.9 Quién usa los veredictos
+
+- **El paso 6 (reasignación)** solo mueve a los huéspedes de habitaciones ocupadas `NO_HABITABLE`, y solo los manda a habitaciones `HABITABLE` con cama libre. Las casi habitables no se tocan: ni pierden a sus huéspedes ni reciben otros.
+- **El plano** pinta cada zona con su veredicto cuando no hay una franja elegida y el selector de color está en «habitabilidad».
+- **Las pestañas «2. Diagnóstico» y «4. Balance»** muestran las tarjetas con el conteo y los tres puntajes del hotel, las recomendaciones de hasta 12 zonas casi habitables y el número de zonas no habitables por causa.
+- **El resumen de la API** cuenta cuántas zonas casi o no habitables tienen causa de déficit (`zonas_con_deficit`) y cuántas de exceso (`zonas_con_exceso`).
+
+### Resultado y costo del paso
+
+| Operación | Costo |
+|---|---|
+| Veredicto de una zona | O(T): recorre sus T = 48 resultados unas pocas veces (total, día, noche y causas) |
+| Veredictos del hotel | O(Z × T) = O(R), lineal en los 6.096 resultados |
+| Puntaje del hotel | O(Z) |
+
+Es un paso lineal y no necesita ninguna estructura especial.
+
+### Ideas clave del paso
+
+- **El puntaje mide tiempo bien iluminado.** Cada media hora confortable suma 1, cada leve suma la mitad y cada severa no suma.
+- **El déficit severo tiene un límite propio.** Más del 5 % del tiempo a oscuras (hora y media en una habitación) vuelve la zona no habitable, aunque el puntaje sea bueno.
+- **La causa es la etiqueta más frecuente,** y la recomendación sale de la causa. Solo las casi habitables reciben recomendación, porque son las que pueden pasar a habitables con un cambio pequeño.
+- **Las medias horas cerradas no cuentan**, ni a favor ni en contra.
+- **Los veredictos son la entrada del paso 6.**
+
+### Observaciones pendientes
+
+- **La causa puede no ser lo que decidió el veredicto.** La causa es la etiqueta más frecuente, pero el veredicto puede venir de otra. En el diagnóstico del escenario base, `TP-H-103` (ventana al oeste) es NO_HABITABLE por sus 3 pasos en déficit severo de 6:00 a 7:00 (12,5 %) y por su puntaje (0,6875), pero su causa es `EXCESO_SOLAR`, porque tiene 7 pasos de exceso leve en la tarde contra 5 de déficit. Lo mismo pasa con 31 de las 101 zonas no habitables del diagnóstico, y la interfaz las cuenta como «exceso solar». En los casos con balance esto no ocurre: todas sus no habitables tienen causa de déficit.
