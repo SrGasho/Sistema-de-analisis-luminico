@@ -122,7 +122,7 @@ CASI_HABITABLE  0,75 ≤ puntaje < 0,90
 NO_HABITABLE    puntaje < 0,75 o más del 5 % de pasos en DEFICIT_SEVERO
 ```
 
-También se reportan el puntaje diurno y nocturno de cada zona, la causa predominante (déficit diurno o nocturno, exceso solar o artificial) con una recomendación para las zonas casi habitables, y el puntaje del hotel ponderado por prioridad de actividad y piso.
+También se reportan el puntaje diurno y nocturno de cada zona, la causa predominante (déficit diurno o nocturno, exceso solar o artificial; si la zona es no habitable por déficit severo, la causa se toma solo de esos pasos) con una recomendación para las zonas casi habitables, y el puntaje del hotel ponderado por prioridad de actividad y piso.
 
 **Salidas por franja horaria.** Con el índice rojo-negro (sección 4.5) se calculan las franjas día completo, 00–06, 06–12, 12–18, 18–22 y 22–24. Para cada una:
 
@@ -543,7 +543,7 @@ Reasignación lineal:           O(G × H)
 
 Valores medidos en el escenario base: 68 pares evaluados en el grafo contra 1.232 ingenuos; 1.029 nodos visitados en la franja 18:00–22:00 contra 6.096 resultados; en la prueba de carga de reasignación, 2.792 comparaciones del AVL contra 6.240 lineales.
 
-Los 10 casos de prueba están automatizados con `unittest` en `tests/test_casos_plan.py`. `tests/test_casos_json.py` ejecuta además el escenario base y los nueve casos de `data/casos_prueba/`. Son 23 pruebas; se ejecutan desde la raíz con `python -m unittest` y todas pasan.
+Los 10 casos de prueba están automatizados con `unittest` en `tests/test_casos_plan.py`. `tests/test_casos_json.py` ejecuta además el escenario base y los nueve casos de `data/casos_prueba/`. Son 24 pruebas; se ejecutan desde la raíz con `python -m unittest` y todas pasan.
 
 | # | Caso | Qué verifica |
 |---|---|---|

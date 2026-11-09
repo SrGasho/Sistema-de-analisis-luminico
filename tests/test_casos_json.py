@@ -118,6 +118,15 @@ class CasosJson(unittest.TestCase):
                     minimo = hotel.perfiles_iluminacion[hotel.zonas[x["zona_id"]].actividad].para_modo(ModoOperacion(x["modo"]))[0]
                     self.assertLess(x["luz_total"], minimo - 1e-6, x)
 
+    def test_causa_de_zona_a_oscuras_es_el_deficit(self):
+        diagnostico = ejecutar_balance(json.loads(BASE.read_text(encoding="utf-8")), balancear_energia=False, incluir_resultados=False)
+        zonas = {z["zona_id"]: z for z in diagnostico["habitabilidad"]["zonas"]}
+        self.assertEqual((zonas["TP-H-103"]["veredicto"], zonas["TP-H-103"]["causa"]), ("NO_HABITABLE", "DEFICIT_DIURNO"))
+        for nombre in self.resultados:
+            for z in list(self.veredictos(nombre).values()) + list(zonas.values()):
+                if z["proporcion_deficit_severo"] and z["proporcion_deficit_severo"] > 0.05:
+                    self.assertTrue(z["causa"].startswith("DEFICIT"), (nombre, z))
+
     def test_deficit_severo(self):
         v = self.veredictos("deficit_severo")
         no_habitables = [z for z in v.values() if z["veredicto"] == "NO_HABITABLE"]

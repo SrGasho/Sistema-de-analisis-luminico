@@ -865,7 +865,7 @@ Este paso no usa árboles: es un conteo sobre los resultados de cada zona.
 | Umbrales y valores de cada estado | [`umbrales`, `src/habitabilidad.py` línea 15](../src/habitabilidad.py#L15); en el JSON, [`parametros_evaluacion.puntaje` y `.habitabilidad`, `data/datos_hotel.json` líneas 242–251](../data/datos_hotel.json#L242) |
 | Puntaje de una lista de resultados | [`_puntaje`, línea 36](../src/habitabilidad.py#L36) |
 | Veredicto, causa y recomendación de una zona | [`evaluar_zona`, línea 61](../src/habitabilidad.py#L61); [`_causa`, línea 28](../src/habitabilidad.py#L28); [`CAUSA_RECOMENDACION`, línea 7](../src/habitabilidad.py#L7) |
-| Puntaje del hotel | [`evaluar_hotel`, línea 108](../src/habitabilidad.py#L108); [`_promedio_ponderado`, línea 100](../src/habitabilidad.py#L100) |
+| Puntaje del hotel | [`evaluar_hotel`, línea 110](../src/habitabilidad.py#L110); [`_promedio_ponderado`, línea 102](../src/habitabilidad.py#L102) |
 | Conteos que se envían a la interfaz | [`src/api.py` líneas 159–168](../src/api.py#L159) |
 | Tarjetas y recomendaciones en la interfaz | [`renderVeredictos`, `web/app.js` línea 201](../web/app.js#L201); se usa en [línea 530](../web/app.js#L530) (Diagnóstico) y [línea 1216](../web/app.js#L1216) (Balance) |
 | Color del plano por veredicto | [`claveVisual`, `web/app.js` línea 86](../web/app.js#L86) |
@@ -1014,7 +1014,7 @@ Estos dos puntajes **no deciden el veredicto**; solo ayudan a ver cuándo está 
 | `EXCESO_SOLAR` | Exceso con más luz natural que artificial |
 | `EXCESO_ARTIFICIAL` | Exceso con más luz artificial que natural |
 
-La **causa** de la zona es la etiqueta que más se repite. Si dos empatan, gana la que apareció primero en el día. Ejemplo: `TG-H-113` en `deficit_leve` tiene 8 pasos `DEFICIT_NOCTURNO`, 7 `EXCESO_SOLAR` (la mañana, por su ventana al este) y 2 `DEFICIT_DIURNO` (las 6:00 y las 17:30). Su causa es `DEFICIT_NOCTURNO` por un solo paso.
+La **causa** de la zona es la etiqueta que más se repite. Si dos empatan, gana la que apareció primero en el día. Hay una excepción: si la zona es NO_HABITABLE porque pasó más del 5 % del tiempo a oscuras, solo se cuentan las medias horas en déficit severo, porque son las que decidieron el veredicto. Así la causa siempre es un déficit (diurno o nocturno) en esas zonas. Ejemplo: `TG-H-113` en `deficit_leve` tiene 8 pasos `DEFICIT_NOCTURNO`, 7 `EXCESO_SOLAR` (la mañana, por su ventana al este) y 2 `DEFICIT_DIURNO` (las 6:00 y las 17:30). Su causa es `DEFICIT_NOCTURNO` por un solo paso.
 
 Cada causa tiene una recomendación fija (`CAUSA_RECOMENDACION`):
 
@@ -1055,7 +1055,7 @@ En el escenario base:
 | `deficit_leve` | 115 / 12 / 0 | 0,9621 | 12 casi por `DEFICIT_NOCTURNO` |
 | `deficit_severo` | 59 / 0 / 68 | 0,8600 | 68 no por `DEFICIT_NOCTURNO` |
 | `luminarias_danadas` | 111 / 0 / 16 | 0,9026 | 16 no por `DEFICIT_NOCTURNO` |
-| `apagon_generador` | 0 / 0 / 127 | 0,3569 | 107 no por `DEFICIT_NOCTURNO` y 20 por `DEFICIT_DIURNO` |
+| `apagon_generador` | 0 / 0 / 127 | 0,3569 | 117 no por `DEFICIT_NOCTURNO` y 10 por `DEFICIT_DIURNO` |
 
 El exceso solar, aunque sea severo, nunca vuelve una zona no habitable en estos casos: dura pocas horas y no tiene límite propio. El déficit severo sí, porque basta con hora y media.
 
@@ -1090,13 +1090,13 @@ Es un paso lineal y no necesita ninguna estructura especial.
 
 - **El puntaje mide tiempo bien iluminado.** Cada media hora confortable suma 1, cada leve suma la mitad y cada severa no suma.
 - **El déficit severo tiene un límite propio.** Más del 5 % del tiempo a oscuras (hora y media en una habitación) vuelve la zona no habitable, aunque el puntaje sea bueno.
-- **La causa es la etiqueta más frecuente,** y la recomendación sale de la causa. Solo las casi habitables reciben recomendación, porque son las que pueden pasar a habitables con un cambio pequeño.
+- **La causa es la etiqueta más frecuente,** salvo en las zonas no habitables por oscuridad, donde se cuenta solo entre las medias horas a oscuras. La recomendación sale de la causa. Solo las casi habitables reciben recomendación, porque son las que pueden pasar a habitables con un cambio pequeño.
 - **Las medias horas cerradas no cuentan**, ni a favor ni en contra.
 - **Los veredictos son la entrada del paso 6.**
 
-### Observaciones pendientes
+### Historia del cambio
 
-- **La causa puede no ser lo que decidió el veredicto.** La causa es la etiqueta más frecuente, pero el veredicto puede venir de otra. Medias horas de `TP-H-103` en el diagnóstico (solo cuenta el día, 24 medias horas):
+- **La causa no siempre era lo que decidió el veredicto.** Antes la causa era siempre la etiqueta más frecuente, aunque el veredicto viniera de otra. Medias horas de `TP-H-103` en el diagnóstico (solo cuenta el día, 24 medias horas):
 
   | Horas | Luz | Estado | Etiqueta |
   |---|---|---|---|
@@ -1105,4 +1105,10 @@ Es un paso lineal y no necesita ninguna estructura especial.
   | 8:30 a 14:00 (12) | dentro del rango | CONFORTABLE | — |
   | 14:30 a 17:30 (7) | 302 a 336 lux | EXCESO_LEVE | `EXCESO_SOLAR` |
 
-  Puntaje = (12 + 9 × 0,5) / 24 = 0,6875. En el diagnóstico del escenario base, `TP-H-103` (ventana al oeste) es NO_HABITABLE por sus 3 pasos en déficit severo de 6:00 a 7:00 (12,5 %) y por su puntaje (0,6875), pero su causa es `EXCESO_SOLAR`, porque tiene 7 pasos de exceso leve en la tarde contra 5 de déficit. Lo mismo pasa con 31 de las 101 zonas no habitables del diagnóstico, y la interfaz las cuenta como «exceso solar». En los casos con balance esto no ocurre: todas sus no habitables tienen causa de déficit.
+  Puntaje = (12 + 9 × 0,5) / 24 = 0,6875.
+
+  La habitación es NO_HABITABLE por sus 3 medias horas a oscuras de 6:00 a 7:00 (12,5 %, más del 5 %), y además por su puntaje. Pero su causa salía `EXCESO_SOLAR`, porque tenía 7 medias horas de exceso en la tarde contra 5 de déficit. Lo mismo pasaba con 31 de las 101 zonas no habitables del diagnóstico, y la interfaz las contaba como «exceso solar».
+
+  Ahora, si una zona es no habitable por estar a oscuras más del 5 % del tiempo, la causa se cuenta solo entre esas medias horas. `TP-H-103` pasa a `DEFICIT_DIURNO`, y las 101 no habitables del diagnóstico base tienen causa `DEFICIT_DIURNO`. Ningún veredicto ni puntaje cambia. En `apagon_generador`, 10 zonas pasaron de `DEFICIT_DIURNO` a `DEFICIT_NOCTURNO`, porque sus medias horas a oscuras son de noche. La prueba `test_causa_de_zona_a_oscuras_es_el_deficit` revisa que toda zona con más del 5 % de déficit severo tenga causa de déficit.
+
+  Una zona puede seguir siendo no habitable con causa `EXCESO_SOLAR` si lo es por su puntaje y no por oscuridad. Pasa en el diagnóstico de `cielo_despejado` (16 zonas) y de `exceso_severo` (19): muchas horas de sol fuerte y sin luz artificial.

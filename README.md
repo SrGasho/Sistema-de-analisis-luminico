@@ -85,7 +85,7 @@ Desde la raíz del repositorio:
 python3 -m unittest
 ```
 
-Son 23 pruebas en dos archivos y tardan unos 8 segundos:
+Son 24 pruebas en dos archivos y tardan unos 8 segundos:
 
 - `tests/test_casos_plan.py` cubre los 10 casos de prueba del plan del proyecto: ventana al sol sin obstáculo (además comprueba que directa horizontal + difusa horizontal = `G`), ventana sombreada por la otra torre, transmisión con cada vidrio (incluye Snell y Fresnel), luz reflejada (aristas solo de fachada a ventanas de la otra torre, peso ≤ reflectancia, reflejada = exterior + interior, pared oscura con menos reflejada que una blanca), noche, generador que alcanza para mínimos pero no para objetivos, reasignación con y sin candidata, zona cerrada y cielo nublado contra despejado.
 - `tests/test_casos_json.py` ejecuta el escenario base y cada caso de `data/casos_prueba/`. Comprueba que el resultado coincida con el bloque `caso.resultado_esperado` del JSON, que se cumplan las reglas comunes (de noche no hay luz natural, una zona cerrada no consume, un paso en emergencia cuenta como déficit, el generador no se pasa de su capacidad, ninguna habitación recibe más huéspedes que camas libres, ningún déficit sale de un error de redondeo) y el comportamiento propio de cada caso.

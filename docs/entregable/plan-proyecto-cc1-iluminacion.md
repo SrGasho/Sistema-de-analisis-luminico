@@ -446,7 +446,7 @@ Los 10 casos son pruebas automáticas con `unittest` en `tests/test_casos_plan.p
 | 9 | Zona cerrada y habitación en descanso sin falso déficit | La cocina a las 02:00 está `CERRADA`, sin energía y fuera del puntaje; la habitación a las 23:00 está `REDUCIDA` sin déficit. |
 | 10 | Comparación entre clima nublado y cielo despejado | `factor_luz` es radiación / 7,063 y la luz natural con cielo despejado supera la del nublado. |
 
-Además, `tests/test_casos_json.py` ejecuta el escenario base y los nueve casos de `data/casos_prueba/` y compara cada uno con el bloque `caso.resultado_esperado` de su JSON. En total son 23 pruebas. Resultados, como habitables / casi habitables / no habitables:
+Además, `tests/test_casos_json.py` ejecuta el escenario base y los nueve casos de `data/casos_prueba/` y compara cada uno con el bloque `caso.resultado_esperado` de su JSON. En total son 24 pruebas. Resultados, como habitables / casi habitables / no habitables:
 
 | Caso | Situación | Resultado |
 |---|---|---|

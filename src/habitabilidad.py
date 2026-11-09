@@ -80,7 +80,9 @@ def evaluar_zona(zona_id: str, resultados: list[ResultadoIluminacion], limites: 
     else:
         veredicto = "CASI_HABITABLE"
 
-    causas = Counter(c for c in (_causa(r) for r in resultados if r.estado != EstadoIluminacion.DATOS_INSUFICIENTES) if c)
+    por_oscuridad = severa > limites["maximo_deficit_severo"]
+    candidatos = [r for r in resultados if r.estado == EstadoIluminacion.DEFICIT_SEVERO] if por_oscuridad else [r for r in resultados if r.estado != EstadoIluminacion.DATOS_INSUFICIENTES]
+    causas = Counter(c for c in (_causa(r) for r in candidatos) if c)
     causa = causas.most_common(1)[0][0] if causas else None
     casi = veredicto == "CASI_HABITABLE"
     return {
