@@ -22,7 +22,7 @@ Los datos de clima vienen de NASA POWER (promedios 2001–2020 para Bogotá). El
 
 ## Alcance
 
-La geometría de las torres es fija: el sistema no mueve ni rediseña edificios, pisos ni habitaciones. Sí mide mejoras y propone reestructuraciones de las variables de luz: actividades (orientación de ventanas y objetivos de iluminancia), acabados (pared y vidrio), horarios y capacidad del generador.
+La geometría de las torres es fija: el sistema no mueve ni rediseña edificios, pisos ni habitaciones. Sí mide mejoras y propone reestructuraciones de las variables de luz: orientación de ventanas, acabados (pared y vidrio), luminarias por recinto, horarios y capacidad del generador.
 
 ## Criterios de habitabilidad
 
@@ -71,11 +71,13 @@ python3 -m src.api --check
 La interfaz se organiza en seis pestañas. Un botón en el encabezado cambia entre modo oscuro y claro; el plano conserva su aspecto en los dos.
 
 1. **Configurar.** Los formularios generan el JSON internamente. Se pueden cambiar pisos, habitaciones, perfiles, horarios (incluido el cierre), vidrios, paredes y acabados por actividad. Desde aquí se carga un JSON propio, se descarga la configuración, se carga el escenario y se balancea la energía.
-2. **Diagnóstico.** La condición antes del balance: veredictos provisionales y sugerencias.
-3. **Plano.** El plano por torre y piso, con los selectores de franja horaria, vista (antes o después del balance) y capa de color, y la leyenda de abreviaturas (`TP` = Torre Pequeña, `TG` = Torre Grande). Cada zona permite editar su pared, su vidrio y su orientación.
+2. **Diagnóstico.** Empieza con «Cómo leer los resultados», una sección plegable que explica los estados, la escala de habitabilidad (0,75 y 0,90), la regla del 5 % a oscuras y los lux de cada actividad. Luego, la condición antes del balance: veredictos provisionales y sugerencias. Los identificadores de zona de las sugerencias, las mejoras y las reasignaciones son enlaces que abren el plano con esa zona seleccionada.
+3. **Plano.** El plano por torre y piso, con los selectores de franja horaria, vista (antes o después del balance) y capa de color. Arriba del plano están las leyendas de las tres capas, con la capa actual marcada, y las abreviaturas (`TP` = Torre Pequeña, `TG` = Torre Grande). Cada zona permite editar su pared, su vidrio y su orientación; «Aplicar y simular» vuelve a calcular el día y el balance con ese cambio. Debajo, el gráfico «Cómo le fue en el día» muestra la escala, el puntaje de cada franja y una barra por media hora.
 4. **Balance.** Generador, comparación antes y después, veredictos, sugerencias y reasignaciones (con restricciones, habitaciones descartadas y motivo). Al balancear, la interfaz abre esta pestaña.
-5. **Mejoras.** Las cuatro mejoras medidas y la búsqueda de reestructuración.
-6. **Detalle técnico.** Estructuras de datos y comparaciones, estados calculados, resumen de zonas y rangos de confort.
+5. **Mejoras.** Las mejoras medidas, que salen de los problemas del escenario, y la búsqueda de reestructuración.
+6. **Detalle técnico.** Tablas plegables, cada una con una explicación: cuánto ahorran las estructuras de datos, estados de todas las medias horas y resumen por zona.
+
+Antes del primer balance, las pestañas Balance, Mejoras y Detalle técnico muestran un botón «Balancear energía ahora».
 
 ### Pruebas
 
@@ -85,10 +87,10 @@ Desde la raíz del repositorio:
 python3 -m unittest
 ```
 
-Son 25 pruebas en dos archivos y tardan unos 8 segundos:
+Son 26 pruebas en dos archivos y tardan unos 8 segundos:
 
 - `tests/test_casos_plan.py` cubre los 10 casos de prueba del plan del proyecto: ventana al sol sin obstáculo (además comprueba que directa horizontal + difusa horizontal = `G`), ventana sombreada por la otra torre, transmisión con cada vidrio (incluye Snell y Fresnel), luz reflejada (aristas solo de fachada a ventanas de la otra torre, peso ≤ reflectancia, reflejada = exterior + interior, pared oscura con menos reflejada que una blanca), noche, generador que alcanza para mínimos pero no para objetivos, reasignación con y sin candidata, zona cerrada y cielo nublado contra despejado.
-- `tests/test_casos_json.py` ejecuta el escenario base y cada caso de `data/casos_prueba/`. Comprueba que el resultado coincida con el bloque `caso.resultado_esperado` del JSON, que se cumplan las reglas comunes (de noche no hay luz natural, una zona cerrada no consume, un paso en emergencia cuenta como déficit, el generador no se pasa de su capacidad, ninguna habitación recibe más huéspedes que camas libres, ningún déficit sale de un error de redondeo) y el comportamiento propio de cada caso.
+- `tests/test_casos_json.py` ejecuta el escenario base y cada caso de `data/casos_prueba/`. Comprueba que el resultado coincida con el bloque `caso.resultado_esperado` del JSON, que se cumplan las reglas comunes (de noche no hay luz natural, una zona cerrada no consume, un paso en emergencia cuenta como déficit, el generador no se pasa de su capacidad, ninguna habitación recibe más huéspedes que camas libres, ningún déficit sale de un error de redondeo, toda zona a oscuras tiene causa de déficit) y el comportamiento propio de cada caso, además de que las sugerencias y las mejoras correspondan al problema de cada caso.
 
 ### Casos de prueba
 
@@ -142,6 +144,31 @@ En `/api/balancear` los mismos resultados se insertan también en un AVL para co
 
 En este escenario el rojo-negro rota más que el AVL, porque los resultados llegan casi ordenados (hora ascendente y tramos largos de IDs ascendentes). Con 6.096 claves aleatorias el rojo-negro rota menos: 3.511 contra 4.176.
 
+## Mejoras medidas
+
+`POST /api/mejoras` mira las zonas casi o no habitables y propone un cambio por cada tipo de problema. Cada cambio se aplica por zona (en `zonas_personalizadas`) o al generador, y se mide con la simulación completa del día:
+
+| Problema | Cambio que se prueba |
+|---|---|
+| Causa `EXCESO_SOLAR` | `VIDRIO_CONTROL_SOLAR` en esas zonas |
+| Déficit en zonas con `luminaria_w` menor que la potencia de su actividad | Reponer la potencia de la actividad |
+| Alguna zona en `EMERGENCIA` (falta generador) | Generador de máx(1,2 × demanda objetivo máxima, 1,2 × capacidad actual), redondeado hacia arriba a 0,1 kW |
+| Causa `DEFICIT_DIURNO` sin vidrio claro o sin pared blanca | `VIDRIO_CLARO` o `PAREDES_BLANCAS` en esas zonas |
+
+Solo se muestran los cambios que suben el puntaje del hotel. Si no hay zonas con problemas, la respuesta es `TODO_HABITABLE`. La respuesta trae `estado` (`TODO_HABITABLE`, `CON_MEJORAS` o `SIN_EFECTO`), `puntaje`, `probadas`, `mejoras` (con `titulo`, `descripcion`, `zonas`, puntaje y conteo de veredictos antes y después) y `sin_efecto`.
+
+| Caso | Mejora | Puntaje | Veredictos después |
+|---|---|---|---|
+| Escenario base | Ninguna: todo es habitable | — | — |
+| `cielo_despejado` | Vidrio de control solar en 52 zonas | +0,0366 | 127 habitables |
+| `exceso_severo` | Vidrio de control solar | +0,0405 | 127 habitables |
+| `deficit_leve` | Reponer 12 luminarias | +0,0097 | 127 habitables |
+| `luminarias_danadas` | Reponer 16 luminarias | +0,0692 | 127 habitables |
+| `deficit_severo` | Generador más grande | +0,1118 | 127 habitables |
+| `apagon_generador` | Generador más grande | +0,6149 | 127 habitables |
+
+El estado del generador es `CAPACIDAD_LIMITADA` solo si alguna zona entró en `EMERGENCIA` o la potencia pasó de la capacidad; `ALTA_DEMANDA` si usó más del 80 %; si no, `OPERACION_NORMAL`. Un déficit causado por una luminaria débil no cambia el estado del generador.
+
 ## Reestructuración de actividades
 
 `POST /api/reestructurar` busca cambios que mejoren el puntaje ponderado del hotel. La búsqueda es por coordenadas: prueba un cambio a la vez, conserva el que mejora el puntaje y repite.
@@ -159,12 +186,11 @@ Los rangos están en `parametros_evaluacion.reestructuracion` de `data/datos_hot
 | Pared | `BLANCO`, `CREMA`, `GRIS_CLARO` | Se excluyen `GRIS_MEDIO` y `OSCURO` porque reducen la luz reflejada. |
 | Vidrio | `VIDRIO_CLARO`, `VIDRIO_LOW_E`, `VIDRIO_CONTROL_SOLAR` | Los tres presets del proyecto. Solo aplica a actividades con ventanas. |
 | Orientaciones | Tres conjuntos de la lista de orientaciones | Cambia la exposición solar de las ventanas. |
-| Objetivo de iluminancia | 0 %, 50 % o 100 % entre `minimo` y `maximo` del perfil | El objetivo afecta la demanda de energía, no la clasificación. |
 | Horario de cocina y recreación | Inicio 6–10 h, fin 22–24 h | Fuera de horario la zona pasa a modo `REDUCIDA`, o a `CERRADA` dentro de su franja de cierre. La franja activa manda sobre la de cierre. |
 
 Habitaciones no cambian de horario, porque son de uso continuo.
 
-La búsqueda no cambia la capacidad del generador ni la geometría. La capacidad del generador sí se prueba en las mejoras medidas. Tampoco modifica los recintos que tienen acabados personalizados: el cambio se aplica al valor por actividad.
+La búsqueda no cambia la capacidad del generador, los objetivos de lux ni la geometría. Los objetivos no se prueban porque el puntaje solo depende del mínimo y el máximo: bajar el objetivo solo ahorraría energía sin mejorar la luz. La capacidad del generador sí se prueba en las mejoras medidas. Tampoco modifica los recintos que tienen acabados personalizados: el cambio se aplica al valor por actividad.
 
 El presupuesto por defecto es de 30 evaluaciones. En el escenario de dos torres, cada evaluación tarda cerca de un segundo.
 
@@ -181,7 +207,7 @@ Un cambio puede mejorar el puntaje y subir la energía. Por ejemplo, un vidrio c
 | POST | `/api/validar` | Valida una configuración y devuelve un resumen. |
 | POST | `/api/condicion_actual` | Análisis sin balance energético. |
 | POST | `/api/balancear` | Balance completo, veredictos, sugerencias, reasignaciones, complejidad y reportes por franja. |
-| POST | `/api/mejoras` | Mide cuatro mejoras fijas sobre la configuración enviada. |
+| POST | `/api/mejoras` | Propone mejoras a partir de los problemas del escenario y mide cada una (ver [Mejoras medidas](#mejoras-medidas)). |
 | POST | `/api/reestructurar` | Busca una reestructuración dentro de los rangos. |
 
 Cualquier error al procesar una solicitud devuelve HTTP 400 con un campo `error` en español. Una ruta POST que no existe devuelve HTTP 404.

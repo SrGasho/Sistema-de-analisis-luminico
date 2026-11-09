@@ -12,7 +12,6 @@ RANGOS_POR_DEFECTO = {
     "paredes": ["BLANCO", "CREMA", "GRIS_CLARO"],
     "vidrios": ["VIDRIO_CLARO", "VIDRIO_LOW_E", "VIDRIO_CONTROL_SOLAR"],
     "orientaciones": [["ESTE", "NORTE", "OESTE", "SUR"], ["ESTE", "NORTE", "OESTE"], ["NORTE", "SUR"]],
-    "fracciones_objetivo": [0.0, 0.5, 1.0],
     "horarios": {
         "COCINA": {"inicio_activa": [6, 8], "fin_activa": [22, 24]},
         "RECREACION": {"inicio_activa": [8, 10], "fin_activa": [22, 23]},
@@ -102,7 +101,6 @@ def _actividades_priorizadas(layout: dict) -> list[str]:
 
 def _palancas(config: dict, actividad: str, rangos: dict) -> list[tuple[str, str, object]]:
     acabado = config.get("acabados", {}).get(actividad, {})
-    perfil = config["perfiles_iluminacion"][actividad]
     palancas: list[tuple[str, str, object]] = []
     for pared in rangos["paredes"]:
         if pared != acabado.get("pared"):
@@ -114,10 +112,6 @@ def _palancas(config: dict, actividad: str, rangos: dict) -> list[tuple[str, str
         for orientaciones in rangos["orientaciones"]:
             if orientaciones != acabado.get("orientaciones"):
                 palancas.append(("acabados", "orientaciones", list(orientaciones)))
-    for fraccion in rangos["fracciones_objetivo"]:
-        objetivo = round(perfil["minimo"] + fraccion * (perfil["maximo"] - perfil["minimo"]))
-        if objetivo != perfil["objetivo"]:
-            palancas.append(("perfiles_iluminacion", "objetivo", objetivo))
     horario_actual = config.get("horarios", {}).get(actividad, {})
     for campo, valores in rangos["horarios"].get(actividad, {}).items():
         for valor in valores:

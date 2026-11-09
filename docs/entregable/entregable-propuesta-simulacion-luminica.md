@@ -8,7 +8,7 @@ Se propone desarrollar un sistema educativo para estimar la iluminación de un h
 
 El día y la noche no se representan mediante clases duplicadas. Las mismas zonas, perfiles, resultados y evaluadores reciben el instante y el modo de operación. Los resultados son aproximaciones educativas y no sustituyen un proyecto fotométrico o eléctrico profesional.
 
-La geometría de las torres es fija: el sistema no mueve ni rediseña edificios. Sí mide mejoras y propone reestructuraciones de las variables que afectan la luz: actividades (orientación de ventanas y objetivos de iluminación), acabados (pared y vidrio), horarios y generador.
+La geometría de las torres es fija: el sistema no mueve ni rediseña edificios. Sí mide mejoras y propone reestructuraciones de las variables que afectan la luz: orientación de ventanas, acabados (pared y vidrio), luminarias por recinto, horarios y generador.
 
 # 1. Escenario y entradas
 
@@ -468,6 +468,8 @@ P_generador = 1,20 × máximo_t(suma(P_obj(z,t)))
 
 En el escenario base la demanda objetivo máxima es 18.110,7 W; por 1,20 da 21,73 kW, redondeado a 22 kW. La reserva del 20 % es didáctica. El generador no alimenta el consumo total del hotel. En el escenario base el generador alcanza en todos los instantes y ninguna zona entra en `EMERGENCIA`: la energía del día es 208.075,0 Wh y el pico, 15.933,7 W a las 18:00.
 
+El resultado del generador incluye su estado, los pasos en `EMERGENCIA` (`pasos_emergencia`) y la demanda objetivo máxima (`demanda_objetivo_maxima_w`). El estado es `CAPACIDAD_LIMITADA` si alguna zona entró en `EMERGENCIA` en alguna media hora o la potencia superó la capacidad; `ALTA_DEMANDA` si la potencia pasó del 80 % de la capacidad; y `OPERACION_NORMAL` en los demás casos. Un déficit sin emergencia no cambia el estado: `deficit_leve`, `luminarias_danadas` y `reasignacion_restringida` quedan en `OPERACION_NORMAL`; `deficit_severo` y `apagon_generador`, en `CAPACIDAD_LIMITADA`; y `generador_alta_demanda`, en `ALTA_DEMANDA`.
+
 | Hora | 0:00 | 6:00 | 7:00 | 9:00 | 12:00 | 15:00 | 17:30 | 18:00 | 22:00 |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
 | Potencia asignada (W) | 4.834 | 11.648 | 8.837 | 7.174 | 7.220 | 7.754 | 13.080 | 15.934 | 9.870 |
@@ -502,9 +504,28 @@ La estrategia es greedy en el orden de las asignaciones y no garantiza un óptim
 
 ## 5.4 Mejoras medidas y reestructuración
 
-Las mejoras son cambios puntuales que se simulan completos y se comparan contra el escenario actual por puntaje del hotel: vidrio claro en habitaciones, paredes blancas, generador 20 % mayor y objetivo de habitación en 180 lux.
+Las mejoras salen de los problemas del escenario. Para las zonas `CASI_HABITABLE` o `NO_HABITABLE` se propone un cambio según la causa:
 
-La reestructuración busca, para las actividades con zonas casi habitables o no habitables, combinaciones de pared, vidrio, orientaciones de ventanas, objetivo de iluminación y horario de cocina y recreación. Acepta un cambio solo si mejora el puntaje, luego la cantidad de no habitables y luego la energía. Usa como máximo 30 evaluaciones y 3 rondas. No cambia la geometría de las torres.
+- `VIDRIO_CONTROL_SOLAR`: las zonas con causa `EXCESO_SOLAR` reciben vidrio de control solar, zona por zona en `zonas_personalizadas`.
+- `REPONER_LUMINARIAS`: las zonas con déficit cuyo `luminaria_w` está por debajo de la potencia de su actividad recuperan esa potencia.
+- `AMPLIAR_GENERADOR`: solo si alguna media hora quedó en `EMERGENCIA`. La capacidad nueva es el mayor valor entre 1,2 × la demanda objetivo máxima, redondeada hacia arriba a 0,1 kW, y 1,2 × la capacidad actual.
+- `VIDRIO_CLARO` y `PAREDES_BLANCAS`: las zonas con causa `DEFICIT_DIURNO` que todavía no los tienen.
+
+Cada candidata se simula completa y solo se muestran las que suben el puntaje del hotel. Si no hay zonas con problemas, el resultado es `TODO_HABITABLE`: no hace falta ninguna mejora.
+
+| Escenario | Mejora | Cambio de puntaje | Resultado |
+|---|---|---:|---|
+| Base | — | — | `TODO_HABITABLE` |
+| `cielo_despejado` | Control solar | +0,0366 | 52 casi habitables → 127 habitables |
+| `exceso_severo` | Control solar | +0,0405 | 127 habitables |
+| `deficit_leve` | Reponer luminarias | +0,0097 | 127 habitables |
+| `luminarias_danadas` | Reponer luminarias | +0,0692 | 127 habitables |
+| `deficit_severo` | Ampliar generador | +0,1118 | 127 habitables |
+| `apagon_generador` | Ampliar generador | +0,6149 | 127 habitables |
+
+La reestructuración busca, para las actividades con zonas casi habitables o no habitables, combinaciones de pared, vidrio, orientaciones de ventanas y horario de cocina y recreación. No cambia los objetivos de lux. Acepta un cambio solo si mejora el puntaje, luego la cantidad de no habitables y luego la energía. Usa como máximo 30 evaluaciones y 3 rondas. No cambia la geometría de las torres.
+
+En `cielo_despejado` encuentra mejora (`MEJORA_ENCONTRADA`) en 7 evaluaciones: vidrio low-e, luego control solar y luego orientaciones `NORTE` y `SUR`. El puntaje pasa de 0,9236 a 0,9984, las zonas habitables/casi/no de 75/52/0 a 127/0/0 y la energía de 193.037,9 a 220.190,2 Wh. En `deficit_leve` hace 19 evaluaciones y el puntaje pasa de 0,9621 a 0,9903, pero quedan 11 zonas casi habitables: paredes y vidrios no corrigen luminarias débiles. Eso lo resuelven las mejoras.
 
 # 6. Flujo completo
 
@@ -521,7 +542,13 @@ La reestructuración busca, para las actividades con zonas casi habitables o no 
 11. Construir el AVL y buscar alternativas para huéspedes en habitaciones `NO_HABITABLE`.
 12. Exportar reporte energético y lumínico.
 
-La interfaz web (`web/`) se sirve con `python -m src.api`. Tiene formularios para las entradas, un plano por torre y piso con la leyenda de abreviaturas, un selector de franja horaria que colorea cada zona con su estado en la franja y muestra su reporte, los veredictos, las sugerencias, las mejoras medidas, la reestructuración y una tabla con las estructuras de datos y sus comparaciones.
+La interfaz web (`web/`) se sirve con `python -m src.api`. Tiene formularios para las entradas, un plano por torre y piso, un selector de franja horaria que colorea cada zona con su estado en la franja y muestra su reporte, los veredictos, las sugerencias, las mejoras medidas, la reestructuración y tablas con las estructuras de datos y sus comparaciones.
+
+- El diagnóstico empieza con una sección plegable, «Cómo leer los resultados»: los estados en palabras simples, la escala 0,75 / 0,90, la regla del 5 % de oscuridad y la tabla de lux por actividad. Reemplaza la sección «Criterios fotométricos» que estaba al final del detalle técnico. El veredicto no repite la lista de zonas casi habitables; esa lista está en las tarjetas de sugerencias.
+- La sugerencia de zonas casi habitables cubre todas las zonas, no solo las habitaciones, y lista hasta 12 con su puntaje y su brecha. La sugerencia sobre la reflectancia de las paredes ya no aparece cuando las paredes ya son blancas.
+- Los IDs de zona en sugerencias, mejoras y reasignaciones abren el plano con esa zona seleccionada.
+- En el plano, las tres leyendas (separación de espacios, habitabilidad y confort lumínico) y las abreviaturas TP/TG están arriba y marcan la capa activa. «Aplicar y simular», en el detalle de la zona, aplica el cambio a esa zona y vuelve a ejecutar la simulación y el balance. La gráfica del día muestra el puntaje de cada franja (madrugada, mañana, tarde, noche y cierre) y explica que antes del balance la noche no se evalúa.
+- Balance, mejoras y detalle técnico muestran el botón «Balancear energía ahora» mientras no se haya hecho el primer balance. Las tablas del detalle técnico son plegables y cada una tiene una explicación corta.
 
 # 7. Complejidad y casos de prueba
 
@@ -543,7 +570,7 @@ Reasignación lineal:           O(G × H)
 
 Valores medidos en el escenario base: 68 pares evaluados en el grafo contra 1.232 ingenuos; 1.029 nodos visitados en la franja 18:00–22:00 contra 6.096 resultados; en la prueba de carga de reasignación, 2.792 comparaciones del AVL contra 6.240 lineales.
 
-Los 10 casos de prueba están automatizados con `unittest` en `tests/test_casos_plan.py`. `tests/test_casos_json.py` ejecuta además el escenario base y los diez casos de `data/casos_prueba/`. Son 25 pruebas; se ejecutan desde la raíz con `python -m unittest` y todas pasan.
+Los 10 casos de prueba están automatizados con `unittest` en `tests/test_casos_plan.py`. `tests/test_casos_json.py` ejecuta además el escenario base y los diez casos de `data/casos_prueba/`. Son 26 pruebas; se ejecutan desde la raíz con `python -m unittest` y todas pasan.
 
 | # | Caso | Qué verifica |
 |---|---|---|
@@ -566,7 +593,7 @@ El clima se basa en NASA POWER; la declinación, en Cooper (1969); la posición 
 
 Los rangos de lux, horarios, áreas, potencias, reflectancias, huéspedes, nivel de emergencia y capacidad del generador son supuestos didácticos. También lo son `K_lux = 900`, los umbrales, los pesos, el factor de vista `A_f / (π·d² + A_f)` (aproximación propia, sin fuente), la reflectancia del suelo 0,20 (valor típico) y la altura mínima de 5°. La sección «Fuentes y fórmulas» del `README.md` reúne cada fórmula con su fuente y enlace. La página oficial del Ministerio informa que el RETILAP vigente fue modificado por la Resolución 40286 del 23 de junio de 2026, pero no se usa para presentar los presets como una transcripción normativa. El sistema no certifica cumplimiento ni reemplaza una medición.
 
-Alcance: la geometría de las torres es fija. El sistema mide mejoras y propone reestructuraciones de variables de luz (actividades, acabados, horarios y generador), pero no mueve ni rediseña edificios.
+Alcance: la geometría de las torres es fija. El sistema mide mejoras y propone reestructuraciones de variables de luz (orientación de ventanas, acabados, luminarias, horarios y generador), pero no mueve ni rediseña edificios.
 
 Limitaciones conocidas:
 

@@ -67,8 +67,9 @@ Diseñar e implementar un sistema de análisis lumínico y balance energético q
 - Puntuaciones, estados, déficits, energía consumida y veredicto de habitabilidad por zona.
 - Reasignación heurística de huéspedes con restricciones y candidatos descartados.
 - Reporte por franja horaria con el índice rojo-negro.
-- Mejoras medidas y reestructuración de variables de luz: actividades (orientación de ventanas, objetivos), acabados (pared, vidrio), horarios y generador.
-- Interfaz web con formularios de entradas, plano por torre y piso, selector de franja horaria, veredictos, sugerencias, mejoras medidas, reestructuración y tabla de estructuras de datos.
+- Mejoras medidas a partir de los problemas del escenario: para las zonas casi habitables o no habitables, según la causa, vidrio de control solar (`EXCESO_SOLAR`), reponer luminarias débiles, ampliar el generador (solo si hubo `EMERGENCIA`) y vidrio claro o paredes blancas (`DEFICIT_DIURNO`). Solo se muestran las que suben el puntaje del hotel; sin zonas con problemas, el resultado es `TODO_HABITABLE`.
+- Reestructuración de variables de luz: pared, vidrio, orientación de ventanas y horarios de cocina y recreación. No cambia los objetivos de lux.
+- Interfaz web con formularios de entradas, plano por torre y piso, selector de franja horaria, veredictos, sugerencias, mejoras medidas, reestructuración y tablas de estructuras de datos. El diagnóstico abre con una guía plegable, «Cómo leer los resultados»; los IDs de zona en sugerencias, mejoras y reasignaciones abren el plano con esa zona seleccionada; y «Aplicar y simular», en el detalle de una zona, aplica el cambio y vuelve a ejecutar la simulación y el balance.
 - Los 10 casos de prueba de la sección 12 como pruebas automáticas.
 
 ### 5.2 No incluido
@@ -78,7 +79,7 @@ Diseñar e implementar un sistema de análisis lumínico y balance energético q
 - Deslumbramiento profesional, confort circadiano o modelo térmico.
 - Consumo total del hotel, ascensores, climatización o agua caliente.
 - Reflexión especular o reflexiones exteriores de segundo orden (de una fachada a otra).
-- Cambios en la geometría de las torres. Las torres son fijas: el sistema no mueve ni rediseña edificios, pisos ni habitaciones. Las mejoras y la reestructuración solo cambian variables de luz (actividades, acabados, horarios y generador).
+- Cambios en la geometría de las torres. Las torres son fijas: el sistema no mueve ni rediseña edificios, pisos ni habitaciones. Las mejoras y la reestructuración solo cambian variables de luz (orientación de ventanas, acabados, luminarias por recinto, horarios y generador).
 - Sistema real de reservas o traslado físico de huéspedes.
 - Certificación normativa.
 
@@ -383,6 +384,8 @@ El peso sólo determina prioridad. No convierte una zona oscura en confortable.
 
 En el escenario base el generador de 22 kW alcanza: el pico es 15.933,7 W a las 18:00, la demanda objetivo máxima es 18.110,7 W y ninguna zona entra en `EMERGENCIA`. Con un generador de 4 kW (`deficit_severo.json`) el parqueadero nunca queda en déficit por su prioridad de seguridad, las habitaciones ocupadas de los pisos 2 en adelante siguen habitables y las demás zonas pasan 660 pasos en `EMERGENCIA`.
 
+El estado del generador es `CAPACIDAD_LIMITADA` si alguna zona entró en `EMERGENCIA` en alguna media hora o la potencia superó la capacidad, `ALTA_DEMANDA` si la potencia pasó del 80 % de la capacidad y `OPERACION_NORMAL` en los demás casos. Un déficit sin emergencia no lo cambia. El resultado incluye también `pasos_emergencia` y `demanda_objetivo_maxima_w`.
+
 ## 11. Métricas y complejidad
 
 El sistema reporta estado por zona e instante, puntuación diurna/nocturna, veredicto por zona, energía por torre y actividad, potencia máxima, déficit residual, energía no asignada, zonas críticas, horas con déficit, huéspedes reasignados, candidatos descartados y conteos de las estructuras de datos.
@@ -446,20 +449,20 @@ Los 10 casos son pruebas automáticas con `unittest` en `tests/test_casos_plan.p
 | 9 | Zona cerrada y habitación en descanso sin falso déficit | La cocina a las 02:00 está `CERRADA`, sin energía y fuera del puntaje; la habitación a las 23:00 está `REDUCIDA` sin déficit. |
 | 10 | Comparación entre clima nublado y cielo despejado | `factor_luz` es radiación / 7,063 y la luz natural con cielo despejado supera la del nublado. |
 
-Además, `tests/test_casos_json.py` ejecuta el escenario base y los diez casos de `data/casos_prueba/` y compara cada uno con el bloque `caso.resultado_esperado` de su JSON. En total son 25 pruebas. Resultados, como habitables / casi habitables / no habitables:
+Además, `tests/test_casos_json.py` ejecuta el escenario base y los diez casos de `data/casos_prueba/` y compara cada uno con el bloque `caso.resultado_esperado` de su JSON. En total son 26 pruebas. Resultados, como habitables / casi habitables / no habitables:
 
 | Caso | Situación | Resultado |
 |---|---|---|
 | `temporada_lluvias` | Abril, cielo cubierto | 127/0/0; nadie se reasigna. |
 | `mayo_nublado` | Mayo, cielo nublado; sol del mediodía por el norte | 127/0/0; las habitaciones al sur gastan más que las del norte, al revés que en febrero. |
 | `generador_alta_demanda` | Generador de 17 kW | 127/0/0; generador en `ALTA_DEMANDA`. |
-| `deficit_leve` | 12 habitaciones de TG con luminarias de 30 W | 115/12/0; déficit nocturno leve, sin `EMERGENCIA` ni reasignaciones. |
-| `deficit_severo` | Generador de 4 kW | 59/0/68; 660 pasos en `EMERGENCIA`; 22 huéspedes reasignados. |
-| `apagon_generador` | Generador de 0 kW | 0/0/127; 78 huéspedes sin alternativa. |
+| `deficit_leve` | 12 habitaciones de TG con luminarias de 30 W | 115/12/0; déficit nocturno leve, sin `EMERGENCIA` ni reasignaciones; generador en `OPERACION_NORMAL`. |
+| `deficit_severo` | Generador de 4 kW | 59/0/68; 660 pasos en `EMERGENCIA`; generador en `CAPACIDAD_LIMITADA`; 22 huéspedes reasignados. |
+| `apagon_generador` | Generador de 0 kW | 0/0/127; generador en `CAPACIDAD_LIMITADA`; 78 huéspedes sin alternativa. |
 | `cielo_despejado` | Febrero con cielo despejado | 75/52/0; causa `EXCESO_SOLAR` en habitaciones con ventana al este u oeste; nadie se reasigna. |
 | `exceso_severo` | Cielo despejado; 24 habitaciones ocupadas de TP con vidrio claro y ventana al este | 69/58/0; 18 de esas 24 quedan casi habitables con `EXCESO_SEVERO` entre las 6:30 y las 10:00; 6 siguen habitables porque TG les hace sombra en la mañana; nadie se reasigna. |
-| `luminarias_danadas` | `TP-H-101` a `TP-H-116` (ocupadas, pisos 1 y 2) con `luminaria_w = 0` | 111/0/16 por `DEFICIT_NOCTURNO`; los 16 huéspedes se mueven: H-001 (`MISMA_TORRE`) a `TP-H-120`, H-002 (`PISO_MAXIMO:2`) a `TG-H-112`, H-003 (`ORIENTACION:ESTE`) a `TG-H-101`. |
-| `reasignacion_restringida` | Las 24 habitaciones ocupadas de TP sin luminaria; H-001 a H-018 con `MISMA_TORRE`; H-019 y H-020 con `MISMA_TORRE` + `PISO_MAXIMO:2` | 103/0/24; 16 llenan las 16 camas del piso 4 de TP; H-017 y H-018 `SIN_CAPACIDAD`; H-019 y H-020 `RESTRICCIONES`; H-021 a H-024 van a TG. |
+| `luminarias_danadas` | `TP-H-101` a `TP-H-116` (ocupadas, pisos 1 y 2) con `luminaria_w = 0` | 111/0/16 por `DEFICIT_NOCTURNO`; generador en `OPERACION_NORMAL`; los 16 huéspedes se mueven: H-001 (`MISMA_TORRE`) a `TP-H-120`, H-002 (`PISO_MAXIMO:2`) a `TG-H-112`, H-003 (`ORIENTACION:ESTE`) a `TG-H-101`. |
+| `reasignacion_restringida` | Las 24 habitaciones ocupadas de TP sin luminaria; H-001 a H-018 con `MISMA_TORRE`; H-019 y H-020 con `MISMA_TORRE` + `PISO_MAXIMO:2` | 103/0/24; generador en `OPERACION_NORMAL`; 16 llenan las 16 camas del piso 4 de TP; H-017 y H-018 `SIN_CAPACIDAD`; H-019 y H-020 `RESTRICCIONES`; H-021 a H-024 van a TG. |
 
 ## 13. Fuentes y límites
 

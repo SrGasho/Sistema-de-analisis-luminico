@@ -15,7 +15,7 @@
       },
       "puntaje_hotel": 0.8633,
       "energia_wh": 189108.3,
-      "estado_generador": "CAPACIDAD_LIMITADA",
+      "estado_generador": "OPERACION_NORMAL",
       "pasos_emergencia": 0,
       "pasos_cerrada": 260,
       "reasignaciones": {
@@ -310,11 +310,6 @@
           "NORTE",
           "SUR"
         ]
-      ],
-      "fracciones_objetivo": [
-        0.0,
-        0.5,
-        1.0
       ],
       "horarios": {
         "COCINA": {

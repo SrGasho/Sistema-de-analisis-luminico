@@ -636,8 +636,8 @@ Este paso no cambia ningún resultado: solo los ordena y los resume.
 | Reporte de una franja | [`reporte_franja`, línea 54](../src/temporal.py#L54); [`_minimo`, línea 40](../src/temporal.py#L40); [`_conversion`, línea 46](../src/temporal.py#L46) |
 | El árbol rojo-negro | [`class IndiceRojoNegro`, `src/arboles.py` línea 173](../src/arboles.py#L173); [`insertar`, línea 180](../src/arboles.py#L180); [`_reparar`, línea 220](../src/arboles.py#L220); [`_rotar_izq`, línea 255](../src/arboles.py#L255); [`_rotar_der`, línea 271](../src/arboles.py#L271) |
 | Consulta por rango | [`IndiceRojoNegro.rango`, `src/arboles.py` línea 203](../src/arboles.py#L203) |
-| AVL de comparación | [`class IndiceAVL`, `src/arboles.py` línea 17](../src/arboles.py#L17); se pide en [`src/api.py` línea 137](../src/api.py#L137) |
-| Se envía a la interfaz | [`src/api.py` líneas 170–171](../src/api.py#L170) |
+| AVL de comparación | [`class IndiceAVL`, `src/arboles.py` línea 17](../src/arboles.py#L17); se pide en [`src/api.py` línea 155](../src/api.py#L155) |
+| Se envía a la interfaz | [`src/api.py` líneas 188–189](../src/api.py#L188) |
 | Selector y reporte en la interfaz | [`renderFranjaSelector`, `web/app.js` línea 93](../web/app.js#L93); [`renderFranjaReport`, línea 103](../web/app.js#L103); [`claveVisual`, línea 86](../web/app.js#L86); [`renderComplexity`, línea 129](../web/app.js#L129) |
 
 ### 4.1 Qué se guarda y con qué clave
@@ -822,7 +822,7 @@ En el día completo, las zonas más críticas son `TP-H-102`, `TP-H-106`, `TP-H-
 
 ### 4.6 El AVL al lado, solo para comparar
 
-Si el simulador se crea con `comparar_arboles=True`, `IndiceTemporal` inserta cada resultado también en un árbol AVL (el mismo tipo de árbol del paso 6). La API lo pide siempre que devuelve resultados completos ([`src/api.py` línea 137](../src/api.py#L137)). El AVL no se usa para ningún reporte: solo se miden su altura y sus rotaciones, y la pestaña «6. Detalle técnico» muestra las dos medidas lado a lado.
+Si el simulador se crea con `comparar_arboles=True`, `IndiceTemporal` inserta cada resultado también en un árbol AVL (el mismo tipo de árbol del paso 6). La API lo pide siempre que devuelve resultados completos ([`src/api.py` línea 155](../src/api.py#L155)). El AVL no se usa para ningún reporte: solo se miden su altura y sus rotaciones, y la pestaña «6. Detalle técnico» muestra las dos medidas lado a lado.
 
 Con estos datos el AVL queda más bajo (altura 14 contra 22) y hace menos rotaciones (7.232 contra 9.099). Queda más bajo porque su regla es más estricta: las dos ramas de cada nodo difieren en altura a lo sumo en 1. El rojo-negro admite ramas más desiguales, y muchas de sus reparaciones solo cambian colores sin rotar. Al insertar, los dos hacen como máximo dos rotaciones por clave. Los dos responden la consulta en O(log R + k) y devuelven los mismos resultados.
 
@@ -884,8 +884,8 @@ Este paso no usa árboles: es un conteo sobre los resultados de cada zona.
 | Puntaje de una lista de resultados | [`_puntaje`, línea 36](../src/habitabilidad.py#L36) |
 | Veredicto, causa y recomendación de una zona | [`evaluar_zona`, línea 61](../src/habitabilidad.py#L61); [`_causa`, línea 28](../src/habitabilidad.py#L28); [`CAUSA_RECOMENDACION`, línea 7](../src/habitabilidad.py#L7) |
 | Puntaje del hotel | [`evaluar_hotel`, línea 110](../src/habitabilidad.py#L110); [`_promedio_ponderado`, línea 102](../src/habitabilidad.py#L102) |
-| Conteos que se envían a la interfaz | [`src/api.py` líneas 159–168](../src/api.py#L159) |
-| Tarjetas y recomendaciones en la interfaz | [`renderVeredictos`, `web/app.js` línea 201](../web/app.js#L201); se usa en [línea 530](../web/app.js#L530) (Diagnóstico) y [línea 1298](../web/app.js#L1298) (Balance) |
+| Conteos que se envían a la interfaz | [`src/api.py` líneas 177–186](../src/api.py#L177) |
+| Tarjetas y recomendaciones en la interfaz | [`renderVeredictos`, `web/app.js` línea 202](../web/app.js#L202); se usa en [línea 585](../web/app.js#L585) (Diagnóstico) y [línea 1391](../web/app.js#L1391) (Balance) |
 | Color del plano por veredicto | [`claveVisual`, `web/app.js` línea 86](../web/app.js#L86) |
 
 ### 5.0 La idea con una habitación
@@ -1092,14 +1092,15 @@ En el escenario base da 0 / 26 / 101 y un puntaje de 0,7031:
 
 - **El paso 6 (reasignación)** solo mueve a los huéspedes de habitaciones ocupadas `NO_HABITABLE`, y solo los manda a habitaciones `HABITABLE` con cama libre. Las casi habitables no se tocan: ni pierden a sus huéspedes ni reciben otros.
 - **El plano** pinta cada zona con su veredicto cuando no hay una franja elegida y el selector de color está en «habitabilidad».
-- **El gráfico «Cómo le fue en el día»**, debajo del plano y a todo el ancho de la página, muestra todo este paso para la zona que se elija en el plano ([`graficoDia`, `web/app.js` línea 1156](../web/app.js#L1156); los datos salen de `lineas_zonas`, [`_lineas_zonas`, `src/api.py` línea 110](../src/api.py#L110)):
+- **El gráfico «Cómo le fue en el día»**, debajo del plano y a todo el ancho de la página, muestra todo este paso para la zona que se elija en el plano ([`graficoDia`, `web/app.js` línea 1207](../web/app.js#L1207); los datos salen de `lineas_zonas`, [`_lineas_zonas`, `src/api.py` línea 110](../src/api.py#L110)):
   - arriba, la escala de 0 a 1 con sus tres tramos (no habitable, casi habitable, habitable) y un triángulo en el puntaje de la zona;
   - abajo, una barra por media hora: la altura es la nota (1, 0,5 o 0) y el color, el estado; la línea punteada es el puntaje, que es el promedio de las barras;
   - una franja de color bajo las barras repite el estado de cada media hora, incluso las de nota 0 y las cerradas, y el fondo oscuro marca la noche;
   - al pasar el mouse por una barra se ve su hora, su modo, la luz natural, reflejada y artificial, el total, el mínimo y el máximo de ese momento.
+  - sobre las barras, el puntaje de cada franja (madrugada, mañana, tarde, noche y cierre). En la vista «antes del balance» la noche dice «se evalúa después del balance», porque sin luminarias no se evalúa.
 
   En `TG-H-113` del caso `deficit_leve` se ven las barras rojas claras del sol de la mañana, las azules claras de 18:00 a 21:30 y el triángulo en 0,823, dentro del tramo amarillo.
-- **Las pestañas «2. Diagnóstico» y «4. Balance»** muestran las tarjetas con el conteo y los tres puntajes del hotel, las recomendaciones de hasta 12 zonas casi habitables y el número de zonas no habitables por causa.
+- **Las pestañas «2. Diagnóstico» y «4. Balance»** muestran las tarjetas con el conteo y los tres puntajes del hotel, cuántas zonas no habitables hay por causa y, en las sugerencias, hasta 12 zonas casi habitables con su puntaje, lo que les falta para 0,90 y su recomendación. Cada identificador de zona es un enlace que abre el plano con esa zona seleccionada. La explicación de los estados y de la escala está al inicio del Diagnóstico, en «Cómo leer los resultados».
 - **El resumen de la API** cuenta cuántas zonas casi o no habitables tienen causa de déficit (`zonas_con_deficit`) y cuántas de exceso (`zonas_con_exceso`).
 
 ### Resultado y costo del paso
@@ -1162,7 +1163,7 @@ Es un paso lineal y no necesita ninguna estructura especial.
 | Elegir y ocupar la cama | [líneas 97–101](../src/reasignacion.py#L97) |
 | Motivo cuando no hay alternativa | [líneas 105–111](../src/reasignacion.py#L105) |
 | El árbol AVL | [`class IndiceAVL`, `src/arboles.py` línea 17](../src/arboles.py#L17); [`sucesor`, línea 32](../src/arboles.py#L32); [`siguiente`, línea 44](../src/arboles.py#L44); [`eliminar`, línea 56](../src/arboles.py#L56); [`_rebalancear`, línea 83](../src/arboles.py#L83); [`_insertar`, línea 112](../src/arboles.py#L112) |
-| Propuestas en la interfaz | [`renderResult`, `web/app.js` línea 1313](../web/app.js#L1313); textos de los motivos en [`MOTIVOS_REASIGNACION`, línea 252](../web/app.js#L252) |
+| Propuestas en la interfaz | [`renderResult`, `web/app.js` línea 1406](../web/app.js#L1406); textos de los motivos en [`MOTIVOS_REASIGNACION`, línea 296](../web/app.js#L296) |
 | Pruebas | [`test_07` y `test_08`, `tests/test_casos_plan.py` líneas 154 y 170](../tests/test_casos_plan.py#L154); [`test_luminarias_danadas…` y `test_reasignacion_restringida`, `tests/test_casos_json.py` líneas 172 y 189](../tests/test_casos_json.py#L172) |
 
 ### 6.1 Quién se mueve

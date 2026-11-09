@@ -308,11 +308,6 @@
           "SUR"
         ]
       ],
-      "fracciones_objetivo": [
-        0.0,
-        0.5,
-        1.0
-      ],
       "horarios": {
         "COCINA": {
           "inicio_activa": [

@@ -1005,3 +1005,59 @@ h1, h2, h3 { letter-spacing: 0; }
   #plan-panel .floor-layout { grid-template-columns: minmax(0, 1fr); }
   .plan-aside { position: static; max-height: none; }
 }
+
+/* Leyendas del plano arriba, grandes y visibles */
+.plan-leyendas { margin: 4px 0 16px; padding: 14px 16px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface-alt); display: flex; flex-direction: column; gap: 8px; }
+.plan-legend { padding: 0; gap: 6px; font-size: .95rem; color: var(--text); flex-direction: column; align-items: stretch; }
+.plan-legend .legend-group { gap: 8px 18px; padding: 6px 10px; border-radius: 8px; border: 1px solid transparent; }
+.plan-legend .legend-group.activa { border-color: var(--accent); background: var(--accent-soft); }
+.plan-legend .legend-group-title { font-size: .85rem; min-width: 230px; }
+.plan-legend .legend-group-title em { font-style: normal; color: var(--text-muted); text-transform: none; letter-spacing: 0; }
+.plan-legend .legend-dot, .plan-legend .legend-swatch { width: 15px; height: 15px; }
+.tower-legend { margin: 0; padding: 0 10px; font-size: .95rem; color: var(--text); }
+
+/* Zonas clicables en sugerencias y mejoras */
+.zona-link { font: inherit; font-family: var(--font-mono); font-weight: 700; color: var(--accent); background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
+.zona-link:hover { color: var(--accent-strong); }
+.mejora-card p { margin: 4px 0; }
+.mejora-ok { padding: 12px 14px; border-radius: 10px; background: rgba(5, 150, 105, 0.14); color: var(--ok-text); font-weight: 600; }
+
+/* Puntaje por franja en el gráfico del día */
+.franjas-puntajes { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; }
+.franja-puntaje { display: flex; flex-direction: column; gap: 2px; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--border); border-left: 5px solid var(--c-sin-datos); background: var(--surface); }
+.franja-puntaje b { font-size: 1.15rem; }
+.franja-puntaje small { color: var(--text-muted); }
+.franja-puntaje.habitable { border-left-color: var(--c-good); }
+.franja-puntaje.casi-habitable { border-left-color: #f59e0b; }
+.franja-puntaje.no-habitable { border-left-color: var(--c-exceso); }
+.aviso-antes { margin: 0; padding: 10px 12px; border-radius: 10px; background: rgba(245, 158, 11, 0.14); border: 1px solid rgba(245, 158, 11, 0.4); }
+.simulando, .simulado { margin: 0 0 6px; padding: 8px 10px; border-radius: 8px; font-weight: 600; }
+.simulando { background: var(--accent-soft); color: var(--text); }
+.simulado { background: rgba(5, 150, 105, 0.14); color: var(--ok-text); }
+@media (max-width: 900px) { .franjas-puntajes { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* Bloques desplegables: detalle técnico y ayuda de lectura */
+.detalle-tecnico summary, .ayuda-lectura summary { cursor: pointer; display: flex; flex-direction: column; gap: 4px; list-style: none; }
+.detalle-tecnico summary::-webkit-details-marker, .ayuda-lectura summary::-webkit-details-marker { display: none; }
+.detalle-tecnico summary strong::before, .ayuda-lectura summary strong::before { content: ""; display: inline-block; width: 0; height: 0; margin-right: 8px; vertical-align: middle; border-style: solid; border-width: 6px 0 6px 9px; border-color: transparent transparent transparent var(--accent); transition: transform .15s; }
+.detalle-tecnico[open] summary strong::before, .ayuda-lectura[open] summary strong::before { transform: rotate(90deg); }
+.detalle-tecnico summary strong { font-size: 1.05rem; }
+.ayuda-lectura summary strong { font-family: var(--font-display); font-size: 1.35rem; }
+.detalle-tecnico .explicacion { margin: 10px 0; padding: 10px 12px; border-radius: 8px; background: var(--accent-soft); }
+.ayuda-lectura { margin-bottom: 18px; }
+.ayuda-lectura h3 { margin-top: 18px; }
+.escala-ayuda { display: flex; flex-wrap: wrap; gap: 10px; }
+.escala-ayuda span { padding: 8px 12px; border-radius: 8px; border-left: 5px solid; background: var(--surface-alt); }
+.escala-ayuda .no-habitable { border-color: var(--c-exceso); }
+.escala-ayuda .casi-habitable { border-color: #f59e0b; }
+.escala-ayuda .habitable { border-color: var(--c-good); }
+.tab-empty { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; }
+.tab-empty.hidden { display: none; }
+.tab-empty p { margin: 0; }
+
+/* Contraste de la ayuda de lectura en modo claro */
+[data-theme="claro"] .rule-formula { color: var(--text); background: var(--surface); border-color: var(--border-strong); }
+[data-theme="claro"] .comfort-pill.good { color: #047857; background: rgba(5, 150, 105, 0.12); }
+[data-theme="claro"] .comfort-pill.deficit { color: #1d4ed8; background: rgba(59, 130, 246, 0.12); }
+[data-theme="claro"] .comfort-pill.exceso { color: #b91c1c; background: rgba(239, 68, 68, 0.12); }
+.rule-formula { font-family: var(--font-body); }

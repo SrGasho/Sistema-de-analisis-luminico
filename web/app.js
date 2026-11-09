@@ -131,16 +131,17 @@ function renderComplexity(result) {
   if (!container || !result.complejidad) return;
   const { grafo, reasignacion, temporal } = result.complejidad;
   const filas = [];
-  if (grafo) filas.push(`<tr><td>Grafo de influencia (octree)</td><td>${grafo.pares_ingenuos}</td><td>${grafo.pares_evaluados}</td><td>${grafo.aristas} aristas</td></tr>`);
-  if (reasignacion && reasignacion.avl) filas.push(`<tr><td>Reasignación (AVL)</td><td>${reasignacion.comparaciones_lineales}</td><td>${reasignacion.comparaciones_avl}</td><td>${reasignacion.huespedes_a_mover} huéspedes, ${reasignacion.avl.tamano_inicial} habitaciones en la bolsa, ${reasignacion.avl.eliminaciones} eliminaciones</td></tr>`);
-  const arboles = temporal && temporal.avl ? `<p class="muted">Mismos ${temporal.rojo_negro.tamano} resultados insertados en los dos árboles: rojo-negro ${temporal.rojo_negro.rotaciones} rotaciones y altura ${temporal.rojo_negro.altura}; AVL ${temporal.avl.rotaciones} rotaciones y altura ${temporal.avl.altura}.</p>` : "";
-  container.innerHTML = `
-    <div class="output-block">
-      <h3>Estructuras de datos y comparaciones</h3>
-      <table><thead><tr><th>Operación</th><th>Ingenua</th><th>Con estructura</th><th>Detalle</th></tr></thead><tbody>${filas.join("")}</tbody></table>
-      ${arboles}
-    </div>
-  `;
+  if (grafo) filas.push(`<tr><td><b>Octree</b>: buscar qué fachada de la otra torre refleja luz a cada ventana</td><td class="num">${grafo.pares_ingenuos}</td><td class="num">${grafo.pares_evaluados}</td><td>${grafo.aristas} conexiones fachada → ventana</td></tr>`);
+  const noche = (result.temporal || []).find((f) => f.inicio === 18);
+  if (noche) filas.push(`<tr><td><b>Rojo-negro</b>: traer los resultados de la noche (18:00 a 22:00)</td><td class="num">${noche.comparaciones_lineales}</td><td class="num">${noche.comparaciones_arbol}</td><td>${noche.resultados} resultados devueltos</td></tr>`);
+  if (reasignacion && reasignacion.avl) filas.push(`<tr><td><b>AVL</b>: buscar habitación para los huéspedes a mover</td><td class="num">${reasignacion.comparaciones_lineales}</td><td class="num">${reasignacion.comparaciones_avl}</td><td>${reasignacion.huespedes_a_mover ? `${reasignacion.huespedes_a_mover} huéspedes, ${reasignacion.avl.tamano_inicial} habitaciones disponibles, ${reasignacion.avl.eliminaciones} se llenaron` : `Nadie quedó en una habitación no habitable; ${reasignacion.avl.tamano_inicial} habitaciones disponibles`}</td></tr>`);
+  const arboles = temporal && temporal.avl ? `<p class="muted">Los mismos ${temporal.rojo_negro.tamano} resultados guardados en los dos árboles: el rojo-negro queda con altura ${temporal.rojo_negro.altura} (${temporal.rojo_negro.rotaciones} rotaciones) y el AVL con altura ${temporal.avl.altura} (${temporal.avl.rotaciones} rotaciones). Menos altura quiere decir búsquedas más cortas.</p>` : "";
+  container.innerHTML = bloqueDetalle(
+    "Cuánto trabajo ahorran las estructuras de datos",
+    "Comparaciones con y sin cada estructura.",
+    "«Sin estructura» es lo que costaría revisar todo uno por uno; «con estructura» es lo que contó el programa. Menos es mejor.",
+    `<table><thead><tr><th>Qué se busca</th><th>Sin estructura</th><th>Con estructura</th><th>Detalle</th></tr></thead><tbody>${filas.join("")}</tbody></table>${arboles}`
+  );
 }
 
 function vistaActiva() {
@@ -219,25 +220,68 @@ function renderVeredictos(containerId, habitabilidad) {
     card("Puntaje nocturno", porcentaje(puntajes.noche))
   ].join("");
 
-  const recomendaciones = casi.length ? casi.slice(0, 12).map((z) => `
-    <div class="recommendation veredicto-casi">
-      <strong>${escapeHtml(z.zona_id)}</strong> · puntaje ${porcentaje(z.puntaje)} · faltan ${porcentaje(z.brecha)} para ser habitable<br>
-      ${escapeHtml(z.recomendacion || "Sin recomendación específica.")}
-    </div>
-  `).join("") : `<p class="muted">Ninguna zona está en el rango casi habitable.</p>`;
-
-  const resumenNo = Object.entries(causas).map(([causa, total]) => `<li>${escapeHtml(causa.replaceAll("_", " ").toLowerCase())}: ${total}</li>`).join("");
+  const resumenNo = Object.entries(causas).map(([causa, total]) => `<li>${escapeHtml(CAUSAS_TEXTO[causa] || causa.replaceAll("_", " ").toLowerCase())}: <b>${total}</b> ${total === 1 ? "zona" : "zonas"}</li>`).join("");
+  const bloqueNo = no.length ? `
+      <h3>No habitables por causa</h3>
+      <p class="muted">Cuántas zonas no habitables hay según su problema principal. Las acciones para resolverlas están en las sugerencias y en la pestaña Mejoras.</p>
+      <ul class="causas-lista">${resumenNo}</ul>` : "";
+  const nota = casi.length ? `<p class="muted">Las ${casi.length} zonas casi habitables, con su puntaje y su recomendación, están en las sugerencias de abajo.</p>` : "";
 
   container.innerHTML = `
     <div class="output-block">
       <p class="eyebrow">Habitabilidad por zona</p>
       <div class="cards">${cards}</div>
-      <h3>Casi habitables: recomendaciones</h3>
-      ${recomendaciones}
-      <h3>No habitables</h3>
-      <p class="muted">Solo se muestra el diagnóstico; no se recomiendan cambios automáticos para estas zonas.</p>
-      <ul class="causas-lista">${resumenNo || "<li>Sin zonas no habitables.</li>"}</ul>
+      ${nota}
+      ${bloqueNo}
     </div>
+  `;
+}
+
+const CAUSAS_TEXTO = {
+  DEFICIT_NOCTURNO: "Falta luz de noche",
+  DEFICIT_DIURNO: "Falta luz de día",
+  EXCESO_SOLAR: "Sobra luz del sol",
+  EXCESO_ARTIFICIAL: "Sobra luz artificial",
+  SIN_CAUSA: "Sin causa registrada"
+};
+
+const PATRON_ZONA = /\b(T[PG]-(?:H|COC|REC|PAR)-\d+)\b/g;
+
+function conEnlacesZona(texto, vista) {
+  return escapeHtml(texto).replace(PATRON_ZONA, (id) => `<button type="button" class="zona-link" data-ir-zona="${id}" data-vista="${vista}" title="Ver ${id} en el plano">${id}</button>`);
+}
+
+function irAZona(zoneId, vista, desplazar = true) {
+  const datos = vista === "despues" && state.post ? state.post : state.current;
+  if (!datos || !datos.layout) return;
+  const torre = datos.layout.torres.find((t) => t.pisos.some((p) => p.zonas.some((z) => z.id === zoneId)));
+  if (!torre) return;
+  const piso = torre.pisos.find((p) => p.zonas.some((z) => z.id === zoneId));
+  $("#plan-view").value = vista === "despues" && state.post ? "despues" : "antes";
+  state.selectedZoneId = zoneId;
+  mostrarPestana("plano");
+  renderFloorSelectors(vistaActiva().layout);
+  $("#floor-tower").value = torre.id;
+  updateFloorOptions();
+  $("#floor-number").value = String(piso.numero);
+  renderFloorPlan();
+  const plano = $("#plan-panel");
+  if (plano && desplazar) plano.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+document.addEventListener("click", (evento) => {
+  const enlace = evento.target.closest("[data-ir-zona]");
+  if (enlace) irAZona(enlace.dataset.irZona, enlace.dataset.vista);
+  if (evento.target.closest(".btn-balancear-ahora")) balance();
+});
+
+function bloqueDetalle(titulo, resumen, explicacion, contenido) {
+  return `
+    <details class="output-block detalle-tecnico">
+      <summary><strong>${titulo}</strong><span class="muted">${resumen}</span></summary>
+      <p class="explicacion">${explicacion}</p>
+      ${contenido}
+    </details>
   `;
 }
 
@@ -414,19 +458,19 @@ function renderComfortTable() {
     const maxRed = (max * 0.3).toFixed(0);
     return `
       <tr>
-        <td><strong>${escapeHtml(activityLabel(act))} (Activa)</strong></td>
+        <td><strong>${escapeHtml(activityLabel(act))}</strong> <small>en uso</small></td>
         <td><span class="comfort-pill deficit">&lt; ${(min * 0.5).toFixed(0)} lx</span></td>
         <td><span class="comfort-pill deficit">${(min * 0.5).toFixed(0)} – ${min - 1} lx</span></td>
-        <td><span class="comfort-pill good">${min} – ${max} lx <small>(Obj: ${obj})</small></span></td>
+        <td><span class="comfort-pill good">${min} – ${max} lx <small>(objetivo ${obj})</small></span></td>
         <td><span class="comfort-pill exceso">${max + 1} – ${(max * 1.25).toFixed(0)} lx</span></td>
         <td><span class="comfort-pill exceso">&gt; ${(max * 1.25).toFixed(0)} lx</span></td>
       </tr>
       ${act === "HABITACION" ? `
       <tr>
-        <td><em>${escapeHtml(activityLabel(act))} (Descanso Noche / 30%)</em></td>
+        <td><em>${escapeHtml(activityLabel(act))}</em> <small>de descanso (30 %)</small></td>
         <td><span class="comfort-pill deficit">&lt; ${(min * 0.15).toFixed(0)} lx</span></td>
         <td><span class="comfort-pill deficit">${(min * 0.15).toFixed(0)} – ${Number(minRed) - 1} lx</span></td>
-        <td><span class="comfort-pill good">${minRed} – ${maxRed} lx <small>(Obj: ${objRed})</small></span></td>
+        <td><span class="comfort-pill good">${minRed} – ${maxRed} lx <small>(objetivo ${objRed})</small></span></td>
         <td><span class="comfort-pill exceso">${Number(maxRed) + 1} – ${(max * 0.375).toFixed(0)} lx</span></td>
         <td><span class="comfort-pill exceso">&gt; ${(max * 0.375).toFixed(0)} lx</span></td>
       </tr>` : ""}
@@ -439,12 +483,12 @@ function renderComfortTable() {
       <table>
         <thead>
           <tr>
-            <th>Actividad / Modo</th>
-            <th>Déficit Severo (Inhabitable)</th>
-            <th>Déficit Leve (Sub-óptimo)</th>
-            <th>Confortable (Óptimo)</th>
-            <th>Exceso Leve (Sobreiluminado)</th>
-            <th>Exceso Severo (Deslumbramiento)</th>
+            <th>Actividad</th>
+            <th>A oscuras (déficit severo)</th>
+            <th>Falta un poco (déficit leve)</th>
+            <th>Bien (confortable)</th>
+            <th>Sobra un poco (exceso leve)</th>
+            <th>Deslumbra (exceso severo)</th>
           </tr>
         </thead>
         <tbody>${rows}</tbody>
@@ -489,15 +533,26 @@ async function cargarMejoras() {
   contenedor.innerHTML = `<p class="muted">Midiendo mejoras con simulaciones de prueba…</p>`;
   try {
     const payload = await request("/api/mejoras", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(state.config) });
+    const conteo = (c) => `${c.HABITABLE || 0} habitables · ${c.CASI_HABITABLE || 0} casi · ${c.NO_HABITABLE || 0} no habitables`;
     const tarjetas = payload.mejoras.map((mejora) => `
-      <div class="mejora-card ${mejora.delta > 0 ? "mejora-positiva" : ""}">
+      <div class="mejora-card mejora-positiva">
         <strong>${escapeHtml(mejora.titulo)}</strong>
-        <div>Puntaje ${mejora.puntaje_antes.toFixed(3)} → ${mejora.puntaje_despues.toFixed(3)}
-          <span class="${mejora.delta > 0 ? "delta-up" : "delta-flat"}">(${mejora.delta >= 0 ? "+" : ""}${mejora.delta.toFixed(3)})</span></div>
-        <small>${mejora.delta > 0 ? "Mejora medida en este escenario" : "Sin efecto en este escenario"}</small>
+        <p class="muted">${escapeHtml(mejora.descripcion)}</p>
+        <div>Puntaje del hotel ${porcentajeTexto(mejora.puntaje_antes)} → ${porcentajeTexto(mejora.puntaje_despues)}
+          <span class="delta-up">(+${(mejora.delta * 100).toFixed(1)} puntos)</span></div>
+        <div>Antes: ${conteo(mejora.conteo_antes)}<br>Después: ${conteo(mejora.conteo_despues)}</div>
+        ${mejora.zonas.length ? `<div class="suggestion-items">${mejora.zonas.map((z) => `<span class="suggestion-item-chip">${conEnlacesZona(z, "despues")}</span>`).join("")}${mejora.zonas_total > mejora.zonas.length ? `<span class="suggestion-item-chip">y ${mejora.zonas_total - mejora.zonas.length} más</span>` : ""}</div>` : ""}
       </div>
     `).join("");
-    contenedor.innerHTML = `<div class="output-block"><h3>Mejoras medidas</h3><p class="muted">Cada cambio se simula por separado sobre la configuración actual.</p>${tarjetas || `<p class="muted">No hay mejoras aplicables a este escenario.</p>`}</div>`;
+    let cuerpo;
+    if (payload.estado === "TODO_HABITABLE") {
+      cuerpo = `<p class="mejora-ok">Todas las zonas son habitables: no hace falta ninguna mejora.</p>`;
+    } else if (!payload.mejoras.length) {
+      cuerpo = `<p class="muted">${payload.probadas ? `Se ${payload.probadas === 1 ? "probó 1 cambio" : `probaron ${payload.probadas} cambios`} (${escapeHtml(payload.sin_efecto.join("; "))}) y ninguno mejora el puntaje.` : "No hay cambios que probar para los problemas de este escenario."} Prueba «Buscar reestructuración».</p>`;
+    } else {
+      cuerpo = tarjetas + (payload.sin_efecto.length ? `<p class="muted">Sin efecto: ${escapeHtml(payload.sin_efecto.join("; "))}.</p>` : "");
+    }
+    contenedor.innerHTML = `<div class="output-block"><h3>Mejoras medidas</h3><p class="muted">Cada cambio sale de un problema del escenario (sol de más, luminarias débiles, generador corto, falta de luz de día) y se mide con la simulación completa del día. Solo se muestran los que mejoran el puntaje.</p>${cuerpo}</div>`;
   } catch (error) {
     contenedor.innerHTML = `<p class="muted">No se pudieron medir las mejoras: ${escapeHtml(error.message)}</p>`;
   }
@@ -598,7 +653,7 @@ function renderSuggestions(containerId, suggestions, isCurrent = false) {
     const priorityClass = `prioridad-${(sug.prioridad || "media").toLowerCase()}`;
     const chips = sug.items && sug.items.length ? `
       <div class="suggestion-items">
-        ${sug.items.map((it) => `<span class="suggestion-item-chip">${escapeHtml(it)}</span>`).join("")}
+        ${sug.items.map((it) => `<span class="suggestion-item-chip">${conEnlacesZona(it, isCurrent ? "antes" : "despues")}</span>`).join("")}
       </div>
     ` : "";
     return `
@@ -626,7 +681,7 @@ function renderSuggestions(containerId, suggestions, isCurrent = false) {
         <div>
           <p class="eyebrow">Diagnóstico y recomendaciones</p>
           <h3>Sugerencias para mejorar la habitabilidad ${infoIcon("Opciones derivadas de los parámetros de diseño del hotel: vidrios VLT, reflectancia de muros, capacidad del generador y reasignación de habitaciones.")}</h3>
-          <p class="muted">${isCurrent ? "Diagnóstico preliminar basado en la iluminación natural y reflectancia de la envolvente." : "Propuestas operativas y técnicas para resolver déficits, excesos y optimizar el confort de los huéspedes."}</p>
+          <p class="muted">${isCurrent ? "Diagnóstico preliminar basado en la iluminación natural y reflectancia de la envolvente." : "Propuestas operativas y técnicas para resolver déficits, excesos y optimizar el confort de los huéspedes."} Haz clic en una zona para verla en el plano.</p>
         </div>
       </div>
       <div class="suggestions-container">${cards}</div>
@@ -1064,31 +1119,27 @@ function renderFloorPlan() {
     </svg>
   `;
 
-  // Leyenda en 2 grupos: Sinergia de Espacios + Confort Lumínico
-  $("#floor-legend").innerHTML = `
-    <div class="legend-group">
-      <span class="legend-group-title">Sinergia de Espacios:</span>
-      <span><i class="legend-swatch swatch-habitacion"></i>Habitación (Azul)</span>
-      <span><i class="legend-swatch swatch-cocina"></i>Cocina (Naranja)</span>
-      <span><i class="legend-swatch swatch-recreacion"></i>Recreación (Verde)</span>
-      <span><i class="legend-swatch swatch-parqueadero"></i>Parqueadero (Gris)</span>
-      <span><i class="legend-swatch swatch-circulacion"></i>Núcleo / Pasillos</span>
-    </div>
-    <div class="legend-group">
-      <span class="legend-group-title">Habitabilidad:</span>
+  const capa = franjaActiva() ? "confort" : ($("#plan-color-mode") ? $("#plan-color-mode").value : "habitabilidad");
+  const grupo = (id, titulo, contenido) => `<div class="legend-group ${capa === id ? "activa" : ""}"><span class="legend-group-title">${titulo}${capa === id ? " <em>(capa actual)</em>" : ""}</span>${contenido}</div>`;
+  $("#floor-legend").innerHTML = [
+    grupo("synergy", "Separación de espacios", `
+      <span><i class="legend-swatch swatch-habitacion"></i>Habitación (azul)</span>
+      <span><i class="legend-swatch swatch-cocina"></i>Cocina (naranja)</span>
+      <span><i class="legend-swatch swatch-recreacion"></i>Recreación (verde)</span>
+      <span><i class="legend-swatch swatch-parqueadero"></i>Parqueadero (gris)</span>
+      <span><i class="legend-swatch swatch-circulacion"></i>Núcleo y pasillos</span>`),
+    grupo("habitabilidad", "Habitabilidad del día", `
       <span><i class="legend-dot habitable"></i>Habitable</span>
       <span><i class="legend-dot casi-habitable"></i>Casi habitable</span>
-      <span><i class="legend-dot no-habitable"></i>No habitable</span>
-    </div>
-    <div class="legend-group">
-      <span class="legend-group-title">Confort Lumínico:</span>
+      <span><i class="legend-dot no-habitable"></i>No habitable</span>`),
+    grupo("confort", franjaActiva() ? "Confort lumínico en la franja" : "Confort lumínico", `
       <span><i class="legend-dot good"></i>Confortable</span>
       <span><i class="legend-dot deficit-leve"></i>Déficit leve</span>
       <span><i class="legend-dot deficit-severo"></i>Déficit severo</span>
       <span><i class="legend-dot exceso-leve"></i>Exceso leve</span>
       <span><i class="legend-dot exceso-severo"></i>Exceso severo</span>
-    </div>
-  `;
+      <span><i class="legend-dot sin-datos"></i>Sin datos (cerrada)</span>`)
+  ].join("");
 
   // Tarjetas de zonas comunes con borde y badge temático
   $("#common-zones").innerHTML = common.length ? common.map((zone) => {
@@ -1202,16 +1253,32 @@ function graficoDia(zoneId) {
   const severos = filas.filter((f) => f[6] === "DEFICIT_SEVERO").length;
   const veredicto = stateInfo(ev.veredicto);
   const oscuridad = evaluables ? severos / evaluables : 0;
+  const sinBalance = datos.estado === "ANALISIS_ACTUAL";
+  const tramo = (valor) => (valor >= habitable ? "habitable" : valor >= casi ? "casi-habitable" : "no-habitable");
+  const franjas = [["Madrugada", 0, 6], ["Mañana", 6, 12], ["Tarde", 12, 18], ["Noche", 18, 22], ["Cierre", 22, 24]].map(([nombre, desde, hasta]) => {
+    const propias = filas.filter((f) => f[0] >= desde && f[0] < hasta);
+    const validas = propias.filter((f) => f[6] !== "DATOS_INSUFICIENTES");
+    const rango = `${desde}:00–${hasta}:00`;
+    if (!validas.length) {
+      const motivo = sinBalance && propias.some((f) => f[1] !== "CERRADA") ? "se evalúa después del balance" : "cerrada, no cuenta";
+      return `<div class="franja-puntaje sin-dato"><span>${nombre} <small>${rango}</small></span><b>—</b><small>${motivo}</small></div>`;
+    }
+    const valor = validas.reduce((suma, f) => suma + nota[f[6]], 0) / validas.length;
+    return `<div class="franja-puntaje ${tramo(valor)}"><span>${nombre} <small>${rango}</small></span><b class="num">${pct(valor)}</b><small>${stateInfo(valor >= habitable ? "HABITABLE" : valor >= casi ? "CASI_HABITABLE" : "NO_HABITABLE").label}</small></div>`;
+  }).join("");
+  const avisoAntes = sinBalance ? `<p class="aviso-antes">Estás viendo la condición <b>antes del balance</b>: solo luz natural, sin luminarias. La noche no se evalúa porque sin luz artificial siempre estaría a oscuras. Cambia «Vista» a «Después del balance» para ver el día completo.</p>` : "";
   return `
     <div class="grafico-dia">
       <h3>Cómo le fue en el día a ${escapeHtml(zoneId)}</h3>
       <span>Puntaje <b class="num">${pct(ev.puntaje)}</b> · día ${pct(ev.puntaje_dia)} · noche ${pct(ev.puntaje_noche)}: <b class="inline-state ${veredicto.cls}">${veredicto.label}</b></span>
+      ${avisoAntes}
       ${escala}
       <div class="legend grafico-leyenda">
         <span><i class="legend-dot no-habitable"></i>menos de ${coma(casi)}: no habitable</span>
         <span><i class="legend-dot casi-habitable"></i>${coma(casi)} a ${coma(habitable)}: casi habitable</span>
         <span><i class="legend-dot habitable"></i>${coma(habitable)} a 1: habitable</span>
       </div>
+      <div class="franjas-puntajes">${franjas}</div>
       <svg viewBox="0 0 ${lienzo} ${arriba + alto + 42}" role="img" aria-label="Nota de cada media hora del día de ${escapeHtml(zoneId)}">
         ${noche}${columnas}${lineaPuntaje}${ejeY}${ejeX}
       </svg>
@@ -1245,8 +1312,8 @@ function formularioRecinto(zone) {
       <label><span>Pared</span><select name="zona-pared">${opciones(Object.keys(state.config.paredes), pared)}</select></label>
       ${conVentanas ? `<label><span>Vidrio</span><select name="zona-vidrio">${opciones(Object.keys(state.config.vidrios), vidrio)}</select></label>${orientacion}` : `<p class="muted">Este recinto no tiene ventanas.</p>`}
       <div class="actions">
-        <button type="button" class="primary" data-zone-save="${escapeHtml(zone.id)}">Aplicar a este recinto</button>
-        ${personal ? `<button type="button" class="secondary" data-zone-reset="${escapeHtml(zone.id)}">Volver a la actividad</button>` : ""}
+        <button type="button" class="primary" data-zone-save="${escapeHtml(zone.id)}">Aplicar y simular</button>
+        ${personal ? `<button type="button" class="secondary" data-zone-reset="${escapeHtml(zone.id)}">Volver a la actividad y simular</button>` : ""}
       </div>
     </div>
   `;
@@ -1265,17 +1332,38 @@ function enlazarFormularioRecinto(zoneId) {
         ? [orientacionEls[0].value]
         : orientacionEls.filter((item) => item.checked).map((item) => item.value);
       state.config.zonas_personalizadas = state.config.zonas_personalizadas || {};
-      state.config.zonas_personalizadas[zoneId] = { pared, vidrio: vidrioEl ? vidrioEl.value : null, orientaciones };
-      marcarCambiosPendientes();
-      showZoneDetail(zoneId);
+      state.config.zonas_personalizadas[zoneId] = { ...(state.config.zonas_personalizadas[zoneId] || {}), pared, vidrio: vidrioEl ? vidrioEl.value : null, orientaciones };
+      simularDesdePlano(zoneId);
     });
   }
   if (restablecer) {
     restablecer.addEventListener("click", () => {
-      delete state.config.zonas_personalizadas[zoneId];
-      marcarCambiosPendientes();
-      showZoneDetail(zoneId);
+      const { luminaria_w } = state.config.zonas_personalizadas[zoneId] || {};
+      if (luminaria_w !== undefined) state.config.zonas_personalizadas[zoneId] = { luminaria_w };
+      else delete state.config.zonas_personalizadas[zoneId];
+      simularDesdePlano(zoneId);
     });
+  }
+}
+
+async function simularDesdePlano(zoneId) {
+  const contenedor = $("#zone-detail");
+  contenedor.querySelectorAll("button").forEach((boton) => { boton.disabled = true; });
+  contenedor.insertAdjacentHTML("afterbegin", `<p class="simulando">Simulando el día con el cambio en ${escapeHtml(zoneId)}…</p>`);
+  const cuerpo = { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(state.config) };
+  try {
+    const actual = await request("/api/condicion_actual", cuerpo);
+    renderCurrentAnalysis(actual);
+    renderResult(await request("/api/balancear", cuerpo));
+    $("#validation-status").textContent = `Simulado con el cambio en ${zoneId}`;
+    irAZona(zoneId, "despues", false);
+    const aviso = `<p class="simulado">Listo: el plano, el gráfico y las pestañas Diagnóstico y Balance ya muestran el resultado con este cambio.</p>`;
+    $("#zone-detail").insertAdjacentHTML("afterbegin", aviso);
+    cargarMejoras();
+  } catch (error) {
+    contenedor.querySelectorAll("button").forEach((boton) => { boton.disabled = false; });
+    const aviso = contenedor.querySelector(".simulando");
+    if (aviso) aviso.textContent = `No se pudo simular: ${error.message}`;
   }
 }
 
@@ -1293,7 +1381,12 @@ function renderResult(result) {
   renderComparativa(state.current, result);
   animarPlano();
   const states = Object.entries(result.resumen.estados).map(([name, count]) => `<tr><td>${escapeHtml(name)}</td><td>${count}</td></tr>`).join("");
-  $("#state-table").innerHTML = `<div class="output-block"><h3>Estados calculados</h3><table><thead><tr><th>Estado</th><th>Resultados</th></tr></thead><tbody>${states}</tbody></table></div>`;
+  $("#state-table").innerHTML = bloqueDetalle(
+    "Estados de todas las medias horas",
+    `${result.resumen.resultados_generados} resultados: ${result.resumen.zonas_evaluadas} zonas × 48 medias horas.`,
+    "Cuántas medias horas, sumando todas las zonas, quedaron en cada estado. «Datos insuficientes» son las horas en que una zona estaba cerrada.",
+    `<table><thead><tr><th>Estado</th><th>Medias horas</th></tr></thead><tbody>${states}</tbody></table>`
+  );
 
   renderVeredictos("#results-verdicts", result.habitabilidad);
   renderSuggestions("#results-suggestions", result.sugerencias_habitabilidad, false);
@@ -1303,8 +1396,8 @@ function renderResult(result) {
     <div class="recommendation">
       <strong>${escapeHtml(item.estado)}</strong><br>
       Huésped: <code>${escapeHtml(item.huesped_id)}</code><br>
-      Habitación actual: <b>${escapeHtml(item.habitacion_actual)}</b><br>
-      Propuesta alternativa: <b>${escapeHtml(item.habitacion_propuesta || MOTIVOS_REASIGNACION[item.motivo] || "No existe alternativa")}</b>
+      Habitación actual: <b>${conEnlacesZona(item.habitacion_actual, "despues")}</b><br>
+      Propuesta alternativa: <b>${item.habitacion_propuesta ? conEnlacesZona(item.habitacion_propuesta, "despues") : escapeHtml(MOTIVOS_REASIGNACION[item.motivo] || "No existe alternativa")}</b>
       ${item.score !== null ? `<br><small>Score de compatibilidad: ${item.score.toFixed(3)}</small>` : ""}
       ${item.restricciones && item.restricciones.length ? `<br><small>Restricciones: ${escapeHtml(item.restricciones.join(", "))}</small>` : ""}
       ${item.descartadas && item.descartadas.length ? `<br><small>Descartadas (menor puntaje): ${item.descartadas.map((d) => `${escapeHtml(d.habitacion_id)} (${d.score.toFixed(3)})`).join(", ")}</small>` : ""}
@@ -1313,7 +1406,12 @@ function renderResult(result) {
   $("#recommendations").innerHTML = `<div class="output-block"><h3>Reasignaciones operativas de huéspedes</h3>${recommendations}</div>`;
 
   const rows = Object.entries(result.resumen_zonas).slice(0, 40).map(([id, data]) => `<tr><td>${escapeHtml(id)}</td><td>${data.promedio_lux.toFixed(1)}</td><td>${data.maximo_lux.toFixed(1)}</td><td>${data.pasos_deficit}</td><td>${data.pasos_confortables}</td><td>${data.energia_wh.toFixed(1)}</td></tr>`).join("");
-  $("#zone-table").innerHTML = `<div class="output-block"><h3>Resumen de zonas</h3><p class="muted">Se muestran las primeras 40 zonas; el reporte CSV contiene el detalle temporal completo.</p><table><thead><tr><th>Zona</th><th>Promedio lux</th><th>Máximo lux</th><th>Déficit</th><th>Confort</th><th>Wh</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+  $("#zone-table").innerHTML = bloqueDetalle(
+    "Resumen por zona",
+    "Luz promedio y máxima, medias horas en déficit y en confort, y energía de cada zona.",
+    "Se muestran las primeras 40 zonas. El reporte CSV de la pestaña Balance trae las 48 medias horas de todas.",
+    `<table><thead><tr><th>Zona</th><th>Luz promedio (lux)</th><th>Luz máxima (lux)</th><th>Medias horas en déficit</th><th>Medias horas confortables</th><th>Energía (Wh)</th></tr></thead><tbody>${rows}</tbody></table>`
+  );
 }
 
 async function loadCurrentCondition() {

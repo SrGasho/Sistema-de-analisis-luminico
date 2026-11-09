@@ -89,6 +89,34 @@
     </div>
 
     <div class="tab-panel" id="tab-diagnostico" data-tab="diagnostico" role="tabpanel" hidden>
+    <details class="panel ayuda-lectura" id="comfort-ranges-panel">
+      <summary>
+        <span class="eyebrow">Ayuda</span>
+        <strong>Cómo leer los resultados</strong>
+        <span class="muted">Qué significa cada estado, cómo se decide si una zona es habitable y cuántos lux necesita cada actividad. Haz clic para abrir.</span>
+      </summary>
+      <h3>1. El estado de cada media hora</h3>
+      <p class="muted">Cada media hora del día, el sistema compara la luz total de la zona (sol, reflejos y luminaria) con el mínimo y el máximo de su actividad.</p>
+      <div class="comfort-rules-grid">
+        <div class="rule-card good"><div class="rule-header"><span class="rule-title"><i class="legend-dot good"></i><strong>Confortable</strong></span><span class="rule-formula">entre el mínimo y el máximo</span></div><p>La luz es la adecuada para la actividad. Vale 1 punto.</p></div>
+        <div class="rule-card deficit-leve"><div class="rule-header"><span class="rule-title"><i class="legend-dot deficit-leve"></i><strong>Déficit leve</strong></span><span class="rule-formula">entre la mitad del mínimo y el mínimo</span></div><p>Falta un poco de luz; se puede usar, pero cansa la vista. Vale medio punto.</p></div>
+        <div class="rule-card deficit-severo"><div class="rule-header"><span class="rule-title"><i class="legend-dot deficit-severo"></i><strong>Déficit severo</strong></span><span class="rule-formula">menos de la mitad del mínimo</span></div><p>La zona está prácticamente a oscuras. Vale 0 puntos.</p></div>
+        <div class="rule-card exceso-leve"><div class="rule-header"><span class="rule-title"><i class="legend-dot exceso-leve"></i><strong>Exceso leve</strong></span><span class="rule-formula">hasta 25 % por encima del máximo</span></div><p>Sobra un poco de luz, casi siempre sol directo. Vale medio punto.</p></div>
+        <div class="rule-card exceso-severo"><div class="rule-header"><span class="rule-title"><i class="legend-dot exceso-severo"></i><strong>Exceso severo</strong></span><span class="rule-formula">más de 25 % por encima del máximo</span></div><p>Deslumbra; hace falta una cortina o un vidrio que filtre el sol. Vale 0 puntos.</p></div>
+        <div class="rule-card sin-datos"><div class="rule-header"><span class="rule-title"><i class="legend-dot sin-datos"></i><strong>Sin datos</strong></span><span class="rule-formula">zona cerrada</span></div><p>La zona está fuera de servicio a esa hora. No cuenta para el puntaje.</p></div>
+      </div>
+      <h3>2. El veredicto del día</h3>
+      <p class="muted">El <b>puntaje</b> de una zona es el promedio de los puntos de sus medias horas. Con él se decide:</p>
+      <div class="escala-ayuda">
+        <span class="no-habitable">Menos de 75 %: <b>no habitable</b></span>
+        <span class="casi-habitable">De 75 % a 90 %: <b>casi habitable</b></span>
+        <span class="habitable">90 % o más: <b>habitable</b></span>
+      </div>
+      <p class="muted">Además, una zona que pasa más del 5 % del día a oscuras (en una habitación, hora y media) es no habitable aunque su puntaje sea alto. Las casi habitables reciben una recomendación; a los huéspedes de habitaciones no habitables se les busca otra habitación.</p>
+      <h3>3. Cuántos lux necesita cada actividad</h3>
+      <p class="muted">Rangos de cada estado según los perfiles de la pestaña Configurar. Se actualizan al editarlos. Fuera de su horario activo, una zona pide el 30 % de esta luz.</p>
+      <div id="comfort-table-container"></div>
+    </details>
     <section class="panel" id="current-analysis-panel">
       <div class="section-heading">
         <div>
@@ -111,7 +139,6 @@
           <div>
             <p class="eyebrow">Visualización espacial arquitectónica</p>
             <h2>Plano esquemático del piso</h2>
-            <p class="muted">Representación estilo plano técnico CAD con distribución de habitaciones, muros estructurales, puertas, ventanas y núcleo de circulación.</p>
           </div>
         </div>
         <div class="selectors">
@@ -127,16 +154,18 @@
             <label><span>Capa de color <span class="info-icon" tabindex="0">!<span class="tooltip-box">Alterna entre la zonificación por colores de espacios (habitaciones azul, cocina naranja, recreación verde, parqueadero gris) y el mapa térmico de confort lumínico.</span></span></span>
               <select id="plan-color-mode">
                 <option value="habitabilidad" selected>Habitabilidad</option>
-                <option value="synergy">Separacion de Espacios</option>
+                <option value="synergy">Separación de espacios</option>
                 <option value="confort">Confort lumínico</option>
               </select>
             </label>
           </div>
+        <div class="plan-leyendas">
+          <div id="floor-legend" class="legend plan-legend"></div>
+          <p id="tower-legend" class="tower-legend"></p>
+        </div>
         <div class="floor-layout">
           <div class="floor-plan-col">
             <div id="floor-plan" class="floor-plan"></div>
-            <div id="floor-legend" class="legend"></div>
-            <p id="tower-legend" class="muted"></p>
           </div>
           <aside class="plan-aside">
             <h3>Detalle de la zona</h3>
@@ -154,7 +183,7 @@
     </div>
 
     <div class="tab-panel" id="tab-balance" data-tab="balance" role="tabpanel" hidden>
-    <p class="panel tab-empty" data-espera-balance>Ejecuta «Balancear energía» en la pestaña Configurar para ver el resultado.</p>
+    <div class="panel tab-empty" data-espera-balance><p>Todavía no se ha balanceado la energía. El balance reparte el generador entre las zonas y evalúa el día completo, también la noche.</p><button type="button" class="primary btn-balancear-ahora">Balancear energía ahora</button></div>
     <section class="panel hidden" id="results-panel" data-requiere-balance>
       <div class="section-heading">
         <div>
@@ -178,7 +207,7 @@
     </div>
 
     <div class="tab-panel" id="tab-mejoras" data-tab="mejoras" role="tabpanel" hidden>
-    <p class="panel tab-empty" data-espera-balance>Las mejoras y la reestructuración aparecen después del balance.</p>
+    <div class="panel tab-empty" data-espera-balance><p>Las mejoras y la reestructuración se calculan después del balance.</p><button type="button" class="primary btn-balancear-ahora">Balancear energía ahora</button></div>
     <section class="panel hidden" id="improvements-panel" data-requiere-balance>
       <div class="section-heading">
         <div>
@@ -193,7 +222,7 @@
           <div>
             <p class="eyebrow">Reestructuración de actividades</p>
             <h3>Buscar cambios que sostengan la habitabilidad</h3>
-            <p class="muted">Prueba acabados, orientaciones de ventanas, objetivos de iluminancia y horarios de cocina y recreación dentro de rangos fijos. Cada combinación se mide con la simulación completa.</p>
+            <p class="muted">Solo revisa las actividades que tienen zonas casi o no habitables. Para cada una prueba, de a un cambio, otra pared, otro vidrio, otras orientaciones de ventana y, en cocina y recreación, otros horarios. Cada prueba es una simulación completa del día (máximo 30). Acepta el primer cambio que sube el puntaje del hotel (si empata, el que deja menos zonas no habitables o gasta menos energía) y sigue buscando desde ahí.</p>
           </div>
           <button class="secondary" id="buscar-reestructuracion">Buscar reestructuración</button>
         </div>
@@ -203,7 +232,7 @@
     </div>
 
     <div class="tab-panel" id="tab-tecnico" data-tab="tecnico" role="tabpanel" hidden>
-    <p class="panel tab-empty" data-espera-balance>Los conteos de las estructuras de datos y las tablas del balance aparecen después de balancear.</p>
+    <div class="panel tab-empty" data-espera-balance><p>Los conteos de las estructuras de datos y las tablas aparecen después de balancear.</p><button type="button" class="primary btn-balancear-ahora">Balancear energía ahora</button></div>
     <section class="panel hidden" id="technical-panel" data-requiere-balance>
       <div class="section-heading">
         <div>
@@ -215,65 +244,6 @@
       <div id="complexity-report"></div>
       <div id="state-table"></div>
       <div id="zone-table"></div>
-    </section>
-    <section class="panel" id="comfort-ranges-panel">
-      <div class="section-heading">
-        <div>
-          <p class="eyebrow">Criterios Fotométricos y Habitabilidad</p>
-          <h2>Rangos de luminosidad y niveles de confort / inhabitabilidad</h2>
-          <p class="muted">Reglas de clasificación instantánea según el modelo del hotel (Bogotá) y rangos sintéticos de iluminancia (lux) por tipo de actividad.</p>
-        </div>
-        <span class="status">Referencia Bogotá</span>
-      </div>
-      <div class="comfort-rules-grid">
-        <div class="rule-card good">
-          <div class="rule-header">
-            <span class="rule-title"><i class="legend-dot good"></i><strong>CONFORTABLE</strong></span>
-            <span class="rule-formula">E<sub>mín</sub> ≤ E ≤ E<sub>máx</sub></span>
-          </div>
-          <p><strong>Habitabilidad plena.</strong> Nivel adecuado para realizar las actividades visuales con comodidad, sin esfuerzo ni deslumbramiento.</p>
-        </div>
-        <div class="rule-card deficit-leve">
-          <div class="rule-header">
-            <span class="rule-title"><i class="legend-dot deficit-leve"></i><strong>DÉFICIT LEVE</strong></span>
-            <span class="rule-formula">0.50 E<sub>mín</sub> ≤ E &lt; E<sub>mín</sub></span>
-          </div>
-          <p><strong>Sub-óptimo.</strong> Iluminación insuficiente que provoca fatiga visual. Requiere encendido de luminarias o reasignación.</p>
-        </div>
-        <div class="rule-card deficit-severo">
-          <div class="rule-header">
-            <span class="rule-title"><i class="legend-dot deficit-severo"></i><strong>DÉFICIT SEVERO</strong></span>
-            <span class="rule-formula">E &lt; 0.50 E<sub>mín</sub></span>
-          </div>
-          <p><strong>Inhabitable por penumbra.</strong> Iluminancia crítica inferior a la mitad del mínimo aceptable. Activa protocolo de reubicación prioritaria.</p>
-        </div>
-        <div class="rule-card exceso-leve">
-          <div class="rule-header">
-            <span class="rule-title"><i class="legend-dot exceso-leve"></i><strong>EXCESO LEVE</strong></span>
-            <span class="rule-formula">E<sub>máx</sub> &lt; E ≤ 1.25 E<sub>máx</sub></span>
-          </div>
-          <p><strong>Sobreiluminación tolerable.</strong> Hasta 25% superior al límite. Aceptable pero puede causar leve disconfort o derroche energético.</p>
-        </div>
-        <div class="rule-card exceso-severo">
-          <div class="rule-header">
-            <span class="rule-title"><i class="legend-dot exceso-severo"></i><strong>EXCESO SEVERO</strong></span>
-            <span class="rule-formula">E &gt; 1.25 E<sub>máx</sub></span>
-          </div>
-          <p><strong>Inhabitable por deslumbramiento.</strong> Supera en más del 25% el límite máximo. Causa fatiga ocular y riesgo de disconfort térmico.</p>
-        </div>
-        <div class="rule-card sin-datos">
-          <div class="rule-header">
-            <span class="rule-title"><i class="legend-dot sin-datos"></i><strong>DATOS INSUFICIENTES</strong></span>
-            <span class="rule-formula">Modo CERRADA</span>
-          </div>
-          <p><strong>Zona no operativa.</strong> Zona fuera de horario de servicio, cerrada o con datos geométricos incompletos.</p>
-        </div>
-      </div>
-      <div class="comfort-table-box">
-        <h3>Matriz de valores de confort fotométrico en lux</h3>
-        <p class="muted">Valores dinámicos calculados a partir de los perfiles de actividad configurados:</p>
-        <div id="comfort-table-container"></div>
-      </div>
     </section>
     </div>
 

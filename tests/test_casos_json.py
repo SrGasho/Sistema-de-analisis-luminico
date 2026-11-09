@@ -5,6 +5,7 @@ from pathlib import Path
 
 from src.api import ejecutar_balance
 from src.io_datos import cargar_hotel_data
+from src.mejoras import medir_mejoras
 from src.modelo import ModoOperacion
 
 CASOS = Path(__file__).resolve().parent.parent / "data" / "casos_prueba"
@@ -126,6 +127,20 @@ class CasosJson(unittest.TestCase):
             for z in list(self.veredictos(nombre).values()) + list(zonas.values()):
                 if z["proporcion_deficit_severo"] and z["proporcion_deficit_severo"] > 0.05:
                     self.assertTrue(z["causa"].startswith("DEFICIT"), (nombre, z))
+
+    def test_sugerencias_y_mejoras_siguen_al_problema(self):
+        categorias = {s["categoria"] for s in self.r("cielo_despejado")["sugerencias_habitabilidad"]}
+        self.assertNotIn("REFLECTANCIA_PAREDES", categorias)
+        self.assertEqual(self.r("luminarias_danadas")["generador"]["estado"], "OPERACION_NORMAL")
+        self.assertNotIn("GENERADOR_ENERGIA", {s["categoria"] for s in self.r("deficit_leve")["sugerencias_habitabilidad"]})
+        ejecutar = lambda config: ejecutar_balance(config, incluir_resultados=False, incluir_lineas=False)
+        self.assertEqual(medir_mejoras(json.loads(BASE.read_text(encoding="utf-8")), ejecutar)["estado"], "TODO_HABITABLE")
+        for nombre, esperada in (("deficit_leve", "REPONER_LUMINARIAS"), ("deficit_severo", "AMPLIAR_GENERADOR"), ("cielo_despejado", "VIDRIO_CONTROL_SOLAR")):
+            with self.subTest(caso=nombre):
+                medidas = medir_mejoras(leer(nombre), ejecutar)
+                self.assertEqual(medidas["mejoras"][0]["id"], esperada)
+                self.assertGreater(medidas["mejoras"][0]["delta"], 0)
+                self.assertEqual(medidas["mejoras"][0]["conteo_despues"], {"HABITABLE": 127})
 
     def test_deficit_severo(self):
         v = self.veredictos("deficit_severo")

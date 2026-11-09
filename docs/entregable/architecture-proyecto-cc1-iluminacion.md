@@ -64,16 +64,22 @@ Los modos son `ACTIVA`, `REDUCIDA`, `CERRADA` y `EMERGENCIA`. El modo sale del h
 
 ### 2.4 Geometría fija, variables de luz ajustables
 
-La geometría de las torres es fija. El sistema no mueve ni rediseña edificios, no agrega torres y no cambia la capacidad del hotel. Sí mide mejoras y propone reestructuraciones de las variables de luz: actividades (orientación de ventanas y objetivos de iluminación), acabados (pared y vidrio), horarios y generador.
+La geometría de las torres es fija. El sistema no mueve ni rediseña edificios, no agrega torres y no cambia la capacidad del hotel. Sí mide mejoras y propone reestructuraciones de las variables de luz: orientación de ventanas, acabados (pared y vidrio), luminarias por recinto, horarios y generador.
 
-- **Mejoras medidas.** Cuatro cambios fijos sobre la configuración actual: vidrio claro en habitaciones, paredes blancas, generador con 20 % más de capacidad y objetivo de habitación en 180 lux. Cada cambio se simula completo y se reporta el puntaje antes y después.
-- **Reestructuración.** Búsqueda por coordenadas sobre paredes, vidrios, orientaciones de ventanas, objetivos y horarios de las actividades que tienen zonas `CASI_HABITABLE` o `NO_HABITABLE`. Prueba un cambio a la vez dentro de rangos fijos, con un presupuesto de 30 evaluaciones y hasta 3 rondas, y conserva el que mejora el puntaje ponderado (desempate: menos zonas no habitables y luego menos energía).
+- **Mejoras medidas.** Salen de los problemas del escenario. Para las zonas `CASI_HABITABLE` o `NO_HABITABLE` se elige un cambio según la causa: `VIDRIO_CONTROL_SOLAR` en las zonas con causa `EXCESO_SOLAR` (por zona, en `zonas_personalizadas`); `REPONER_LUMINARIAS` en las zonas con déficit cuyo `luminaria_w` está por debajo de la potencia de su actividad, que la recuperan; `AMPLIAR_GENERADOR` sólo si alguna media hora quedó en `EMERGENCIA`, con capacidad nueva = máx(1,2 × demanda objetivo máxima redondeada hacia arriba a 0,1 kW; 1,2 × capacidad actual); y `VIDRIO_CLARO` y `PAREDES_BLANCAS` en las zonas con causa `DEFICIT_DIURNO` que aún no los tienen. Cada candidata se simula completa y sólo se muestran las que suben el puntaje del hotel. Si no hay zonas con problemas, el resultado es `TODO_HABITABLE`: no hace falta ninguna mejora.
+- **Reestructuración.** Búsqueda por coordenadas sobre paredes, vidrios, orientaciones de ventanas y horarios (cocina y recreación) de las actividades que tienen zonas `CASI_HABITABLE` o `NO_HABITABLE`. No cambia los objetivos de lux. Prueba un cambio a la vez dentro de rangos fijos, con un presupuesto de 30 evaluaciones y hasta 3 rondas, y conserva el que mejora el puntaje ponderado (desempate: menos zonas no habitables y luego menos energía).
 
 Los resultados son propuestas. La propuesta de reestructuración se puede cargar en los formularios, pero el sistema no la aplica por su cuenta. El balance de energía y la reasignación de huéspedes son heurísticos. Una reasignación propone cambiar una relación `Huesped–HabitacionHotel`; no mueve físicamente al huésped ni modifica la geometría.
 
 ### 2.5 Interfaz web y pruebas
 
-La interfaz web (`web/`, servida con `python -m src.api`) se organiza en seis pestañas: configurar, diagnóstico, plano por torre y piso con selector de franja horaria, balance, mejoras (mejoras medidas y reestructuración) y detalle técnico (estructuras de datos con sus conteos de comparaciones y rotaciones). Tiene modo oscuro y claro. `python -m unittest` ejecuta 25 pruebas: los 10 casos de prueba del Plan y los diez escenarios de `data/casos_prueba/`, cada uno con su historia y su resultado esperado.
+La interfaz web (`web/`, servida con `python -m src.api`) se organiza en seis pestañas: configurar, diagnóstico, plano por torre y piso con selector de franja horaria, balance, mejoras (mejoras medidas y reestructuración) y detalle técnico (estructuras de datos con sus conteos de comparaciones y rotaciones, en tablas plegables con una explicación cada una). Tiene modo oscuro y claro.
+
+- **Diagnóstico** empieza con una sección plegable «Cómo leer los resultados»: los estados en palabras simples, la escala 0,75 / 0,90, la regla del 5 % de oscuridad y la tabla de lux por actividad. El veredicto no repite la lista de zonas casi habitables; esa lista está en las tarjetas de sugerencias. Los IDs de zona en sugerencias, mejoras y reasignaciones son enlaces que abren el plano con esa zona seleccionada.
+- **Plano** muestra arriba las tres leyendas (separación de espacios, habitabilidad y confort lumínico) y las abreviaturas TP/TG, y marca la capa activa. En el detalle de una zona, «Aplicar y simular» aplica el cambio a esa zona y vuelve a ejecutar la simulación y el balance. La gráfica del día muestra el puntaje de cada franja (madrugada, mañana, tarde, noche y cierre) y explica que antes del balance la noche no se evalúa.
+- **Balance, Mejoras y Detalle técnico** muestran el botón «Balancear energía ahora» mientras no se haya hecho el primer balance.
+
+`python -m unittest` ejecuta 26 pruebas: los 10 casos de prueba del Plan y los diez escenarios de `data/casos_prueba/`, cada uno con su historia y su resultado esperado, más comprobaciones comunes a los casos.
 
 ## 3. Datos sintéticos comunes
 

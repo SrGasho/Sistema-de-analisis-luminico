@@ -107,8 +107,8 @@ Solo se mueve a quien quedó en una habitación no habitable. Las habitaciones h
 ### Paso 7. Sugerencias, mejoras y salida (`src/sugerencias.py`, `src/mejoras.py`, `src/reestructuracion.py`, `src/api.py`)
 
 - **Sugerencias**: reglas que leen los veredictos y el generador y proponen acciones (controlar el sol, revisar luminarias, ampliar el generador, mover huéspedes).
-- **Mejoras medidas**: vuelve a simular el hotel con cambios fijos (vidrio claro, paredes blancas, generador +20 %, objetivo de habitación 180 lux) y mide cuánto sube el puntaje. Si el cambio no altera nada, no se mide.
-- **Reestructuración**: una búsqueda local (*hill climbing*) que prueba un cambio a la vez sobre las actividades con problemas (pared, vidrio, orientaciones, objetivo, horarios), acepta el primero que mejora y repite, con un tope de 30 simulaciones.
+- **Mejoras medidas**: mira las zonas casi o no habitables y prueba un cambio por cada tipo de problema: vidrio de control solar donde sobra sol, reponer luminarias débiles o dañadas, un generador más grande si alguna zona quedó en emergencia, y vidrio claro o paredes blancas donde falta luz de día. Cada cambio es una simulación completa y solo se muestran los que suben el puntaje. Si todo es habitable, dice que no hace falta ninguna mejora.
+- **Reestructuración**: una búsqueda local (*hill climbing*) que prueba un cambio a la vez sobre las actividades con problemas (pared, vidrio, orientaciones y, en cocina y recreación, horarios), acepta el primero que mejora y repite, con un tope de 30 simulaciones. No toca los objetivos de lux.
 - **API**: un servidor HTTP de la biblioteca estándar (`python3 -m src.api`) que entrega todo como JSON a la interfaz web.
 
 ---
@@ -163,6 +163,10 @@ Al revisar el código paso a paso aparecieron errores y simplificaciones que cam
 | **Causa de una zona a oscuras** | Una zona no habitable por oscuridad podía salir con causa «exceso solar» | Si la zona es no habitable por más del 5 % a oscuras, la causa se cuenta solo entre esas medias horas | Las 101 no habitables del diagnóstico base tienen causa de déficit |
 | **Gráfico del día** | No se podía ver cómo le fue a una zona hora por hora | Gráfico de barras debajo del plano con la escala de habitabilidad | Ver sección 7 |
 | **Caso `mayo_nublado`** | No había un caso con el sol por el norte | Mayo nublado: las habitaciones al sur gastan más que las del norte, al revés de febrero | Muestra que la fecha importa |
+| **Mejoras según el problema** | Las mejoras eran cuatro cambios fijos que casi nunca cambiaban nada | Cada mejora sale de un problema del caso (sol de más, luminaria débil, generador corto, falta de luz de día) y solo se muestra si sube el puntaje | En todos los casos con problemas hay una mejora que deja las 127 zonas habitables |
+| **Estado del generador** | Quedaba en «capacidad limitada» con cualquier déficit, aunque sobrara energía, y las sugerencias pedían un generador más grande | Solo es «capacidad limitada» si alguna zona entró en emergencia o se pasó la capacidad | `deficit_leve` y `luminarias_danadas` quedan en operación normal |
+| **Reestructuración sin objetivos** | Bajaba el objetivo de lux al mínimo solo para ahorrar energía, porque el puntaje no depende del objetivo | Ya no prueba objetivos | Las propuestas cambian acabados, orientaciones u horarios |
+| **Revisión de la interfaz** | Recomendaciones repetidas, criterios técnicos al final, leyendas pequeñas abajo, «Aplicar» sin simular, la noche sin explicar en el gráfico | Ayuda de lectura al inicio del Diagnóstico, zonas clicables que abren el plano, leyendas arriba, «Aplicar y simular», puntaje por franja, botón de balance en las pestañas vacías, tablas técnicas plegables | Ver sección 7 |
 
 ---
 
@@ -196,13 +200,15 @@ Cada campo tiene un ícono «!» con la explicación.
 
 - **Tarjetas:** zonas analizadas, zonas con déficit y con exceso (entre las casi y no habitables).
 - **Habitabilidad por zona:** cuántas zonas son habitables, casi y no habitables, y los puntajes del hotel (ponderado, de día y de noche). En el escenario base: 0 / 26 / 101 y 70,3 %. Es lo esperado: los parqueaderos no tienen ventanas y las cocinas necesitan 300 lux.
-- **Recomendaciones de las casi habitables** (hasta 12), con su puntaje, lo que les falta para 0,90 y la acción sugerida.
-- **No habitables por causa:** solo el diagnóstico; el sistema no propone cambios automáticos para ellas.
-- **Sugerencias:** tarjetas con prioridad (crítica, alta, media, informativa), diagnóstico, acción y zonas afectadas.
+- **No habitables por causa:** cuántas hay según su problema principal, en palabras (por ejemplo, «Falta luz de día: 99 zonas»). Solo aparece si hay alguna.
+- **Cómo leer los resultados** (arriba de todo, se abre con un clic): qué significa cada estado, cuántos puntos vale, la escala 75 % / 90 %, la regla del 5 % a oscuras y los lux de cada actividad.
+- **Sugerencias:** tarjetas con prioridad (crítica, alta, media, informativa), diagnóstico, acción y zonas afectadas. La de casi habitables lista hasta 12 zonas con su puntaje, lo que les falta para 90 % y su recomendación. **Cada zona es un enlace**: al hacer clic se abre el Plano con esa torre, ese piso y esa zona seleccionados.
 
 ### Pestaña 3. Plano
 
 **Qué quiere mostrar:** dónde están los problemas en el edificio y cómo le fue a cada zona durante el día.
+
+**Leyendas** (arriba del plano, grandes): las tres capas de color (separación de espacios, habitabilidad del día y confort lumínico, con «sin datos»), con la capa que se está viendo marcada, y las abreviaturas TP = Torre Pequeña y TG = Torre Grande.
 
 **Selectores:**
 
@@ -225,7 +231,7 @@ Cada campo tiene un ícono «!» con la explicación.
 | Azul | Déficit de luz (claro si es leve, intenso si es severo) |
 | Gris o rayado | Sin datos: la zona estuvo cerrada |
 
-**Detalle de la zona** (al hacer clic): ubicación, uso, estado, luz promedio, modo, veredicto, puntaje y recomendación. Debajo hay un formulario para cambiar la pared, el vidrio y la orientación **de ese recinto** sin tocar el resto de su actividad.
+**Detalle de la zona** (al hacer clic): ubicación, uso, estado, luz promedio, modo, veredicto, puntaje y recomendación. Debajo hay un formulario para cambiar la pared, el vidrio y la orientación **de ese recinto** sin tocar el resto de su actividad. El botón **«Aplicar y simular»** guarda el cambio, vuelve a calcular el día y el balance, y deja el plano en la misma zona con su gráfico actualizado; las pestañas Diagnóstico y Balance también quedan al día.
 
 **Reporte de la franja** (si se eligió una): energía, pico del generador, déficit residual en lux·h, energía no asignada, horas con déficit, energía por actividad y por torre, zonas críticas y cuántos nodos visitó el rojo-negro contra los 6.096 de una lista.
 
@@ -234,6 +240,7 @@ Cada campo tiene un ícono «!» con la explicación.
 - **Arriba, la escala** de 0 a 1 en tres tramos (rojo: no habitable; ámbar: casi; verde: habitable) y un triángulo en el puntaje de la zona.
 - **Abajo, una barra por media hora.** Su altura es la nota (1, 0,5 o 0) y su color, el estado. La línea punteada es el puntaje, que es el promedio de las barras. El fondo oscuro marca la noche y una franja de color bajo las barras repite el estado, incluso cuando la nota es 0 o la zona está cerrada.
 - **Al pasar el mouse** por una barra se ve la hora, el modo, la luz natural, reflejada y artificial, el total y el mínimo y máximo de ese momento.
+- **Puntaje por franja:** sobre las barras, una tarjeta para madrugada, mañana, tarde, noche y cierre, con su puntaje y su tramo. En la vista «antes del balance» la noche dice «se evalúa después del balance», y un aviso explica por qué: sin luminarias la noche siempre estaría a oscuras.
 - **Un texto** cuenta cuántas medias horas estuvo a oscuras, porque más del 5 % la vuelve no habitable.
 
 Ejemplo, `TG-H-113` en `deficit_leve`: barras verdes de madrugada, rojas claras de 6:30 a 9:30 (el sol de la mañana entra por su ventana al este), verdes a mediodía, azules claras de 18:00 a 21:30 (su luminaria de 30 W solo da 70 lux) y el triángulo en 82,3 %, en el tramo ámbar. Se lee de un vistazo que el problema es la luminaria de noche.
@@ -241,6 +248,8 @@ Ejemplo, `TG-H-113` en `deficit_leve`: barras verdes de madrugada, rojas claras 
 ### Pestaña 4. Balance
 
 **Qué quiere mostrar:** el resultado con el generador repartiendo energía.
+
+Antes del primer balance esta pestaña (y también Mejoras y Detalle técnico) muestra un botón **«Balancear energía ahora»**.
 
 - **Tarjetas:** zonas evaluadas, resultados (6.096), zonas con déficit, con exceso y reasignaciones.
 - **Estado del generador:** una barra con el porcentaje de la capacidad que usó en su peor media hora, la capacidad, la demanda máxima y la reserva. Verde es operación normal, ámbar es alta demanda (más del 80 %) y rojo es capacidad limitada. En el escenario base: 15.934 W de 22.000 (72,4 %), operación normal.
@@ -253,25 +262,27 @@ Ejemplo, `TG-H-113` en `deficit_leve`: barras verdes de madrugada, rojas claras 
 
 **Qué quiere mostrar:** qué cambios ayudarían, medidos con simulaciones y no estimados.
 
-- **Mejoras medidas:** cada cambio fijo se simula por separado y muestra «puntaje antes → después (diferencia)». Con los acabados actuales solo se pueden medir dos: generador +20 % y objetivo de habitación 180 lux. En el escenario base, `cielo_despejado`, `deficit_leve` y `luminarias_danadas` ninguno cambia el puntaje, y la tarjeta lo dice: «Sin efecto en este escenario»; ahí el problema no es la energía. En `deficit_severo` (4 kW) el generador +20 % sí sube el puntaje 0,0307.
-- **Reestructuración:** un botón lanza la búsqueda (hasta 30 simulaciones). Muestra puntaje, casi y no habitables, y energía, antes y después; la lista de cambios aceptados en orden; y un botón para cargar la propuesta en los formularios y balancear de nuevo. En `cielo_despejado` encuentra, en 9 simulaciones, vidrio de control solar para las habitaciones y ventanas solo al norte y al sur: las 52 casi habitables pasan a habitables (puntaje 92,4 % → 99,8 %) y la energía baja de 193.038 a 157.022 Wh.
+- **Mejoras medidas:** cambios que salen de los problemas del caso, cada uno medido con una simulación. Cada tarjeta dice qué cambia, el puntaje antes y después, cuántas zonas quedan habitables, casi y no habitables, y en qué zonas (enlaces al plano). En el escenario base dice «Todas las zonas son habitables: no hace falta ninguna mejora». Ejemplos: en `cielo_despejado`, vidrio de control solar en 52 zonas (92,4 % → 96,0 %, 127 habitables); en `deficit_leve`, reponer 12 luminarias (127 habitables); en `deficit_severo`, un generador más grande (+11,2 puntos, 127 habitables).
+- **Reestructuración:** un botón lanza la búsqueda (hasta 30 simulaciones) y el texto explica qué prueba: solo las actividades con zonas casi o no habitables, un cambio a la vez (pared, vidrio, orientaciones y, en cocina y recreación, horarios). Muestra puntaje, casi y no habitables, y energía, antes y después; la lista de cambios aceptados en orden; y un botón para cargar la propuesta en los formularios y balancear de nuevo. En `cielo_despejado` encuentra, en 7 simulaciones, vidrio de control solar para las habitaciones y ventanas solo al norte y al sur: las 52 casi habitables pasan a habitables (92,4 % → 99,8 %), aunque la energía sube de 193.038 a 220.190 Wh porque entra menos sol. En `deficit_leve` no alcanza a resolverlo (quedan 11 casi habitables): el problema son las luminarias, que la búsqueda no cambia; ahí la mejora medida sí lo resuelve.
 
 ### Pestaña 6. Detalle técnico
 
 **Qué quiere mostrar:** que las estructuras de datos ahorran trabajo, con conteos reales.
 
-- **Estructuras de datos y comparaciones:** grafo con y sin Octree (pares revisados), reasignación con y sin AVL (comparaciones), y la comparación rojo-negro contra AVL con los mismos resultados (altura y rotaciones).
-- **Estados calculados** y **resumen de zonas** (luz promedio, máxima, pasos en déficit y en confort, energía).
-- **Rangos de confort:** las seis reglas de clasificación y una matriz con los lux de cada estado por actividad, que se recalcula al editar los perfiles.
+Las tablas están **plegadas**: cada una muestra un título y una frase, y al abrirla trae una explicación en palabras sencillas.
+
+- **Cuánto trabajo ahorran las estructuras de datos:** cuánto costaría sin cada estructura y cuánto contó el programa: Octree (1.232 pares contra 68), rojo-negro para traer la noche (6.096 contra 1.029 nodos) y AVL para la reasignación; y la altura del rojo-negro contra la del AVL con los mismos resultados.
+- **Estados de todas las medias horas** y **resumen por zona** (luz promedio y máxima, medias horas en déficit y en confort, energía).
+- Los criterios de confort que antes estaban aquí pasaron a «Cómo leer los resultados», al inicio del Diagnóstico, escritos en lenguaje sencillo.
 
 ---
 
 ## 8. Cómo se validó
 
-`python3 -m unittest` ejecuta **25 pruebas** en unos 8 segundos.
+`python3 -m unittest` ejecuta **26 pruebas** en unos 12 segundos.
 
 - `tests/test_casos_plan.py`: los 10 casos del plan del proyecto (ventana al sol, ventana sombreada, cada vidrio, reflexión, noche, generador que alcanza para mínimos pero no para objetivos, reasignación con y sin alternativa, zona cerrada, nublado contra despejado).
-- `tests/test_casos_json.py`: el escenario base y los 10 casos de `data/casos_prueba/`. Cada caso trae su historia y su resultado esperado, y la prueba revisa que coincidan. Además revisa reglas comunes: de noche no hay luz natural, una zona cerrada no consume, el generador no se pasa de su capacidad, nadie recibe una cama que no existe, ningún déficit sale de un redondeo y toda zona a oscuras tiene causa de déficit.
+- `tests/test_casos_json.py`: el escenario base y los 10 casos de `data/casos_prueba/`. Cada caso trae su historia y su resultado esperado, y la prueba revisa que coincidan. Además revisa reglas comunes: de noche no hay luz natural, una zona cerrada no consume, el generador no se pasa de su capacidad, nadie recibe una cama que no existe, ningún déficit sale de un redondeo, toda zona a oscuras tiene causa de déficit, y las sugerencias y mejoras corresponden al problema de cada caso.
 
 **Los casos de prueba** (habitables / casi / no habitables):
 
@@ -320,15 +331,15 @@ Cada caso se puede cargar en la interfaz con «Cargar configuración JSON».
 
 - **El ahorro de energía casi no pesa en la reasignación.** Se divide por la energía de un parqueadero (17.280 Wh), mientras las habitaciones gastan entre 617 y 968 Wh. El término cambia solo 0,004 entre habitaciones.
 - **La reasignación es voraz:** el orden de los huéspedes decide quién se queda sin cama.
-- **El estado del generador** queda en «capacidad limitada» si cualquier zona tuvo déficit, aunque al generador le sobre energía (pasa en `deficit_leve` y `luminarias_danadas`). Por eso las sugerencias proponen revisar el generador en casos donde el problema son las luminarias.
-- **Las mejoras fijas** son pocas y genéricas: solo el generador +20 % mejora algo, y solo cuando falta generador (`deficit_severo`).
-- **La reestructuración** usa la energía como desempate, y el puntaje no depende del objetivo de lux (solo del mínimo y el máximo). Por eso tiende a bajar el objetivo hasta el mínimo para ahorrar energía, como en `cielo_despejado` y `deficit_leve`.
+- **Las sugerencias** no se verifican con simulación; lo que sí se mide está en Mejoras.
+- **Las mejoras** prueban un cambio por tipo de problema, no combinaciones.
+- **La reestructuración** cambia acabados por actividad, no por recinto, y no toca las luminarias.
 
 **De la interfaz**
 
 - En la capa «Habitabilidad», el veredicto colorea la etiqueta de cada recinto y el panel de detalle, pero no el relleno del recinto en el plano.
-- La capa se llama «Separación de espacios» en el selector, «Sinergia de espacios» en la leyenda y «Sinergia cromática» en el rótulo. El rótulo dice «Confort lumínico» también en la capa de habitabilidad.
-- La leyenda del plano no incluye «sin datos», aunque se usa el rayado.
+- El rótulo del plano dice «Sinergia cromática» y «Confort lumínico» aunque el selector y la leyenda ya usan «Separación de espacios» y «Habitabilidad»: el rótulo es parte del dibujo y no se tocó.
+- `luminaria_w` solo se edita en el JSON, no desde el formulario del recinto.
 - Las áreas que muestra el plano (24, 35, 80 y 450 m²) son texto fijo.
 
 ---
@@ -336,7 +347,7 @@ Cada caso se puede cargar en la interfaz con «Cargar configuración JSON».
 ## 11. Cómo ejecutarlo
 
 ```bash
-python3 -m unittest                 # 25 pruebas
+python3 -m unittest                 # 26 pruebas
 python3 -m src.main                 # simulación por línea de comandos
 python3 -m src.api                  # aplicación web en http://127.0.0.1:8000
 ```

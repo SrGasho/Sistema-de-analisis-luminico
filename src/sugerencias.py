@@ -6,6 +6,17 @@ from .modelo import Hotel
 
 NO_O_CASI = ("NO_HABITABLE", "CASI_HABITABLE")
 IMPACTO_MEDIDO = "Efecto medido en la sección Mejoras medidas."
+REFLECTANCIA_BLANCO = 0.80
+MAXIMO_CASI = 12
+
+
+def _porcentaje(valor: float | None) -> str:
+    return "—" if valor is None else f"{valor * 100:.1f} %".replace(".", ",")
+
+
+def _item_casi(zona_id: str, evaluacion: dict) -> str:
+    recomendacion = evaluacion.get("recomendacion") or "sin recomendación específica"
+    return f"{zona_id} · puntaje {_porcentaje(evaluacion.get('puntaje'))}, le falta {_porcentaje(evaluacion.get('brecha'))}: {recomendacion}"
 
 
 def _sugerencia(categoria: str, tipo: str, prioridad: str, titulo: str, diagnostico: str, accion: str, items: list[str]) -> dict:
@@ -34,7 +45,7 @@ def generar_sugerencias_habitabilidad(
     veredictos = {e["zona_id"]: e for e in (habitabilidad or {}).get("zonas", [])}
     habitaciones = list(hotel.habitaciones)
     no_habitables = [zid for zid in habitaciones if veredictos.get(zid, {}).get("veredicto") == "NO_HABITABLE"]
-    casi = [zid for zid in habitaciones if veredictos.get(zid, {}).get("veredicto") == "CASI_HABITABLE"]
+    casi = [zid for zid in hotel.zonas if veredictos.get(zid, {}).get("veredicto") == "CASI_HABITABLE"]
 
     propuestas = [r for r in reasignaciones if r.get("estado") == "PROPUESTA"]
     sin_alternativa = [r for r in reasignaciones if r.get("estado") == "NO_HAY_ALTERNATIVA"]
@@ -58,10 +69,10 @@ def generar_sugerencias_habitabilidad(
     if casi:
         sugerencias.append(_sugerencia(
             "CASI_HABITABLE", "operativa", "MEDIA",
-            f"{len(casi)} habitaciones están cerca de ser habitables",
+            f"{len(casi)} zonas están cerca de ser habitables" if len(casi) != 1 else "1 zona está cerca de ser habitable",
             "Su puntaje está entre el umbral casi habitable y el umbral habitable.",
-            "Aplicar la recomendación específica de cada habitación.",
-            [f"{zid}: {veredictos[zid].get('recomendacion') or 'sin recomendación específica'}" for zid in casi[:6]],
+            "Aplicar la recomendación específica de cada zona.",
+            [_item_casi(zid, veredictos[zid]) for zid in casi[:MAXIMO_CASI]] + ([f"… y {len(casi) - MAXIMO_CASI} zonas más"] if len(casi) > MAXIMO_CASI else []),
         ))
 
     deficit_diurno = [zid for zid in no_habitables if str(veredictos[zid].get("causa")) == "DEFICIT_DIURNO"]
@@ -92,7 +103,7 @@ def generar_sugerencias_habitabilidad(
     if afectadas:
         reflectancias = [hotel.habitaciones[zid].superficies[0].reflectancia for zid in afectadas if hotel.habitaciones[zid].superficies]
         promedio = sum(reflectancias) / len(reflectancias) if reflectancias else None
-        if promedio is not None and promedio < 0.80:
+        if promedio is not None and promedio < REFLECTANCIA_BLANCO - 1e-9:
             sugerencias.append(_sugerencia(
                 "REFLECTANCIA_PAREDES", "arquitectonica", "MEDIA",
                 "Aumentar la reflectancia de las paredes",

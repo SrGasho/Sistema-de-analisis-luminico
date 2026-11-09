@@ -121,8 +121,9 @@ def _lineas_zonas(hotel) -> dict[str, list]:
     return lineas
 
 
-def _estado_generador(potencia_maxima: float, capacidad: float, deficit: int) -> str:
-    if deficit > 0 or potencia_maxima > capacidad:
+def _estado_generador(potencia_maxima: float, capacidad: float, emergencias: int) -> str:
+    """Capacidad limitada solo si el generador se quedó corto: alguna zona entró en EMERGENCIA o se pasó de la capacidad."""
+    if emergencias > 0 or potencia_maxima > capacidad:
         return "CAPACIDAD_LIMITADA"
     if potencia_maxima > capacidad * 0.8:
         return "ALTA_DEMANDA"
@@ -135,13 +136,15 @@ def _generador_resultado(hotel, resultados, resumen, balanceado: bool = True):
     for resultado in resultados:
         por_hora[resultado.hora] = por_hora.get(resultado.hora, 0.0) + resultado.potencia_asignada
     potencia_maxima = max(por_hora.values(), default=0.0)
-    deficit = sum(datos["pasos_deficit"] > 0 for datos in resumen.values())
+    emergencias = sum(resultado.modo == ModoOperacion.EMERGENCIA for resultado in resultados)
     return {
         "capacidad_w": capacidad,
         "demanda_maxima_w": potencia_maxima,
         "reserva_w": max(0.0, capacidad - potencia_maxima),
         "porcentaje_usado": 0.0 if capacidad == 0 else min(100.0, potencia_maxima / capacidad * 100.0),
-        "estado": _estado_generador(potencia_maxima, capacidad, deficit) if balanceado else "SIN_BALANCEAR",
+        "estado": _estado_generador(potencia_maxima, capacidad, emergencias) if balanceado else "SIN_BALANCEAR",
+        "pasos_emergencia": emergencias,
+        "demanda_objetivo_maxima_w": hotel.generador.demanda_objetivo_maxima,
         "por_hora": [{"hora": hora, "potencia_w": potencia} for hora, potencia in sorted(por_hora.items())],
     }
 
@@ -222,7 +225,7 @@ class WebHandler(BaseHTTPRequestHandler):
                 self._json(ejecutar_balance(data, balancear_energia=False, incluir_resultados=False))
                 return
             if path == "/api/mejoras":
-                self._json({"mejoras": medir_mejoras(data, lambda config: ejecutar_balance(config, incluir_resultados=False, incluir_lineas=False))})
+                self._json(medir_mejoras(data, lambda config: ejecutar_balance(config, incluir_resultados=False, incluir_lineas=False)))
                 return
             if path == "/api/balancear":
                 self._json(ejecutar_balance(data))
