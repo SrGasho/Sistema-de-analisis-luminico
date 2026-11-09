@@ -12,6 +12,24 @@ Resumen del recorrido:
 6. Reasignación de huéspedes con el árbol AVL (`src/reasignacion.py`).
 7. Sugerencias y salida hacia la interfaz (`src/sugerencias.py`, `src/api.py`).
 
+### El recorrido en pocas palabras (pasos 1 a 5)
+
+| Paso | Qué hace | Qué da (escenario base) |
+|---|---|---|
+| 1. Armar el hotel | Lee el JSON y lo convierte en objetos: torres, pisos, zonas, ventanas, paredes, luminarias y huéspedes. Revisa que los datos tengan sentido. | 127 zonas, 154 ventanas, 8 fachadas, 127 luminarias, 78 huéspedes |
+| 2. Preparar el espacio | Una sola vez, antes del día. El Octree sirve para preguntar rápido «¿la otra torre tapa el sol de esta ventana?». El grafo guarda qué fachada de la otra torre le devuelve luz a qué ventana, y cuánta. | 46 conexiones fachada → ventana; 40 ventanas con parte del cielo tapada |
+| 3. Simular el día | Repite 48 veces, una por media hora: ubica el sol, calcula la luz natural de cada ventana, la reflejada, reparte los 22 kW del generador por prioridad, suma la luz artificial y compara el total con el mínimo y el máximo de la zona. | 6.096 resultados (127 zonas × 48), cada uno con sus luces, sus vatios y su estado |
+| 4. Ordenar por hora | Guarda cada resultado en el árbol rojo-negro con clave (hora, zona) y saca reportes de 6 franjas del día sin recorrer todo. | Energía, pico y déficit por franja; pico de 15.934 W a las 18:00 |
+| 5. Dar el veredicto | Pone una nota a cada media hora (1, 0,5 o 0), promedia, ubica el promedio en la escala 0,75 / 0,90 y revisa si la zona estuvo a oscuras más del 5 % del tiempo. | 127 habitables; puntaje del hotel 0,9718 |
+
+**Una habitación de punta a punta: `TP-H-101` a las 12:00.**
+
+1. El paso 1 la crea en TP, piso 1, con una ventana de 2 m² al este, vidrio claro y luminaria de 72 W.
+2. El paso 2 encontró que la cara oeste de TG está a 13 m enfrente: le tapa el 59 % del cielo y le devolverá el 35,6 % de su luz.
+3. En el paso 3, a las 12:00 el sol está alto y al sur, y no le da de frente. Entran 92,0 lux de cielo y suelo. La fachada de TG le devuelve 55,4 lux y sus paredes blancas 11,1 más: 66,5 de reflejada. Le faltan 200 − 158,5 = 41,5 lux para su objetivo y el generador le da 17,8 W. Total: 200 lux, CONFORTABLE.
+4. El paso 4 guarda ese resultado con la clave (12:00, `TP-H-101`).
+5. El paso 5 junta sus 48 medias horas: 42 confortables y 6 en exceso leve por el sol de la mañana. Puntaje (42 + 3) / 48 = 0,9375: HABITABLE.
+
 ---
 
 ## Paso 1. Cargar los datos y construir el hotel
