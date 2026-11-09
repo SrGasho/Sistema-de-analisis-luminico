@@ -1314,7 +1314,3 @@ Si en ningún piso permitido queda una candidata, la propuesta sale como `NO_HAY
 - **Una habitación llena sale del árbol,** así que dos huéspedes nunca reciben la misma cama.
 - **Es voraz (greedy):** cada huésped toma la mejor opción disponible en su turno, sin pensar en los que vienen después. No garantiza el mejor reparto posible para todos.
 
-### Observaciones pendientes
-
-- **El ahorro de energía casi no pesa.** El ahorro se divide por la energía de la zona que más gastó, que es un parqueadero (17.280 Wh), mientras que las habitaciones gastan entre 617 y 968 Wh. Así, el ahorro de las habitaciones habitables va de 0,944 a 0,964, y `w_energia × ahorro` solo cambia 0,004 entre la que más gasta y la que menos. En la práctica la calidad depende casi solo del puntaje de luz. Si se dividiera por la habitación que más gastó, el ahorro iría de 0 a 1 y el término podría mover hasta 0,2 puntos, más que la penalización por cambiar de piso.
-- **El orden de atención decide quién se queda sin cama.** En `reasignacion_restringida`, H-017 y H-018 quedan sin alternativa solo porque van después de H-001 a H-016; ninguno tiene más derecho que otro. No hay prioridad por necesidad (por ejemplo, atender primero a quien tiene más restricciones).

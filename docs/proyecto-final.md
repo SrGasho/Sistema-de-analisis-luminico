@@ -344,13 +344,3 @@ python3 -m src.api                  # aplicación web en http://127.0.0.1:8000
 No necesita instalar nada: solo Python 3 y la biblioteca estándar.
 
 ---
-
-## 12. Guion sugerido para la presentación
-
-1. **El problema** (sección 1) y el plano de una torre en la pestaña Plano.
-2. **El recorrido** (sección 3) con una sola habitación: `TP-H-101` a las 12:00. Recibe 92,0 lux del cielo y el suelo (la Torre Grande le tapa el 59 % del cielo) y 66,5 de reflejada (55,4 de la otra torre y 11,1 de sus paredes). El generador le da 17,8 W para llegar a 200 lux. Su día termina con puntaje 93,75 %: habitable.
-3. **Las estructuras de datos** (sección 4) en la pestaña Detalle técnico: Octree, rojo-negro y AVL con sus conteos.
-4. **Un caso de luz:** cargar `cielo_despejado`, ver el exceso de las habitaciones al este y al oeste en el plano y en el gráfico del día, y lanzar la reestructuración.
-5. **Un caso de huéspedes:** cargar `luminarias_danadas` y mostrar las reasignaciones con sus pedidos (misma torre, piso máximo, orientación).
-6. **Un caso de fecha:** cargar `mayo_nublado` y comparar las habitaciones al norte y al sur con febrero.
-7. **Las decisiones** (sección 6) y **las limitaciones** (sección 10): qué se corrigió, por qué y qué quedó pendiente.
