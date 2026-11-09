@@ -187,7 +187,7 @@ Cualquier error al procesar una solicitud devuelve HTTP 400 con un campo `error`
 
 ### Respuesta del análisis
 
-`/api/condicion_actual`, `/api/balancear` y la condición actual de `/api/escenario` devuelven `estado`, `resumen`, `generador`, `layout`, `habitabilidad`, `complejidad`, `temporal`, `energia_arbol`, `resultados`, `resumen_zonas`, `lineas_zonas`, `reasignaciones`, `sugerencias_habitabilidad` y `advertencias`. `resultados` solo se llena en `/api/balancear`. `lineas_zonas` trae el día de cada zona, media hora por media hora, como `[hora, modo, natural, reflejada, artificial, total, estado, mínimo, máximo]`; lo usa el gráfico «Cómo le fue en el día» del panel de detalle del plano. Sin balance no hay reasignaciones.
+`/api/condicion_actual`, `/api/balancear` y la condición actual de `/api/escenario` devuelven `estado`, `resumen`, `generador`, `layout`, `habitabilidad`, `complejidad`, `temporal`, `energia_arbol`, `resultados`, `resumen_zonas`, `lineas_zonas`, `reasignaciones`, `sugerencias_habitabilidad` y `advertencias`. `resultados` solo se llena en `/api/balancear`. `lineas_zonas` trae el día de cada zona, media hora por media hora, como `[hora, modo, natural, reflejada, artificial, total, estado, mínimo, máximo]`; lo usa el gráfico «Cómo le fue en el día», que aparece debajo del plano al elegir una zona. Sin balance no hay reasignaciones.
 
 **`complejidad`** reúne los conteos de las estructuras de datos:
 

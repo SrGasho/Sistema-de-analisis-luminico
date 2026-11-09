@@ -1091,7 +1091,7 @@ En el escenario base da 0 / 26 / 101 y un puntaje de 0,7031:
 
 - **El paso 6 (reasignación)** solo mueve a los huéspedes de habitaciones ocupadas `NO_HABITABLE`, y solo los manda a habitaciones `HABITABLE` con cama libre. Las casi habitables no se tocan: ni pierden a sus huéspedes ni reciben otros.
 - **El plano** pinta cada zona con su veredicto cuando no hay una franja elegida y el selector de color está en «habitabilidad».
-- **El gráfico «Cómo le fue en el día»**, en el panel de detalle del plano, muestra todo este paso para la zona elegida ([`graficoDia`, `web/app.js` línea 1154](../web/app.js#L1154); los datos salen de `lineas_zonas`, [`_lineas_zonas`, `src/api.py` línea 110](../src/api.py#L110)):
+- **El gráfico «Cómo le fue en el día»**, debajo del plano y a todo el ancho de la página, muestra todo este paso para la zona que se elija en el plano ([`graficoDia`, `web/app.js` línea 1156](../web/app.js#L1156); los datos salen de `lineas_zonas`, [`_lineas_zonas`, `src/api.py` línea 110](../src/api.py#L110)):
   - arriba, la escala de 0 a 1 con sus tres tramos (no habitable, casi habitable, habitable) y un triángulo en el puntaje de la zona;
   - abajo, una barra por media hora: la altura es la nota (1, 0,5 o 0) y el color, el estado; la línea punteada es el puntaje, que es el promedio de las barras;
   - una franja de color bajo las barras repite el estado de cada media hora, incluso las de nota 0 y las cerradas, y el fondo oscuro marca la noche;
@@ -1137,3 +1137,183 @@ Es un paso lineal y no necesita ninguna estructura especial.
   Ahora, si una zona es no habitable por estar a oscuras más del 5 % del tiempo, la causa se cuenta solo entre esas medias horas. `TP-H-103` pasa a `DEFICIT_DIURNO`, y las 101 no habitables del diagnóstico base tienen causa `DEFICIT_DIURNO`. Ningún veredicto ni puntaje cambia. En `apagon_generador`, 10 zonas pasaron de `DEFICIT_DIURNO` a `DEFICIT_NOCTURNO`, porque sus medias horas a oscuras son de noche. La prueba `test_causa_de_zona_a_oscuras_es_el_deficit` revisa que toda zona con más del 5 % de déficit severo tenga causa de déficit.
 
   Una zona puede seguir siendo no habitable con causa `EXCESO_SOLAR` si lo es por su puntaje y no por oscuridad. Pasa en el diagnóstico de `cielo_despejado` (16 zonas) y de `exceso_severo` (19): muchas horas de sol fuerte y sin luz artificial.
+
+---
+
+## Paso 6. Reasignación de huéspedes con el árbol AVL
+
+**Fin:** si un huésped quedó en una habitación **NO_HABITABLE** (paso 5), proponerle otra habitación habitable con cama libre, respetando lo que pidió (no cambiar de torre, no subir de cierto piso, preferir una orientación). Es una **propuesta**: el sistema no vuelve a simular el día con el huésped en su nueva habitación.
+
+**Entrada:** los veredictos del paso 5, la energía de cada zona en el día (paso 3), las asignaciones huésped → habitación y las restricciones de cada huésped (paso 1.7), y los pesos de `parametros_evaluacion.reasignacion`.
+**Salida:** una propuesta por huésped a mover, con la habitación elegida, su puntaje (score), las habitaciones que revisó y descartó, o el motivo por el que no hay alternativa. Además, las estadísticas del árbol.
+
+### Dónde está en el código
+
+| Qué | Dónde |
+|---|---|
+| Se llama al final del día, solo si hubo balance | [`src/simulacion.py` línea 64](../src/simulacion.py#L64) |
+| Todo el paso | [`proponer_reasignaciones`, `src/reasignacion.py` línea 31](../src/reasignacion.py#L31) |
+| Pesos | [`parametros_evaluacion.reasignacion`, `data/datos_hotel.json` línea 252](../data/datos_hotel.json#L252) |
+| Leer las restricciones del huésped | [`leer_restricciones`, línea 16](../src/reasignacion.py#L16); [`orientacion`, línea 9](../src/reasignacion.py#L9) |
+| Armar la bolsa de habitaciones | [líneas 40–51](../src/reasignacion.py#L40); calidad en [línea 49](../src/reasignacion.py#L49) |
+| Recorrer a los huéspedes | [línea 61](../src/reasignacion.py#L61) |
+| Buscar en cada piso permitido | [líneas 80–94](../src/reasignacion.py#L80); score en [línea 89](../src/reasignacion.py#L89) |
+| Elegir y ocupar la cama | [líneas 97–101](../src/reasignacion.py#L97) |
+| Motivo cuando no hay alternativa | [líneas 105–111](../src/reasignacion.py#L105) |
+| El árbol AVL | [`class IndiceAVL`, `src/arboles.py` línea 17](../src/arboles.py#L17); [`sucesor`, línea 32](../src/arboles.py#L32); [`siguiente`, línea 44](../src/arboles.py#L44); [`eliminar`, línea 56](../src/arboles.py#L56); [`_rebalancear`, línea 83](../src/arboles.py#L83); [`_insertar`, línea 112](../src/arboles.py#L112) |
+| Propuestas en la interfaz | [`renderResult`, `web/app.js` línea 1311](../web/app.js#L1311); textos de los motivos en [`MOTIVOS_REASIGNACION`, línea 252](../web/app.js#L252) |
+| Pruebas | [`test_07` y `test_08`, `tests/test_casos_plan.py` líneas 154 y 170](../tests/test_casos_plan.py#L154); [`test_luminarias_danadas…` y `test_reasignacion_restringida`, `tests/test_casos_json.py` líneas 172 y 189](../tests/test_casos_json.py#L172) |
+
+### 6.1 Quién se mueve
+
+Solo los huéspedes cuya habitación quedó **NO_HABITABLE**. Las casi habitables no se tocan: tienen un problema pequeño que se resuelve con la recomendación del paso 5 (una cortina, una luminaria más fuerte), no mudando a nadie.
+
+Los huéspedes se atienden en el orden de las asignaciones (`H-001`, `H-002`, …). El que va primero escoge primero.
+
+En el escenario base nadie queda en una habitación no habitable, así que nadie se mueve. Los casos que sí mueven gente son:
+
+| Caso | Huéspedes a mover |
+|---|---|
+| `luminarias_danadas` | 16 (`TP-H-101` a `TP-H-116`, sin luminaria) |
+| `reasignacion_restringida` | 24 (todas las ocupadas de TP, sin luminaria) |
+| `deficit_severo` | 22 (las ocupadas que el generador de 4 kW dejó a oscuras) |
+| `apagon_generador` | 78 (todos) |
+
+### 6.2 La bolsa de habitaciones
+
+Antes de atender a nadie, el sistema arma una **bolsa** con las habitaciones que pueden recibir a alguien: las **HABITABLE** que tienen al menos una cama libre (capacidad 2 menos su ocupación).
+
+A cada una le calcula una **calidad**, que no depende del huésped:
+
+```
+ahorro  = 1 − energía de la habitación en el día / energía de la zona que más gastó
+calidad = w_luz × puntaje + w_energia × ahorro          (w_luz = 0,5; w_energia = 0,2)
+```
+
+Una habitación con buen puntaje de luz y que gasta poca energía tiene más calidad. Ejemplo en `luminarias_danadas`, pisos 3 y 4 de TP:
+
+| Habitación | Piso | Ventana | Puntaje | Energía del día | Ahorro | Calidad | Camas libres |
+|---|---|---|---|---|---|---|---|
+| `TP-H-120` | 3 | sur | 1,0 | 766,0 Wh | 0,9557 | 0,6911 | 1 |
+| `TP-H-118` | 3 | norte | 1,0 | 967,9 Wh | 0,9440 | 0,6888 | 1 |
+| `TP-H-121` | 3 | este | 0,9583 | 687,8 Wh | 0,9602 | 0,6712 | 1 |
+| `TP-H-128` | 4 | sur | 1,0 | 755,8 Wh | 0,9563 | 0,6913 | 2 |
+| `TP-H-125` | 4 | este | 0,9375 | 617,3 Wh | 0,9643 | 0,6616 | 2 |
+
+La «zona que más gastó» es un parqueadero (17.280 Wh: 720 W durante 24 horas).
+
+Cada habitación entra al árbol con la clave **(torre, piso, −calidad, id)**. Como en el rojo-negro, la clave se compara por partes, así que en el árbol quedan:
+
+1. agrupadas por torre,
+2. dentro de la torre, por piso,
+3. dentro del piso, **de la mejor calidad a la peor** (por eso va −calidad: el número más pequeño queda primero),
+4. y si dos empatan en calidad, por identificador.
+
+Así, «la mejor habitación del piso 3 de TP» es simplemente la primera clave que empieza por (TP, 3).
+
+### 6.3 El árbol AVL
+
+Un AVL es un árbol de búsqueda que se mantiene balanceado con una regla: en cada nodo, la altura de la rama izquierda y la de la derecha difieren **como máximo en 1**. Cada nodo guarda su altura; si al insertar o al borrar la diferencia llega a 2, el árbol rota (una o dos veces) para corregirla. Las rotaciones no cambian el orden de las claves, igual que en el rojo-negro (paso 4.3).
+
+El proyecto usa AVL aquí porque este trabajo es sobre todo de **lectura**: muchas búsquedas («¿cuál es la mejor del piso tal?») y como máximo un borrado por huésped. El AVL es más bajo que el rojo-negro (paso 4.6: 14 contra 22 con los mismos datos), así que cada búsqueda recorre menos nodos.
+
+| Caso | Habitaciones en la bolsa | Altura | Rotaciones al armarla | Comparaciones al armarla |
+|---|---|---|---|---|
+| Escenario base | 104 | 8 | 80 | 618 |
+| `luminarias_danadas` | 88 | 8 | 80 | 479 |
+| `reasignacion_restringida` | 80 | 7 | 69 | 420 |
+| `deficit_severo` | 56 | 7 | 61 | 276 |
+| `apagon_generador` | 0 | 0 | 0 | 0 |
+
+Con 104 habitaciones, un AVL tiene como mínimo altura 7 (2⁷ = 128 > 104) y como máximo unos 1,44 × log₂ 104 ≈ 9,6. La medida, 8, está en ese rango.
+
+### 6.4 La búsqueda para un huésped
+
+Para cada huésped a mover:
+
+**a) Pisos permitidos** (`leer_restricciones`). Se arma la lista de pares (torre, piso) que puede usar:
+
+- `MISMA_TORRE`: solo los pisos de su torre.
+- `PISO_MAXIMO:n`: solo los pisos 1 a n.
+- Sin restricciones: los 10 pisos del hotel (4 de TP y 6 de TG).
+
+`ORIENTACION:ESTE` (u otra) no quita pisos; es una preferencia que suma puntos.
+
+**b) La mejor de cada piso** (`sucesor`). Para cada piso permitido se le pide al árbol la primera clave mayor o igual que (torre, piso, −∞, ""). Como −∞ es menor que cualquier −calidad, esa clave es la mejor habitación del piso. Si la clave que devuelve es de otro piso, ese piso no tiene habitaciones en la bolsa y se salta. Cada consulta baja por el árbol una vez: unas 6 o 7 comparaciones con 88 habitaciones.
+
+**c) El score** de cada candidata:
+
+```
+score = calidad + w_actividad × (1 si la orientación coincide, 0 si no) − w_cambio × |piso nuevo − piso actual| / 6
+```
+
+con `w_actividad` = 0,2, `w_cambio` = 0,1 y 6 el piso más alto del hotel. La penalización castiga mudar al huésped lejos de su piso: subir o bajar dos pisos cuesta 0,1 × 2 / 6 = 0,0333. Si el huésped no tiene preferencia de orientación, todas las candidatas reciben los 0,2, así que ese término no cambia la elección.
+
+**d) Con preferencia de orientación** (`siguiente`), la mejor del piso puede no tener la orientación pedida. Entonces el sistema sigue con la siguiente del mismo piso, y la siguiente, hasta que ninguna de las que faltan pueda ganarle a la mejor que ya encontró. Como las que faltan tienen menos calidad, su score más alto posible es `su calidad + 0,2 − penalización`; si eso no supera al mejor, se detiene.
+
+**e) Elegir.** Entre las candidatas de todos los pisos gana la de score más alto. Las demás quedan en `descartadas` con motivo `MENOR_PUNTAJE`.
+
+**Tres huéspedes de `luminarias_danadas`, medidos:**
+
+| Huésped | Pedido | Candidatas que revisó | Gana | Score |
+|---|---|---|---|---|
+| H-001 (en `TP-H-101`, piso 1) | `MISMA_TORRE` | Solo pisos de TP. Pisos 1 y 2: ninguna habitable (son las dañadas). Piso 3: `TP-H-120`. Piso 4: `TP-H-128` | `TP-H-120` | 0,6911 + 0,2 − 0,0333 = **0,8578** (contra 0,6913 + 0,2 − 0,05 = 0,8413 de `TP-H-128`) |
+| H-002 (en `TP-H-102`, piso 1) | `PISO_MAXIMO:2` | Pisos 1 y 2 de las dos torres. En TP no hay habitables; en TG, `TG-H-112` (piso 1) y `TG-H-120` (piso 2) | `TG-H-112` | 0,6914 + 0,2 − 0 = **0,8914** (contra 0,8747) |
+| H-003 (en `TP-H-103`, piso 1) | `ORIENTACION:ESTE` | Los 10 pisos; en cada uno, habitaciones hasta encontrar una al este: 72 revisadas | `TG-H-101` (piso 1, al este) | 0,6548 + 0,2 − 0 = **0,8548** (la mejor al este de TP, `TP-H-121` en el piso 3, da 0,6712 + 0,2 − 0,0333 = 0,8379) |
+
+H-003 cambia de torre porque no lo prohibió y en TG encuentra una habitación al este en su mismo piso, sin penalización. H-001 se queda en TP pero sube dos pisos.
+
+### 6.5 Ocupar la cama
+
+Cuando se elige una habitación, se le resta una cama libre. Si se queda sin camas, se **borra del árbol** (`eliminar`), y así ningún otro huésped puede recibirla. Si todavía tiene una cama, se queda en la bolsa con la misma clave.
+
+Ejemplo en `reasignacion_restringida`: `TP-H-128` está vacía y tiene 2 camas. H-001 la recibe y queda con 1 cama libre; H-002 también la recibe y ahí se borra del árbol. H-003 ya no la ve y va a `TP-H-132`.
+
+### 6.6 Cuando no hay alternativa
+
+Si en ningún piso permitido queda una candidata, la propuesta sale como `NO_HAY_ALTERNATIVA` con uno de tres motivos:
+
+| Motivo | Cuándo | Ejemplo |
+|---|---|---|
+| `SIN_HABITACIONES_HABITABLES_LIBRES` | La bolsa estaba vacía desde el principio: no había ninguna habitación habitable con cama libre en todo el hotel | `apagon_generador`: los 78 huéspedes |
+| `SIN_CAPACIDAD` | Al principio sí había habitaciones en sus pisos permitidos, pero otros huéspedes llenaron las camas antes | `reasignacion_restringida`: H-017 y H-018 (`MISMA_TORRE`). Las 16 camas del piso 4 de TP se las llevaron H-001 a H-016 |
+| `RESTRICCIONES` | Nunca hubo habitaciones habitables en sus pisos permitidos | `reasignacion_restringida`: H-019 y H-020 (`MISMA_TORRE` + `PISO_MAXIMO:2`). En TP, los pisos 1 y 2 son los dañados |
+
+### 6.7 Resultados de todos los casos
+
+| Caso | Huéspedes a mover | Propuestas | Sin alternativa | Comparaciones en el AVL | Revisar todas las habitaciones |
+|---|---|---|---|---|---|
+| Escenario base | 0 | 0 | 0 | 0 | 0 |
+| `luminarias_danadas` | 16 | 16 | 0 | 1.554 | 1.664 |
+| `reasignacion_restringida` | 24 | 20 | 4 (2 `SIN_CAPACIDAD`, 2 `RESTRICCIONES`) | 752 | 2.496 |
+| `deficit_severo` | 22 | 22 | 0 | 1.350 | 2.288 |
+| `apagon_generador` | 78 | 0 | 78 (`SIN_HABITACIONES_HABITABLES_LIBRES`) | 0 | 8.112 |
+
+«Revisar todas las habitaciones» es lo que costaría sin árbol: huéspedes × 104 habitaciones. No se ejecuta; es la referencia de comparación.
+
+- Con restricciones de torre el árbol ahorra más (752 contra 2.496), porque cada huésped solo consulta 4 pisos.
+- En `luminarias_danadas` el ahorro es pequeño (1.554 contra 1.664). Los huéspedes sin restricciones consultan los 10 pisos, unas 7 comparaciones por piso, y H-003 revisa 72 habitaciones buscando una al este. Con 104 habitaciones el hotel es chico; la ventaja del árbol crece con el número de habitaciones.
+
+### Resultado y costo del paso
+
+| Operación | Costo | Escenario base |
+|---|---|---|
+| Armar la bolsa | O(H log H), con H habitaciones habitables libres | 104 inserciones, 618 comparaciones |
+| Buscar para un huésped | O(F × log H) con F pisos permitidos; más las que revise por orientación | Unas 7 comparaciones por piso |
+| Ocupar una cama | O(1); O(log H) si hay que borrar | — |
+| Todo el paso | O(H log H + G × F × log H), con G huéspedes a mover | — |
+| Sin árbol | O(G × H) | — |
+
+### Ideas clave del paso
+
+- **Solo se mueve a quien está en una habitación no habitable,** y solo a habitaciones habitables con cama libre.
+- **La clave del árbol ordena por torre, piso y calidad,** así que la mejor habitación de un piso es la primera de ese piso, y se encuentra bajando el árbol una vez.
+- **El score premia luz y ahorro, la orientación pedida y quedarse cerca del piso actual.**
+- **Las restricciones obligatorias quitan pisos; la orientación solo suma puntos.**
+- **Una habitación llena sale del árbol,** así que dos huéspedes nunca reciben la misma cama.
+- **Es voraz (greedy):** cada huésped toma la mejor opción disponible en su turno, sin pensar en los que vienen después. No garantiza el mejor reparto posible para todos.
+
+### Observaciones pendientes
+
+- **El ahorro de energía casi no pesa.** El ahorro se divide por la energía de la zona que más gastó, que es un parqueadero (17.280 Wh), mientras que las habitaciones gastan entre 617 y 968 Wh. Así, el ahorro de las habitaciones habitables va de 0,944 a 0,964, y `w_energia × ahorro` solo cambia 0,004 entre la que más gasta y la que menos. En la práctica la calidad depende casi solo del puntaje de luz. Si se dividiera por la habitación que más gastó, el ahorro iría de 0 a 1 y el término podría mover hasta 0,2 puntos, más que la penalización por cambiar de piso.
+- **El orden de atención decide quién se queda sin cama.** En `reasignacion_restringida`, H-017 y H-018 quedan sin alternativa solo porque van después de H-001 a H-016; ninguno tiene más derecho que otro. No hay prioridad por necesidad (por ejemplo, atender primero a quien tiene más restricciones).

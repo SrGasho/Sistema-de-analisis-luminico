@@ -1120,6 +1120,7 @@ function renderFloorPlan() {
       showZoneDetail(btn.dataset.zoneId);
     });
   });
+  if (state.selectedZoneId) showZoneDetail(state.selectedZoneId);
 }
 
 function showZoneDetail(zoneId) {
@@ -1140,9 +1141,10 @@ function showZoneDetail(zoneId) {
     <span>Veredicto: <b class="inline-state ${stateInfo(zone.veredicto).cls}">${stateInfo(zone.veredicto).dot} ${stateInfo(zone.veredicto).label}</b></span>
     ${evaluacionZona(zone.id).puntaje !== undefined && evaluacionZona(zone.id).puntaje !== null ? `<span>Puntaje: <strong class="num">${(evaluacionZona(zone.id).puntaje * 100).toFixed(1)} %</strong></span>` : ""}
     ${evaluacionZona(zone.id).recomendacion ? `<span>Recomendación: ${escapeHtml(evaluacionZona(zone.id).recomendacion)}</span>` : ""}
-    ${graficoDia(zone.id)}
     ${formularioRecinto(zone)}
   `;
+  const grafico = $("#zone-chart");
+  if (grafico) grafico.innerHTML = graficoDia(zone.id) || `<p class="muted">Este recinto no tiene resultados para graficar.</p>`;
   enlazarFormularioRecinto(zone.id);
 }
 
@@ -1161,7 +1163,7 @@ function graficoDia(zoneId) {
   const limiteSevero = u.maximo_deficit_severo ?? 0.05;
   const nota = { CONFORTABLE: u.q_confortable ?? 1, DEFICIT_LEVE: u.q_leve ?? 0.5, EXCESO_LEVE: u.q_leve ?? 0.5, DEFICIT_SEVERO: u.q_severo ?? 0, EXCESO_SEVERO: u.q_severo ?? 0 };
   const ev = evaluacionZona(zoneId);
-  const izq = 30, ancho = 304, arriba = 8, alto = 112;
+  const izq = 44, ancho = 940, arriba = 10, alto = 190, lienzo = 1000;
   const paso = ancho / filas.length;
   const y = (valor) => arriba + (1 - valor) * alto;
   const pct = (valor) => (valor === null || valor === undefined ? "—" : `${(valor * 100).toFixed(1)} %`);
@@ -1171,27 +1173,27 @@ function graficoDia(zoneId) {
     const info = stateInfo(estado);
     const x = izq + i * paso;
     const q = nota[estado];
-    const barra = q ? `<rect class="${info.cls}" x="${x + 0.8}" y="${y(q)}" width="${paso - 1.6}" height="${q * alto}"></rect>` : "";
-    const franja = `<rect class="${estado === "DATOS_INSUFICIENTES" ? "grafico-cerrado" : info.cls}" x="${x + 0.4}" y="${arriba + alto + 4}" width="${paso - 0.8}" height="7"></rect>`;
+    const barra = q ? `<rect class="${info.cls}" x="${x + 2}" y="${y(q)}" width="${paso - 4}" height="${q * alto}"></rect>` : "";
+    const franja = `<rect class="${estado === "DATOS_INSUFICIENTES" ? "grafico-cerrado" : info.cls}" x="${x + 1}" y="${arriba + alto + 5}" width="${paso - 2}" height="12"></rect>`;
     const detalle = estado === "DATOS_INSUFICIENTES"
       ? `${horaTexto(hora)} · ${modo} · no cuenta para el puntaje`
       : `${horaTexto(hora)} · ${modo} · natural ${natural} + reflejada ${reflejada} + artificial ${artificial} = ${total} lux (mínimo ${minimo}, máximo ${maximo}) · ${info.label} · nota ${String(q).replace(".", ",")}`;
-    return `<g class="grafico-columna">${barra}${franja}<rect class="grafico-hover" x="${x}" y="${arriba}" width="${paso}" height="${alto + 11}"><title>${escapeHtml(detalle)}</title></rect></g>`;
+    return `<g class="grafico-columna">${barra}${franja}<rect class="grafico-hover" x="${x}" y="${arriba}" width="${paso}" height="${alto + 17}"><title>${escapeHtml(detalle)}</title></rect></g>`;
   }).join("");
-  const ejeX = [0, 6, 12, 18, 24].map((h) => `<text class="grafico-eje" x="${izq + (h / 24) * ancho}" y="${arriba + alto + 22}" text-anchor="middle">${h}h</text>`).join("");
-  const ejeY = [[0, "0"], [0.5, "0,5"], [1, "1"]].map(([v, t]) => `<text class="grafico-eje" x="${izq - 4}" y="${y(v) + 3}" text-anchor="end">${t}</text>`).join("");
+  const ejeX = Array.from({ length: 13 }, (_, k) => k * 2).map((h) => `<text class="grafico-eje" x="${izq + (h / 24) * ancho}" y="${arriba + alto + 34}" text-anchor="${h === 24 ? "end" : h === 0 ? "start" : "middle"}">${h}:00</text>`).join("");
+  const ejeY = [[0, "0"], [0.5, "0,5"], [1, "1"]].map(([v, t]) => `<text class="grafico-eje" x="${izq - 8}" y="${y(v) + 4}" text-anchor="end">${t}</text>`).join("");
   const xEscala = (v) => izq + v * ancho;
   const coma = (v) => String(v).replace(".", ",");
   const marcador = ev.puntaje !== null && ev.puntaje !== undefined
-    ? `<path class="escala-marcador" d="M ${xEscala(ev.puntaje) - 5} 4 L ${xEscala(ev.puntaje) + 5} 4 L ${xEscala(ev.puntaje)} 11 Z"></path>`
+    ? `<path class="escala-marcador" d="M ${xEscala(ev.puntaje) - 9} 2 L ${xEscala(ev.puntaje) + 9} 2 L ${xEscala(ev.puntaje)} 14 Z"></path>`
     : "";
   const escala = `
-      <svg class="grafico-escala" viewBox="0 0 340 36" role="img" aria-label="Escala de habitabilidad">
-        <rect class="escala-no" x="${xEscala(0)}" y="13" width="${xEscala(casi) - xEscala(0)}" height="9"></rect>
-        <rect class="escala-casi" x="${xEscala(casi)}" y="13" width="${xEscala(habitable) - xEscala(casi)}" height="9"></rect>
-        <rect class="escala-habitable" x="${xEscala(habitable)}" y="13" width="${xEscala(1) - xEscala(habitable)}" height="9"></rect>
+      <svg class="grafico-escala" viewBox="0 0 ${lienzo} 46" role="img" aria-label="Escala de habitabilidad">
+        <rect class="escala-no" x="${xEscala(0)}" y="16" width="${xEscala(casi) - xEscala(0)}" height="12"></rect>
+        <rect class="escala-casi" x="${xEscala(casi)}" y="16" width="${xEscala(habitable) - xEscala(casi)}" height="12"></rect>
+        <rect class="escala-habitable" x="${xEscala(habitable)}" y="16" width="${xEscala(1) - xEscala(habitable)}" height="12"></rect>
         ${marcador}
-        ${[0, casi, habitable, 1].map((v) => `<text class="grafico-eje" x="${xEscala(v)}" y="32" text-anchor="${v === 1 ? "end" : v === 0 ? "start" : "middle"}">${coma(v)}</text>`).join("")}
+        ${[0, casi, habitable, 1].map((v) => `<text class="grafico-eje" x="${xEscala(v)}" y="43" text-anchor="${v === 1 ? "end" : v === 0 ? "start" : "middle"}">${coma(v)}</text>`).join("")}
       </svg>`;
   const lineaPuntaje = ev.puntaje !== null && ev.puntaje !== undefined
     ? `<line class="grafico-puntaje" x1="${izq}" x2="${izq + ancho}" y1="${y(ev.puntaje)}" y2="${y(ev.puntaje)}"></line>`
@@ -1202,7 +1204,7 @@ function graficoDia(zoneId) {
   const oscuridad = evaluables ? severos / evaluables : 0;
   return `
     <div class="grafico-dia">
-      <strong>Cómo le fue en el día</strong>
+      <h3>Cómo le fue en el día a ${escapeHtml(zoneId)}</h3>
       <span>Puntaje <b class="num">${pct(ev.puntaje)}</b> · día ${pct(ev.puntaje_dia)} · noche ${pct(ev.puntaje_noche)}: <b class="inline-state ${veredicto.cls}">${veredicto.label}</b></span>
       ${escala}
       <div class="legend grafico-leyenda">
@@ -1210,7 +1212,7 @@ function graficoDia(zoneId) {
         <span><i class="legend-dot casi-habitable"></i>${coma(casi)} a ${coma(habitable)}: casi habitable</span>
         <span><i class="legend-dot habitable"></i>${coma(habitable)} a 1: habitable</span>
       </div>
-      <svg viewBox="0 0 340 ${arriba + alto + 28}" role="img" aria-label="Nota de cada media hora del día de ${escapeHtml(zoneId)}">
+      <svg viewBox="0 0 ${lienzo} ${arriba + alto + 42}" role="img" aria-label="Nota de cada media hora del día de ${escapeHtml(zoneId)}">
         ${noche}${columnas}${lineaPuntaje}${ejeY}${ejeX}
       </svg>
       <div class="legend grafico-leyenda">
