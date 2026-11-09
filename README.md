@@ -206,6 +206,7 @@ Cualquier error al procesar una solicitud devuelve HTTP 400 con un campo `error`
 
 | Documento | Contenido |
 |---|---|
+| `docs/proyecto-final.md` | Explicación del proyecto final: problema, recorrido, estructuras de datos, decisiones, salida visual de cada pestaña, validación y limitaciones. |
 | `docs/guia-funcionamiento.md` | Recorrido paso a paso de lo que hace el sistema con los datos, en el orden en que se ejecuta. |
 | `docs/entregable/architecture-proyecto-cc1-iluminacion.md` | Arquitectura: decisiones, clases, reglas de cálculo, flujo y complejidad. |
 | `docs/entregable/plan-proyecto-cc1-iluminacion.md` | Plan del proyecto: objetivos, alcance, escenario, métricas y casos de prueba. |
