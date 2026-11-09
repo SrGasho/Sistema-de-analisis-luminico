@@ -7,9 +7,10 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlparse
 
-from .balance import agregar_energia_postorden
+from .balance import agregar_energia_postorden, horario_modo
 from .evaluacion import estado_predominante, resumen_zonas
 from .mejoras import medir_mejoras
+from .modelo import ModoOperacion
 from .io_datos import cargar_hotel, cargar_hotel_data
 from .reestructuracion import buscar_reestructuracion
 from .simulacion import SimuladorUnificado
@@ -106,6 +107,20 @@ def _layout_hotel(hotel, resumen, veredictos=None):
     return {"torres": torres}
 
 
+def _lineas_zonas(hotel) -> dict[str, list]:
+    """Día de cada zona, media hora por media hora: [hora, modo, natural, reflejada, artificial, total, estado, mínimo, máximo]."""
+    lineas = {}
+    for zona in hotel.zonas.values():
+        perfil = hotel.perfiles_iluminacion[zona.actividad]
+        filas = []
+        for r in zona.resultados:
+            modo = horario_modo(hotel, zona, r.hora) if r.modo == ModoOperacion.EMERGENCIA else r.modo
+            minimo, _, maximo = perfil.para_modo(modo)
+            filas.append([r.hora, r.modo.value, round(r.luz_natural, 1), round(r.luz_reflejada, 1), round(r.luz_artificial, 1), round(r.luz_total, 1), r.estado.value, round(minimo, 1), round(maximo, 1)])
+        lineas[zona.id] = filas
+    return lineas
+
+
 def _estado_generador(potencia_maxima: float, capacidad: float, deficit: int) -> str:
     if deficit > 0 or potencia_maxima > capacidad:
         return "CAPACIDAD_LIMITADA"
@@ -131,7 +146,7 @@ def _generador_resultado(hotel, resultados, resumen, balanceado: bool = True):
     }
 
 
-def ejecutar_balance(data: dict, balancear_energia: bool = True, incluir_resultados: bool = True) -> dict:
+def ejecutar_balance(data: dict, balancear_energia: bool = True, incluir_resultados: bool = True, incluir_lineas: bool = True) -> dict:
     hotel = cargar_hotel_data(data)
     simulador = SimuladorUnificado(hotel)
     resultados, resumen, reasignaciones = simulador.ejecutar(balancear_energia=balancear_energia, comparar_arboles=incluir_resultados)
@@ -172,6 +187,7 @@ def ejecutar_balance(data: dict, balancear_energia: bool = True, incluir_resulta
         "energia_arbol": agregar_energia_postorden(hotel),
         "resultados": serializados if incluir_resultados else [],
         "resumen_zonas": resumen,
+        "lineas_zonas": _lineas_zonas(hotel) if incluir_lineas else {},
         "reasignaciones": reasignaciones,
         "sugerencias_habitabilidad": sugerencias,
         "advertencias": ["Los resultados son aproximaciones educativas y usan lux de referencia."] if resultados else [],
@@ -206,13 +222,13 @@ class WebHandler(BaseHTTPRequestHandler):
                 self._json(ejecutar_balance(data, balancear_energia=False, incluir_resultados=False))
                 return
             if path == "/api/mejoras":
-                self._json({"mejoras": medir_mejoras(data, lambda config: ejecutar_balance(config, incluir_resultados=False))})
+                self._json({"mejoras": medir_mejoras(data, lambda config: ejecutar_balance(config, incluir_resultados=False, incluir_lineas=False))})
                 return
             if path == "/api/balancear":
                 self._json(ejecutar_balance(data))
                 return
             if path == "/api/reestructurar":
-                self._json(buscar_reestructuracion(data, lambda config: ejecutar_balance(config, incluir_resultados=False)))
+                self._json(buscar_reestructuracion(data, lambda config: ejecutar_balance(config, incluir_resultados=False, incluir_lineas=False)))
                 return
             self._json({"error": "Ruta no encontrada"}, 404)
         except Exception as error:

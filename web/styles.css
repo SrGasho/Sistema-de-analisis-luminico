@@ -978,6 +978,24 @@ h1, h2, h3 { letter-spacing: 0; }
 .plan-aside h3 { margin: 0; font-size: 1rem; }
 .plan-aside .zone-detail { margin-top: 0; flex-direction: column; gap: 8px; line-height: 1.4; overflow-wrap: anywhere; }
 .plan-aside .zone-detail select, .plan-aside .zone-detail input { max-width: 100%; }
+
+/* Gráfico del día de una zona */
+.grafico-dia { display: flex; flex-direction: column; gap: 6px; padding: 10px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface-alt); }
+.grafico-dia svg { width: 100%; height: auto; display: block; }
+.grafico-dia .escala-habitable { fill: var(--c-good); }
+.grafico-dia .escala-casi { fill: #f59e0b; }
+.grafico-dia .escala-no { fill: var(--c-exceso); fill-opacity: .85; }
+.grafico-dia .escala-marcador { fill: var(--text); }
+.grafico-dia .grafico-noche { fill: var(--indigo); fill-opacity: .35; }
+[data-theme="claro"] .grafico-dia .grafico-noche { fill-opacity: .1; }
+.grafico-dia .grafico-cerrado { fill: var(--c-sin-datos); fill-opacity: .4; }
+.grafico-dia .grafico-hover { fill: transparent; cursor: help; }
+.grafico-dia .grafico-columna:hover .grafico-hover { fill: var(--text); fill-opacity: .08; }
+.grafico-dia .grafico-puntaje { stroke: var(--text); stroke-width: 1.2; stroke-dasharray: 4 3; }
+.grafico-dia .grafico-eje { fill: var(--text-muted); font-size: 8px; font-family: var(--font-mono); }
+.grafico-leyenda { padding-top: 0; gap: 4px 10px; font-size: .7rem; }
+.grafico-leyenda .legend-dot + .legend-dot { margin-left: -4px; }
+.legend-linea { display: inline-block; width: 14px; margin-right: 6px; vertical-align: 3px; border-top: 2px dashed var(--text); }
 .plan-aside .common-zones { max-height: none; overflow: visible; }
 #plan-panel #franja-report { margin-top: 6px; }
 @media (max-width: 1100px) {

@@ -1140,9 +1140,89 @@ function showZoneDetail(zoneId) {
     <span>Veredicto: <b class="inline-state ${stateInfo(zone.veredicto).cls}">${stateInfo(zone.veredicto).dot} ${stateInfo(zone.veredicto).label}</b></span>
     ${evaluacionZona(zone.id).puntaje !== undefined && evaluacionZona(zone.id).puntaje !== null ? `<span>Puntaje: <strong class="num">${(evaluacionZona(zone.id).puntaje * 100).toFixed(1)} %</strong></span>` : ""}
     ${evaluacionZona(zone.id).recomendacion ? `<span>Recomendación: ${escapeHtml(evaluacionZona(zone.id).recomendacion)}</span>` : ""}
+    ${graficoDia(zone.id)}
     ${formularioRecinto(zone)}
   `;
   enlazarFormularioRecinto(zone.id);
+}
+
+function horaTexto(hora) {
+  const h = Math.floor(hora);
+  return `${String(h).padStart(2, "0")}:${hora % 1 ? "30" : "00"}`;
+}
+
+function graficoDia(zoneId) {
+  const datos = vistaActiva();
+  const filas = datos && datos.lineas_zonas ? datos.lineas_zonas[zoneId] : null;
+  if (!filas || !filas.length) return "";
+  const u = (datos.habitabilidad && datos.habitabilidad.umbrales) || {};
+  const habitable = u.umbral_habitable ?? 0.9;
+  const casi = u.umbral_casi ?? 0.75;
+  const limiteSevero = u.maximo_deficit_severo ?? 0.05;
+  const nota = { CONFORTABLE: u.q_confortable ?? 1, DEFICIT_LEVE: u.q_leve ?? 0.5, EXCESO_LEVE: u.q_leve ?? 0.5, DEFICIT_SEVERO: u.q_severo ?? 0, EXCESO_SEVERO: u.q_severo ?? 0 };
+  const ev = evaluacionZona(zoneId);
+  const izq = 30, ancho = 304, arriba = 8, alto = 112;
+  const paso = ancho / filas.length;
+  const y = (valor) => arriba + (1 - valor) * alto;
+  const pct = (valor) => (valor === null || valor === undefined ? "—" : `${(valor * 100).toFixed(1)} %`);
+  const noche = filas.map((f, i) => (f[0] < 6 || f[0] >= 18 ? `<rect class="grafico-noche" x="${izq + i * paso}" y="${arriba}" width="${paso}" height="${alto}"></rect>` : "")).join("");
+  const columnas = filas.map((f, i) => {
+    const [hora, modo, natural, reflejada, artificial, total, estado, minimo, maximo] = f;
+    const info = stateInfo(estado);
+    const x = izq + i * paso;
+    const q = nota[estado];
+    const barra = q ? `<rect class="${info.cls}" x="${x + 0.8}" y="${y(q)}" width="${paso - 1.6}" height="${q * alto}"></rect>` : "";
+    const franja = `<rect class="${estado === "DATOS_INSUFICIENTES" ? "grafico-cerrado" : info.cls}" x="${x + 0.4}" y="${arriba + alto + 4}" width="${paso - 0.8}" height="7"></rect>`;
+    const detalle = estado === "DATOS_INSUFICIENTES"
+      ? `${horaTexto(hora)} · ${modo} · no cuenta para el puntaje`
+      : `${horaTexto(hora)} · ${modo} · natural ${natural} + reflejada ${reflejada} + artificial ${artificial} = ${total} lux (mínimo ${minimo}, máximo ${maximo}) · ${info.label} · nota ${String(q).replace(".", ",")}`;
+    return `<g class="grafico-columna">${barra}${franja}<rect class="grafico-hover" x="${x}" y="${arriba}" width="${paso}" height="${alto + 11}"><title>${escapeHtml(detalle)}</title></rect></g>`;
+  }).join("");
+  const ejeX = [0, 6, 12, 18, 24].map((h) => `<text class="grafico-eje" x="${izq + (h / 24) * ancho}" y="${arriba + alto + 22}" text-anchor="middle">${h}h</text>`).join("");
+  const ejeY = [[0, "0"], [0.5, "0,5"], [1, "1"]].map(([v, t]) => `<text class="grafico-eje" x="${izq - 4}" y="${y(v) + 3}" text-anchor="end">${t}</text>`).join("");
+  const xEscala = (v) => izq + v * ancho;
+  const coma = (v) => String(v).replace(".", ",");
+  const marcador = ev.puntaje !== null && ev.puntaje !== undefined
+    ? `<path class="escala-marcador" d="M ${xEscala(ev.puntaje) - 5} 4 L ${xEscala(ev.puntaje) + 5} 4 L ${xEscala(ev.puntaje)} 11 Z"></path>`
+    : "";
+  const escala = `
+      <svg class="grafico-escala" viewBox="0 0 340 36" role="img" aria-label="Escala de habitabilidad">
+        <rect class="escala-no" x="${xEscala(0)}" y="13" width="${xEscala(casi) - xEscala(0)}" height="9"></rect>
+        <rect class="escala-casi" x="${xEscala(casi)}" y="13" width="${xEscala(habitable) - xEscala(casi)}" height="9"></rect>
+        <rect class="escala-habitable" x="${xEscala(habitable)}" y="13" width="${xEscala(1) - xEscala(habitable)}" height="9"></rect>
+        ${marcador}
+        ${[0, casi, habitable, 1].map((v) => `<text class="grafico-eje" x="${xEscala(v)}" y="32" text-anchor="${v === 1 ? "end" : v === 0 ? "start" : "middle"}">${coma(v)}</text>`).join("")}
+      </svg>`;
+  const lineaPuntaje = ev.puntaje !== null && ev.puntaje !== undefined
+    ? `<line class="grafico-puntaje" x1="${izq}" x2="${izq + ancho}" y1="${y(ev.puntaje)}" y2="${y(ev.puntaje)}"></line>`
+    : "";
+  const evaluables = filas.filter((f) => f[6] !== "DATOS_INSUFICIENTES").length;
+  const severos = filas.filter((f) => f[6] === "DEFICIT_SEVERO").length;
+  const veredicto = stateInfo(ev.veredicto);
+  const oscuridad = evaluables ? severos / evaluables : 0;
+  return `
+    <div class="grafico-dia">
+      <strong>Cómo le fue en el día</strong>
+      <span>Puntaje <b class="num">${pct(ev.puntaje)}</b> · día ${pct(ev.puntaje_dia)} · noche ${pct(ev.puntaje_noche)}: <b class="inline-state ${veredicto.cls}">${veredicto.label}</b></span>
+      ${escala}
+      <div class="legend grafico-leyenda">
+        <span><i class="legend-dot no-habitable"></i>menos de ${coma(casi)}: no habitable</span>
+        <span><i class="legend-dot casi-habitable"></i>${coma(casi)} a ${coma(habitable)}: casi habitable</span>
+        <span><i class="legend-dot habitable"></i>${coma(habitable)} a 1: habitable</span>
+      </div>
+      <svg viewBox="0 0 340 ${arriba + alto + 28}" role="img" aria-label="Nota de cada media hora del día de ${escapeHtml(zoneId)}">
+        ${noche}${columnas}${lineaPuntaje}${ejeY}${ejeX}
+      </svg>
+      <div class="legend grafico-leyenda">
+        <span><i class="legend-linea"></i>puntaje del día</span>
+        <span><i class="legend-dot good"></i>confortable (nota 1)</span>
+        <span><i class="legend-dot deficit-leve"></i><i class="legend-dot exceso-leve"></i>leve (nota 0,5)</span>
+        <span><i class="legend-dot deficit-severo"></i><i class="legend-dot exceso-severo"></i>severo (nota 0)</span>
+        <span><i class="legend-dot sin-datos"></i>cerrada, no cuenta</span>
+      </div>
+      <small class="muted">Arriba, la escala: el triángulo marca el puntaje del día y el color del tramo, su veredicto. Abajo, cada barra es una media hora; su altura es la nota y su color, el estado. El puntaje es el promedio de las barras (la línea punteada). Fondo oscuro: noche (18:00 a 6:00). A oscuras: ${severos} de ${evaluables} medias horas (${(oscuridad * 100).toFixed(1)} %); con más del ${(limiteSevero * 100).toFixed(0)} % la zona es no habitable aunque el puntaje sea alto. Pasa el mouse por una barra para ver su luz.</small>
+    </div>
+  `;
 }
 
 function formularioRecinto(zone) {

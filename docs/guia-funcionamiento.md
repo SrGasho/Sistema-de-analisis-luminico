@@ -1073,6 +1073,13 @@ En el escenario base da 0 / 26 / 101 y un puntaje de 0,7031:
 
 - **El paso 6 (reasignación)** solo mueve a los huéspedes de habitaciones ocupadas `NO_HABITABLE`, y solo los manda a habitaciones `HABITABLE` con cama libre. Las casi habitables no se tocan: ni pierden a sus huéspedes ni reciben otros.
 - **El plano** pinta cada zona con su veredicto cuando no hay una franja elegida y el selector de color está en «habitabilidad».
+- **El gráfico «Cómo le fue en el día»**, en el panel de detalle del plano, muestra todo este paso para la zona elegida ([`graficoDia`, `web/app.js` línea 1154](../web/app.js#L1154); los datos salen de `lineas_zonas`, [`_lineas_zonas`, `src/api.py` línea 110](../src/api.py#L110)):
+  - arriba, la escala de 0 a 1 con sus tres tramos (no habitable, casi habitable, habitable) y un triángulo en el puntaje de la zona;
+  - abajo, una barra por media hora: la altura es la nota (1, 0,5 o 0) y el color, el estado; la línea punteada es el puntaje, que es el promedio de las barras;
+  - una franja de color bajo las barras repite el estado de cada media hora, incluso las de nota 0 y las cerradas, y el fondo oscuro marca la noche;
+  - al pasar el mouse por una barra se ve su hora, su modo, la luz natural, reflejada y artificial, el total, el mínimo y el máximo de ese momento.
+
+  En `TG-H-113` del caso `deficit_leve` se ven las barras rojas claras del sol de la mañana, las azules claras de 18:00 a 21:30 y el triángulo en 0,823, dentro del tramo amarillo.
 - **Las pestañas «2. Diagnóstico» y «4. Balance»** muestran las tarjetas con el conteo y los tres puntajes del hotel, las recomendaciones de hasta 12 zonas casi habitables y el número de zonas no habitables por causa.
 - **El resumen de la API** cuenta cuántas zonas casi o no habitables tienen causa de déficit (`zonas_con_deficit`) y cuántas de exceso (`zonas_con_exceso`).
 
