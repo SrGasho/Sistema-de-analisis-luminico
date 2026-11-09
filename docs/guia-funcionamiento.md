@@ -684,7 +684,17 @@ Sin la rotación del tercer paso, las tres claves quedarían en una línea, que 
 - Fue el resultado número 1.278 en insertarse, no el primero. La primera raíz fue `(0,0, "TP-H-101")`, y la raíz cambió 10 veces durante el día: `TP-H-102`, `TP-H-104` y `TP-H-108` de las 0:00, luego `(0,5, "TG-H-140")`, `(1,0, "TP-H-108")`, `(2,5, "TG-H-140")` y, desde la inserción 3.396, `(5,0, "TP-H-108")`, que ya no cambió hasta la 6.096.
 - Cada cambio pasa cuando una rotación cerca de la raíz sube a otro nodo para que ningún camino quede demasiado largo.
 - A su izquierda quedan los 1.367 resultados de antes de las 5:00 y a su derecha los 4.728 de después. Sus hijos directos son `(2,5, "TG-H-140")` y `(10,5, "TG-H-140")`.
-- La raíz no queda en la mitad del día (las 12:00) porque el rojo-negro no reparte el mismo número de nodos a cada lado. Lo que asegura es que ningún camino sea más del doble de largo que otro, y con eso basta para que la altura se quede en 22.
+- **Nadie la elige.** No hay ninguna línea del código que diga cuál debe ser la raíz. Sale de dos cosas: el orden en que llegan las claves y las reglas de reparación. Con los mismos datos en el mismo orden la raíz siempre es la misma; si cambia el orden, cambia la raíz. Medido con las mismas 6.096 claves:
+
+  | Orden de inserción | Raíz | Altura |
+  |---|---|---|
+  | El del paso 3 | `(5,0, "TP-H-108")` | 22 |
+  | Ordenado de menor a mayor | `(8,0, "TG-H-110")` | 22 |
+  | Al azar (semilla 1) | `(11,0, "TP-H-113")` | 15 |
+  | Al azar (semilla 2) | `(9,0, "TG-H-139")` | 15 |
+
+- **El último cambio de raíz** pasó al insertar `(13,0, "TG-H-139")`, el resultado número 3.396. Esa inserción dejó dos rojos seguidos, la reparación cambió colores subiendo por el árbol hasta llegar junto a la raíz, y ahí hizo una rotación: la raíz anterior, `(2,5, "TG-H-140")`, bajó a la izquierda y su hijo derecho, `(5,0, "TP-H-108")`, subió. Las 2.700 inserciones que siguieron se arreglaron más abajo, sin tocar la raíz.
+- La raíz no queda en la mitad del día (la mitad exacta sería `(12,0, "TG-COC-01")`) porque el rojo-negro no reparte el mismo número de nodos a cada lado. Lo que asegura es que ningún camino sea más del doble de largo que otro, y con eso basta para que la altura se quede en 22.
 
 ### 4.4 La consulta por rango
 
