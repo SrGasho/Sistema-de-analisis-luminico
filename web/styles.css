@@ -720,7 +720,7 @@ th { color: var(--text-muted); font-family: var(--font-mono); font-size: .7rem; 
 :root {
   --theme-habitacion: #2563eb;
   --theme-cocina: #ea580c;
-  --theme-recreacion: #059669;
+  --theme-sala-juegos: #059669;
   --theme-parqueadero: #64748b;
   --theme-circulacion: #1e293b;
 }
@@ -732,7 +732,7 @@ th { color: var(--text-muted); font-family: var(--font-mono); font-size: .7rem; 
 .zone-shape.act-cocina .room-border {
   stroke: rgba(249, 115, 22, 0.85);
 }
-.zone-shape.act-recreacion .room-border {
+.zone-shape.act-sala_juegos .room-border {
   stroke: rgba(16, 185, 129, 0.85);
 }
 .zone-shape.act-parqueadero .room-border {
@@ -747,7 +747,7 @@ th { color: var(--text-muted); font-family: var(--font-mono); font-size: .7rem; 
   stroke: #fb923c;
   filter: drop-shadow(0 0 10px rgba(251, 146, 60, 0.7));
 }
-.zone-shape:hover.act-recreacion .room-border {
+.zone-shape:hover.act-sala_juegos .room-border {
   stroke: #34d399;
   filter: drop-shadow(0 0 10px rgba(52, 211, 153, 0.7));
 }
@@ -756,7 +756,7 @@ th { color: var(--text-muted); font-family: var(--font-mono); font-size: .7rem; 
   filter: drop-shadow(0 0 10px rgba(203, 213, 225, 0.7));
 }
 
-/* Mobiliario temático para Cocina, Recreación y Parqueadero */
+/* Mobiliario temático para Cocina, Sala de juegos y Parqueadero */
 .stove-top {
   fill: rgba(234, 88, 12, 0.25);
   stroke: rgba(249, 115, 22, 0.75);
@@ -848,7 +848,7 @@ th { color: var(--text-muted); font-family: var(--font-mono); font-size: .7rem; 
 }
 .legend-swatch.swatch-habitacion { background: #2563eb; }
 .legend-swatch.swatch-cocina { background: #ea580c; }
-.legend-swatch.swatch-recreacion { background: #059669; }
+.legend-swatch.swatch-sala-juegos { background: #059669; }
 .legend-swatch.swatch-parqueadero { background: #64748b; }
 .legend-swatch.swatch-circulacion { background: #1e293b; }
 .title-block-box {

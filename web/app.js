@@ -35,7 +35,7 @@ const STATE_META = {
   NO_HABITABLE: { cls: "no-habitable", label: "No habitable", dot: "🔴" }
 };
 const STATE_ORDER = ["CONFORTABLE", "DEFICIT_LEVE", "DEFICIT_SEVERO", "EXCESO_LEVE", "EXCESO_SEVERO", "DATOS_INSUFICIENTES"];
-const ACTIVITY_LABELS = { HABITACION: "Habitación", COCINA: "Cocina", RECREACION: "Recreación", PARQUEADERO: "Parqueadero" };
+const ACTIVITY_LABELS = { HABITACION: "Habitación", COCINA: "Cocina", SALA_JUEGOS: "Sala de juegos", PARQUEADERO: "Parqueadero" };
 
 const ACTIVITY_THEMES = {
   HABITACION: {
@@ -54,12 +54,12 @@ const ACTIVITY_THEMES = {
     icon: "🍳",
     palette: ["#c2410c", "#d97706", "#ea580c", "#f97316", "#b45309", "#ea580c"]
   },
-  RECREACION: {
-    name: "Recreación",
+  SALA_JUEGOS: {
+    name: "Sala de juegos",
     baseColor: "#059669",
     fillSoft: "rgba(5, 150, 105, 0.25)",
     border: "#10b981",
-    icon: "🎯",
+    icon: "🎱",
     palette: ["#047857", "#059669", "#10b981", "#0d9488", "#0f766e", "#10b981"]
   },
   PARQUEADERO: {
@@ -245,7 +245,7 @@ const CAUSAS_TEXTO = {
   SIN_CAUSA: "Sin causa registrada"
 };
 
-const PATRON_ZONA = /\b(T[PG]-(?:H|COC|REC|PAR)-\d+)\b/g;
+const PATRON_ZONA = /\b(T[PG]-(?:H|COC|JUE|PAR)-\d+)\b/g;
 
 function conEnlacesZona(texto, vista) {
   return escapeHtml(texto).replace(PATRON_ZONA, (id) => `<button type="button" class="zona-link" data-ir-zona="${id}" data-vista="${vista}" title="Ver ${id} en el plano">${id}</button>`);
@@ -701,7 +701,7 @@ function renderFloorPlan() {
 
   const rooms = floor.zonas.filter((zone) => zone.actividad === "HABITACION");
   const kitchens = floor.zonas.filter((zone) => zone.actividad === "COCINA");
-  const recreations = floor.zonas.filter((zone) => zone.actividad === "RECREACION");
+  const gameRooms = floor.zonas.filter((zone) => zone.actividad === "SALA_JUEGOS");
   const parkings = floor.zonas.filter((zone) => zone.actividad === "PARQUEADERO");
   const common = floor.zonas.filter((zone) => zone.actividad !== "HABITACION");
 
@@ -846,13 +846,13 @@ function renderFloorPlan() {
     `;
   }
 
-  // 3. RECREACIÓN CAD (VERDE)
-  function recreationCad(zone, x, y, w, h, index) {
+  // 3. SALA DE JUEGOS CAD (VERDE)
+  function gameRoomCad(zone, x, y, w, h, index) {
     const info = stateInfo(claveVisual(zone));
     const zLabel = zoneLabel(zone, tower);
     const luxText = `${zone.promedio_lux.toFixed(1)} lx`;
     const isSelected = state.selectedZoneId === zone.id;
-    const style = getSpaceStyle("RECREACION", index, claveVisual(zone));
+    const style = getSpaceStyle("SALA_JUEGOS", index, claveVisual(zone));
 
     const winW = Math.min(w * 0.6, 65);
     const winX = x + (w - winW) / 2;
@@ -881,7 +881,7 @@ function renderFloorPlan() {
         <line class="window-glass" x1="${winX}" y1="${winY}" x2="${winX + winW}" y2="${winY}"></line>
 
         <text class="room-title-text" x="${x + w / 2}" y="${y + h / 2 - 6}"${ajustarTexto(`🎯 ${zLabel}`, w, 11)}>🎯 ${escapeHtml(zLabel)}</text>
-        <text class="room-sub-text" x="${x + w / 2}" y="${y + h / 2 + 7}"${ajustarTexto("80 m² · Recreación", w, 8.5)}>80 m² · Recreación</text>
+        <text class="room-sub-text" x="${x + w / 2}" y="${y + h / 2 + 7}"${ajustarTexto("80 m² · Sala de juegos", w, 8.5)}>80 m² · Sala de juegos</text>
         <rect class="status-indicator-pill ${info.cls}" x="${x + w / 2 - 32}" y="${y + h / 2 + 14}" width="64" height="15"></rect>
         <text class="room-lux-text" fill="#ffffff" x="${x + w / 2}" y="${y + h / 2 + 22}">${info.dot} ${luxText}</text>
       </g>
@@ -935,12 +935,12 @@ function renderFloorPlan() {
       return roomCad(zone, rx, ry, topW - 4, roomH, true, idx);
     }).join("");
 
-    // PISO 1: Ala Inferior = Zonas Comunes (Cocina Naranja, Recreación Verde, Parqueadero Gris)
+    // PISO 1: Ala Inferior = Zonas Comunes (Cocina Naranja, Sala de juegos Verde, Parqueadero Gris)
     const botY = BLDG_Y + BLDG_H - roomH - 10;
     const botW = BLDG_W - 20;
 
     const cookW = botW * 0.32;
-    const recW = botW * 0.38;
+    const gameW = botW * 0.38;
     const parkW = botW * 0.30;
 
     // Cocinas
@@ -950,21 +950,21 @@ function renderFloorPlan() {
       return kitchenCad(zone, cx, botY, cWidth - 3, roomH, idx);
     }).join("");
 
-    // Recreaciones
-    const rWidth = recW / Math.max(1, recreations.length);
-    const recHtml = recreations.map((zone, idx) => {
+    // Salas de juegos
+    const rWidth = gameW / Math.max(1, gameRooms.length);
+    const gameHtml = gameRooms.map((zone, idx) => {
       const rx = BLDG_X + 10 + cookW + idx * rWidth;
-      return recreationCad(zone, rx, botY, rWidth - 3, roomH, idx);
+      return gameRoomCad(zone, rx, botY, rWidth - 3, roomH, idx);
     }).join("");
 
     // Parqueaderos
     const pWidth = parkW / Math.max(1, parkings.length);
     const parkHtml = parkings.map((zone, idx) => {
-      const px = BLDG_X + 10 + cookW + recW + idx * pWidth;
+      const px = BLDG_X + 10 + cookW + gameW + idx * pWidth;
       return parkingCad(zone, px, botY, pWidth - 3, roomH, idx);
     }).join("");
 
-    spacesBottomHtml = cookHtml + recHtml + parkHtml;
+    spacesBottomHtml = cookHtml + gameHtml + parkHtml;
   } else {
     // PISOS 2+: Solo Habitaciones en 2 alas perimetrales
     const halfCount = Math.ceil(rooms.length / 2);
@@ -1125,7 +1125,7 @@ function renderFloorPlan() {
     grupo("synergy", "Separación de espacios", `
       <span><i class="legend-swatch swatch-habitacion"></i>Habitación (azul)</span>
       <span><i class="legend-swatch swatch-cocina"></i>Cocina (naranja)</span>
-      <span><i class="legend-swatch swatch-recreacion"></i>Recreación (verde)</span>
+      <span><i class="legend-swatch swatch-sala-juegos"></i>Sala de juegos (verde)</span>
       <span><i class="legend-swatch swatch-parqueadero"></i>Parqueadero (gris)</span>
       <span><i class="legend-swatch swatch-circulacion"></i>Núcleo y pasillos</span>`),
     grupo("habitabilidad", "Habitabilidad del día", `
