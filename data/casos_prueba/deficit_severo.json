@@ -4,7 +4,7 @@
     "historia": "Falla grave: el generador solo entrega 4 kW para todo el hotel.",
     "que_se_espera": [
       "El generador va primero a los parqueaderos y luego a las habitaciones ocupadas, con más prioridad cuanto más alto es el piso. Quedan HABITABLE los 3 parqueaderos y 56 habitaciones ocupadas de los pisos 2 en adelante.",
-      "Las 68 zonas restantes entran en EMERGENCIA y quedan NO_HABITABLE por déficit nocturno: las 20 habitaciones ocupadas del piso 1, 2 del piso 2 de TG, las 26 habitaciones vacías, las 10 cocinas y las 10 recreaciones.",
+      "Las 68 zonas restantes entran en EMERGENCIA y quedan NO_HABITABLE por déficit nocturno: las 20 habitaciones ocupadas del piso 1, 2 del piso 2 de TG, las 26 habitaciones vacías, las 10 cocinas y las 10 salas de juegos.",
       "Los 22 huéspedes de habitaciones no habitables reciben la cama libre de una habitación habitable que ya tiene un huésped."
     ],
     "resultado_esperado": {
@@ -53,8 +53,8 @@
           "area_ventana": 1.5
         },
         {
-          "codigo": "REC",
-          "actividad": "RECREACION",
+          "codigo": "JUE",
+          "actividad": "SALA_JUEGOS",
           "cantidad": 4,
           "area": 80,
           "ventanas": 3,
@@ -96,8 +96,8 @@
           "area_ventana": 1.5
         },
         {
-          "codigo": "REC",
-          "actividad": "RECREACION",
+          "codigo": "JUE",
+          "actividad": "SALA_JUEGOS",
           "cantidad": 6,
           "area": 80,
           "ventanas": 3,
@@ -127,7 +127,7 @@
       "maximo": 500,
       "prioridad": 3
     },
-    "RECREACION": {
+    "SALA_JUEGOS": {
       "minimo": 200,
       "objetivo": 300,
       "maximo": 500,
@@ -208,7 +208,7 @@
       "cierre_inicio": 23,
       "cierre_fin": 5
     },
-    "RECREACION": {
+    "SALA_JUEGOS": {
       "inicio_activa": 8,
       "fin_activa": 23,
       "cierre_inicio": 0,
@@ -232,7 +232,7 @@
       "cu": 0.7,
       "mf": 0.8
     },
-    "RECREACION": {
+    "SALA_JUEGOS": {
       "potencia_w": 450,
       "eficacia_lm_w": 100,
       "cu": 0.7,
@@ -319,7 +319,7 @@
             24
           ]
         },
-        "RECREACION": {
+        "SALA_JUEGOS": {
           "inicio_activa": [
             8,
             10
@@ -358,7 +358,7 @@
         "OESTE"
       ]
     },
-    "RECREACION": {
+    "SALA_JUEGOS": {
       "pared": "BLANCO",
       "vidrio": "VIDRIO_LOW_E",
       "orientaciones": [

@@ -14,10 +14,10 @@ RANGOS_POR_DEFECTO = {
     "orientaciones": [["ESTE", "NORTE", "OESTE", "SUR"], ["ESTE", "NORTE", "OESTE"], ["NORTE", "SUR"]],
     "horarios": {
         "COCINA": {"inicio_activa": [6, 8], "fin_activa": [22, 24]},
-        "RECREACION": {"inicio_activa": [8, 10], "fin_activa": [22, 23]},
+        "SALA_JUEGOS": {"inicio_activa": [8, 10], "fin_activa": [22, 23]},
     },
 }
-ACTIVIDADES_CON_VENTANAS = ("HABITACION", "COCINA", "RECREACION")
+ACTIVIDADES_CON_VENTANAS = ("HABITACION", "COCINA", "SALA_JUEGOS")
 
 
 def buscar_reestructuracion(config: dict, ejecutar: Callable[[dict], dict]) -> dict:

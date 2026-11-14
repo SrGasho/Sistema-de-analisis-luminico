@@ -36,7 +36,7 @@ VECTORES_ORIENTACION = {
 ACABADOS_POR_DEFECTO = {
     "HABITACION": {"pared": "BLANCO", "vidrio": "VIDRIO_CLARO", "orientaciones": ["ESTE", "NORTE", "OESTE", "SUR"]},
     "COCINA": {"pared": "BLANCO", "vidrio": "VIDRIO_LOW_E", "orientaciones": ["ESTE", "NORTE", "OESTE"]},
-    "RECREACION": {"pared": "BLANCO", "vidrio": "VIDRIO_LOW_E", "orientaciones": ["ESTE", "NORTE", "OESTE"]},
+    "SALA_JUEGOS": {"pared": "BLANCO", "vidrio": "VIDRIO_LOW_E", "orientaciones": ["ESTE", "NORTE", "OESTE"]},
     "PARQUEADERO": {"pared": "BLANCO", "vidrio": None, "orientaciones": []},
 }
 VIDRIOS_POR_DEFECTO = {

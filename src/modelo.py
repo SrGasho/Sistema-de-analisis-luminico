@@ -10,7 +10,7 @@ from .geometria import CajaEspacial, Vector3
 class Actividad(str, Enum):
     HABITACION = "HABITACION"
     COCINA = "COCINA"
-    RECREACION = "RECREACION"
+    SALA_JUEGOS = "SALA_JUEGOS"
     PARQUEADERO = "PARQUEADERO"
 
 

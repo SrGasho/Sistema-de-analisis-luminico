@@ -67,7 +67,7 @@ def _punto_zona(zona):
     dimensiones = {
         "HABITACION": (4.0, 3.0),
         "COCINA": (7.0, 5.0),
-        "RECREACION": (10.0, 7.0),
+        "SALA_JUEGOS": (10.0, 7.0),
         "PARQUEADERO": (15.0, 9.0),
     }
     ancho, alto = dimensiones[zona.actividad.value]

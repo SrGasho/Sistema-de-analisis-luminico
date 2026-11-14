@@ -56,8 +56,8 @@
           "area_ventana": 1.5
         },
         {
-          "codigo": "REC",
-          "actividad": "RECREACION",
+          "codigo": "JUE",
+          "actividad": "SALA_JUEGOS",
           "cantidad": 4,
           "area": 80,
           "ventanas": 3,
@@ -99,8 +99,8 @@
           "area_ventana": 1.5
         },
         {
-          "codigo": "REC",
-          "actividad": "RECREACION",
+          "codigo": "JUE",
+          "actividad": "SALA_JUEGOS",
           "cantidad": 6,
           "area": 80,
           "ventanas": 3,
@@ -130,7 +130,7 @@
       "maximo": 500,
       "prioridad": 3
     },
-    "RECREACION": {
+    "SALA_JUEGOS": {
       "minimo": 200,
       "objetivo": 300,
       "maximo": 500,
@@ -211,7 +211,7 @@
       "cierre_inicio": 23,
       "cierre_fin": 5
     },
-    "RECREACION": {
+    "SALA_JUEGOS": {
       "inicio_activa": 8,
       "fin_activa": 23,
       "cierre_inicio": 0,
@@ -235,7 +235,7 @@
       "cu": 0.7,
       "mf": 0.8
     },
-    "RECREACION": {
+    "SALA_JUEGOS": {
       "potencia_w": 450,
       "eficacia_lm_w": 100,
       "cu": 0.7,
@@ -322,7 +322,7 @@
             24
           ]
         },
-        "RECREACION": {
+        "SALA_JUEGOS": {
           "inicio_activa": [
             8,
             10
@@ -425,7 +425,7 @@
         "OESTE"
       ]
     },
-    "RECREACION": {
+    "SALA_JUEGOS": {
       "pared": "BLANCO",
       "vidrio": "VIDRIO_LOW_E",
       "orientaciones": [
