@@ -2,7 +2,7 @@
 
 ## 1. Propósito
 
-Este documento define la arquitectura conceptual de un sistema educativo para analizar la iluminación de un hotel de dos torres en Bogotá. El sistema aplica árboles jerárquicos, un Octree, un grafo dirigido ponderado, una cola de prioridad, un árbol AVL, un árbol rojo-negro y recorridos de agregación para estudiar cuatro actividades: habitaciones, cocina, recreación y parqueadero.
+Este documento define la arquitectura conceptual de un sistema educativo para analizar la iluminación de un hotel de dos torres en Bogotá. El sistema aplica árboles jerárquicos, un Octree, un grafo dirigido ponderado, una cola de prioridad, un árbol AVL, un árbol rojo-negro y recorridos de agregación para estudiar cuatro actividades: habitaciones, cocina, sala de juegos y parqueadero.
 
 El modelo cubre 24 horas con un único flujo de simulación. Durante el día combina la posición real del sol en Bogotá, luz natural, transmisión por ventanas, reflexión y luz artificial complementaria. Durante la noche toma la componente solar como cero y utiliza principalmente las luminarias alimentadas por el generador. El resultado es un diagnóstico educativo, no un diseño fotométrico, eléctrico o arquitectónico profesional.
 
@@ -14,8 +14,8 @@ El hotel contiene exactamente dos torres, identificadas como `TP` (Torre Pequeñ
 
 ```text
 Hotel
-├── TP (Torre Pequeña): 4 pisos, 32 habitaciones, 4 cocinas, 4 recreaciones, 1 parqueadero
-└── TG (Torre Grande): 6 pisos, 72 habitaciones, 6 cocinas, 6 recreaciones, 2 parqueaderos
+├── TP (Torre Pequeña): 4 pisos, 32 habitaciones, 4 cocinas, 4 salas de juegos, 1 parqueadero
+└── TG (Torre Grande): 6 pisos, 72 habitaciones, 6 cocinas, 6 salas de juegos, 2 parqueaderos
 ```
 
 Las áreas de referencia son aproximadamente 4.013 m² y 11.346 m², inspiradas en modelos comerciales del DOE. Las cajas, posiciones, zonas, luminarias y huéspedes son datos sintéticos didácticos; no son un plano real de Bogotá.
@@ -58,7 +58,7 @@ Día:   E_natural + E_reflejada + E_artificial
 Noche: 0 + 0 + E_artificial
 ```
 
-Los modos son `ACTIVA`, `REDUCIDA`, `CERRADA` y `EMERGENCIA`. El modo sale del horario de cada actividad, y la franja activa manda sobre la de cierre. La cocina cierra de 23:00 a 05:00 y la recreación de 00:00 a 07:00; las habitaciones y el parqueadero nunca cierran. Un paso `CERRADA` no consume energía y no cuenta en el puntaje de habitabilidad. Una habitación en descanso se compara con un nivel reducido configurable (por defecto 30 % del perfil activo), no con el perfil de habitación activa.
+Los modos son `ACTIVA`, `REDUCIDA`, `CERRADA` y `EMERGENCIA`. El modo sale del horario de cada actividad, y la franja activa manda sobre la de cierre. La cocina cierra de 23:00 a 05:00 y la sala de juegos de 00:00 a 07:00; las habitaciones y el parqueadero nunca cierran. Un paso `CERRADA` no consume energía y no cuenta en el puntaje de habitabilidad. Una habitación en descanso se compara con un nivel reducido configurable (por defecto 30 % del perfil activo), no con el perfil de habitación activa.
 
 `EMERGENCIA` lo asigna el balance. Primero se reserva un nivel de emergencia de 10 lux para todas las zonas abiertas. La zona que no alcanza su mínimo porque el generador se agotó queda en `EMERGENCIA`, se clasifica contra el mínimo de su modo de horario y ese paso cuenta como déficit.
 
@@ -67,7 +67,7 @@ Los modos son `ACTIVA`, `REDUCIDA`, `CERRADA` y `EMERGENCIA`. El modo sale del h
 La geometría de las torres es fija. El sistema no mueve ni rediseña edificios, no agrega torres y no cambia la capacidad del hotel. Sí mide mejoras y propone reestructuraciones de las variables de luz: orientación de ventanas, acabados (pared y vidrio), luminarias por recinto, horarios y generador.
 
 - **Mejoras medidas.** Salen de los problemas del escenario. Para las zonas `CASI_HABITABLE` o `NO_HABITABLE` se elige un cambio según la causa: `VIDRIO_CONTROL_SOLAR` en las zonas con causa `EXCESO_SOLAR` (por zona, en `zonas_personalizadas`); `REPONER_LUMINARIAS` en las zonas con déficit cuyo `luminaria_w` está por debajo de la potencia de su actividad, que la recuperan; `AMPLIAR_GENERADOR` sólo si alguna media hora quedó en `EMERGENCIA`, con capacidad nueva = máx(1,2 × demanda objetivo máxima redondeada hacia arriba a 0,1 kW; 1,2 × capacidad actual); y `VIDRIO_CLARO` y `PAREDES_BLANCAS` en las zonas con causa `DEFICIT_DIURNO` que aún no los tienen. Cada candidata se simula completa y sólo se muestran las que suben el puntaje del hotel. Si no hay zonas con problemas, el resultado es `TODO_HABITABLE`: no hace falta ninguna mejora.
-- **Reestructuración.** Búsqueda por coordenadas sobre paredes, vidrios, orientaciones de ventanas y horarios (cocina y recreación) de las actividades que tienen zonas `CASI_HABITABLE` o `NO_HABITABLE`. No cambia los objetivos de lux. Prueba un cambio a la vez dentro de rangos fijos, con un presupuesto de 30 evaluaciones y hasta 3 rondas, y conserva el que mejora el puntaje ponderado (desempate: menos zonas no habitables y luego menos energía).
+- **Reestructuración.** Búsqueda por coordenadas sobre paredes, vidrios, orientaciones de ventanas y horarios (cocina y sala de juegos) de las actividades que tienen zonas `CASI_HABITABLE` o `NO_HABITABLE`. No cambia los objetivos de lux. Prueba un cambio a la vez dentro de rangos fijos, con un presupuesto de 30 evaluaciones y hasta 3 rondas, y conserva el que mejora el puntaje ponderado (desempate: menos zonas no habitables y luego menos energía).
 
 Los resultados son propuestas. La propuesta de reestructuración se puede cargar en los formularios, pero el sistema no la aplica por su cuenta. El balance de energía y la reasignación de huéspedes son heurísticos. Una reasignación propone cambiar una relación `Huesped–HabitacionHotel`; no mueve físicamente al huésped ni modifica la geometría.
 
@@ -88,20 +88,20 @@ La interfaz web (`web/`, servida con `python -m src.api`) se organiza en seis pe
 | Pisos | 4 | 6 | 3 m por piso |
 | Habitaciones | 32 | 72 | 24 m², capacidad 2 |
 | Cocinas | 4 | 6 | 35 m² |
-| Recreaciones | 4 | 6 | 80 m² |
+| Salas de juegos | 4 | 6 | 80 m² |
 | Parqueaderos | 1 | 2 | 450 m² |
 | Habitaciones ocupadas | 24 | 54 | 78 huéspedes en total |
-| Ventanas | 52 | 102 | Habitaciones 1, cocinas 2, recreaciones 3 |
+| Ventanas | 52 | 102 | Habitaciones 1, cocinas 2, salas de juegos 3 |
 
-Cada habitación tiene una ventana de 2,0 m²; cada cocina tiene dos de 1,5 m² y cada recreación tres de 2,0 m². Los IDs de zona combinan torre, actividad y número, por ejemplo `TP-H-101` (habitación) y `TG-COC-01` (cocina); los huéspedes van de `H-001` a `H-078`. Las orientaciones de habitaciones alternan norte, este, sur y oeste.
+Cada habitación tiene una ventana de 2,0 m²; cada cocina tiene dos de 1,5 m² y cada sala de juegos tres de 2,0 m². Los IDs de zona combinan torre, actividad y número, por ejemplo `TP-H-101` (habitación) y `TG-COC-01` (cocina); los huéspedes van de `H-001` a `H-078`. Las orientaciones de habitaciones alternan norte, este, sur y oeste.
 
-Las luminarias equivalentes por zona son: habitación 72 W, cocina 200 W, recreación 450 W y parqueadero 720 W. Un recinto puede cambiar la suya con `luminaria_w` en `zonas_personalizadas` (un número ≥ 0; 0 representa una luminaria dañada). Ese campo se valida al cargar y solo se edita en el JSON, no desde la interfaz. Todas usan, como supuesto didáctico, 100 lm/W, `CU=0,70` y `MF=0,80`. El generador nominal es de 22,0 kW y sólo alimenta iluminación.
+Las luminarias equivalentes por zona son: habitación 72 W, cocina 200 W, sala de juegos 450 W y parqueadero 720 W. Un recinto puede cambiar la suya con `luminaria_w` en `zonas_personalizadas` (un número ≥ 0; 0 representa una luminaria dañada). Ese campo se valida al cargar y solo se edita en el JSON, no desde la interfaz. Todas usan, como supuesto didáctico, 100 lm/W, `CU=0,70` y `MF=0,80`. El generador nominal es de 22,0 kW y sólo alimenta iluminación.
 
 | Actividad | Horario sintético | Perfil activo | Prioridad |
 |---|---|---:|---:|
 | Habitación | 06:00–22:00 activa; resto reducida | 100–200–300 lux | 3 |
 | Cocina | 06:00–22:00 activa; 23:00–05:00 cerrada; resto reducida | 300–400–500 lux | 3 |
-| Recreación | 08:00–23:00 activa; 00:00–07:00 cerrada; resto reducida | 200–300–500 lux | 2 |
+| Sala de juegos | 08:00–23:00 activa; 00:00–07:00 cerrada; resto reducida | 200–300–500 lux | 2 |
 | Parqueadero | 00:00–24:00 activa | 50–100–150 lux | 1 |
 
 Los tripletes significan mínimo–objetivo–máximo. Son presets de cálculo, no valores normativos textuales.
@@ -132,7 +132,7 @@ Mantiene número, peso `1 + 0,10(p-1)` y zonas del piso.
 
 ### `ZonaHotel`
 
-Mantiene ID, actividad, área, piso, torre, modo, ventanas, superficies, luminaria y resultados temporales. El perfil de iluminación se toma del hotel según la actividad. Puede representar una `HabitacionHotel`, cocina, recreación o parqueadero.
+Mantiene ID, actividad, área, piso, torre, modo, ventanas, superficies, luminaria y resultados temporales. El perfil de iluminación se toma del hotel según la actividad. Puede representar una `HabitacionHotel`, cocina, sala de juegos o parqueadero.
 
 ### `HabitacionHotel`, `Huesped` y `Asignacion`
 
@@ -407,20 +407,20 @@ Mediciones en el escenario base:
 | Medida | Valor |
 |---|---|
 | Pares fachada–ventana del grafo | 68 candidatos con el Octree contra 1.232 ingenuos (8 × 154); 7.834 nodos del Octree visitados |
-| Aristas del grafo | 46: `TP-F-ESTE` → 24 ventanas de TG, `TG-F-OESTE` → 16 ventanas de TP, `TP-F-NORTE` → 6 ventanas de recreaciones de TG |
+| Aristas del grafo | 46: `TP-F-ESTE` → 24 ventanas de TG, `TG-F-OESTE` → 16 ventanas de TP, `TP-F-NORTE` → 6 ventanas de salas de juegos de TG |
 | Ventanas con obstrucción del cielo | 40 |
 | Veredictos | 127 `HABITABLE` (52 con causa `EXCESO_SOLAR` en algunos pasos), 0 `CASI_HABITABLE`, 0 `NO_HABITABLE`; puntaje ponderado 0,9718 (día 0,9436, noche 1,0) |
 | Estados de los 6.096 resultados | 5.517 confortables, 319 exceso leve, 260 cerrados, 0 déficit |
 | Energía y generador | 208.075,0 Wh; pico 15.933,7 W a las 18:00; demanda objetivo máxima 18.110,7 W |
 | Potencia asignada por hora | 0:00 4.834 W; 6:00 11.648; 7:00 8.837; 9:00 7.174; 12:00 7.220; 15:00 7.754; 17:30 13.080; 18:00 15.934; 22:00 9.870 |
 | Resultados indexados | 6.096 (127 zonas × 48 pasos) |
-| Consulta de la franja 18–22 | 1.029 nodos visitados contra 6.096 de recorrer la lista |
+| Consulta de la franja 18–22 | 1.030 nodos visitados contra 6.096 de recorrer la lista |
 | Bolsa AVL de reasignación | 104 habitaciones habitables libres, altura 8, 80 rotaciones, 618 comparaciones de construcción; no se consulta porque ninguna habitación ocupada queda `NO_HABITABLE` |
 | Prueba de carga del AVL (60 de 78 ocupadas marcadas `NO_HABITABLE`) | 2.792 comparaciones contra 6.240 lineales, 39 eliminaciones; con restricciones mezcladas, 3.289 contra 6.240 |
-| Rotaciones rojo-negro / AVL con los mismos resultados | 9.099 / 7.232 |
+| Rotaciones rojo-negro / AVL con los mismos resultados | 7.960 / 7.779 |
 | Altura rojo-negro / AVL | 22 / 14 |
 
-El rojo-negro se eligió para el índice temporal porque, en general, rota menos al insertar. Con 6.096 claves aleatorias se cumple: 3.511 rotaciones contra 4.176 del AVL. En el escenario base no se cumple, porque los resultados llegan casi ordenados (hora ascendente y tramos largos de IDs ascendentes). El índice responde bien las consultas por franja, pero con estos datos el argumento de las rotaciones no se sostiene.
+El rojo-negro se eligió para el índice temporal porque, en general, rota menos al insertar. Con 6.096 claves aleatorias se cumple: 3.556 rotaciones contra 4.312 del AVL (orden al azar con semilla 1). En el escenario base no se cumple, porque los resultados llegan casi ordenados (hora ascendente y tramos largos de IDs ascendentes). El índice responde bien las consultas por franja, pero con estos datos el argumento de las rotaciones no se sostiene.
 
 ## 11. Límites
 

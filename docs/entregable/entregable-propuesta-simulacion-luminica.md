@@ -4,7 +4,7 @@
 
 ## Introducción
 
-Se propone desarrollar un sistema educativo para estimar la iluminación de un hotel de dos torres en Bogotá. El sistema trabaja con cuatro actividades: habitaciones, cocina, recreación y parqueadero. Utiliza una jerarquía de composición, un Octree para consultas espaciales, un grafo dirigido ponderado para influencias lumínicas, un árbol AVL para la reasignación de huéspedes, un árbol rojo-negro como índice temporal de resultados y un recorrido temporal único de 24 horas.
+Se propone desarrollar un sistema educativo para estimar la iluminación de un hotel de dos torres en Bogotá. El sistema trabaja con cuatro actividades: habitaciones, cocina, sala de juegos y parqueadero. Utiliza una jerarquía de composición, un Octree para consultas espaciales, un grafo dirigido ponderado para influencias lumínicas, un árbol AVL para la reasignación de huéspedes, un árbol rojo-negro como índice temporal de resultados y un recorrido temporal único de 24 horas.
 
 El día y la noche no se representan mediante clases duplicadas. Las mismas zonas, perfiles, resultados y evaluadores reciben el instante y el modo de operación. Los resultados son aproximaciones educativas y no sustituyen un proyecto fotométrico o eléctrico profesional.
 
@@ -18,8 +18,8 @@ Las torres se identifican con abreviaturas: `TP` es la Torre Pequeña y `TG` es 
 
 ```text
 Hotel
-├── TP (Torre Pequeña): 4 pisos, 32 habitaciones, 4 cocinas, 4 recreaciones, 1 parqueadero
-└── TG (Torre Grande):  6 pisos, 72 habitaciones, 6 cocinas, 6 recreaciones, 2 parqueaderos
+├── TP (Torre Pequeña): 4 pisos, 32 habitaciones, 4 cocinas, 4 salas de juegos, 1 parqueadero
+└── TG (Torre Grande):  6 pisos, 72 habitaciones, 6 cocinas, 6 salas de juegos, 2 parqueaderos
 ```
 
 Las áreas de referencia son aproximadamente 4.013 m² y 11.346 m², inspiradas en modelos DOE. Las cajas, zonas, ventanas, huéspedes y luminarias son datos sintéticos.
@@ -37,10 +37,10 @@ Cada piso mide 3 m de alto y la separación horizontal aproximada entre torres e
 |---|---:|---:|---:|---:|
 | Habitación | 24 m² | 32 | 72 | 1 de 2,0 m² |
 | Cocina | 35 m² | 4 | 6 | 2 de 1,5 m² |
-| Recreación | 80 m² | 4 | 6 | 3 de 2,0 m² |
+| Sala de juegos | 80 m² | 4 | 6 | 3 de 2,0 m² |
 | Parqueadero | 450 m² | 1 | 2 | 0 |
 
-En total hay 127 zonas y 154 ventanas (52 en TP y 102 en TG). Una ventana contiene `id`, posición, normal, área y vidrio. Los IDs de zona empiezan por la abreviatura de la torre: habitaciones `TP-H-101` y `TG-H-101`; zonas comunes `TP-COC-01`, `TG-REC-01` o `TG-PAR-02`. Los huéspedes de prueba usan `H-001` a `H-078`.
+En total hay 127 zonas y 154 ventanas (52 en TP y 102 en TG). Una ventana contiene `id`, posición, normal, área y vidrio. Los IDs de zona empiezan por la abreviatura de la torre: habitaciones `TP-H-101` y `TG-H-101`; zonas comunes `TP-COC-01`, `TG-JUE-01` o `TG-PAR-02`. Los huéspedes de prueba usan `H-001` a `H-078`.
 
 Cada huésped puede tener restricciones en `huespedes.restricciones_por_huesped`. Hay dos restricciones duras, que filtran candidatas en la reasignación: `MISMA_TORRE` y `PISO_MAXIMO:n`. Hay una preferencia, `ORIENTACION:ESTE|NORTE|OESTE|SUR`, que suma puntaje si la ventana de la habitación coincide. Una restricción desconocida se rechaza al cargar los datos.
 
@@ -50,7 +50,7 @@ Cada huésped puede tener restricciones en `huespedes.restricciones_por_huesped`
 |---|---|---|---|---:|---:|---:|---:|
 | Habitación | 06:00–22:00 | resto del día | nunca | 100 | 200 | 300 | 3 |
 | Cocina | 06:00–22:00 | 22:00–23:00 y 05:00–06:00 | 23:00–05:00 | 300 | 400 | 500 | 3 |
-| Recreación | 08:00–23:00 | 23:00–24:00 y 07:00–08:00 | 00:00–07:00 | 200 | 300 | 500 | 2 |
+| Sala de juegos | 08:00–23:00 | 23:00–24:00 y 07:00–08:00 | 00:00–07:00 | 200 | 300 | 500 | 2 |
 | Parqueadero | 00:00–24:00 | nunca | nunca | 50 | 100 | 150 | 1 |
 
 Los valores están expresados en lux de referencia. Son presets educativos configurables, no una transcripción normativa del RETILAP. En modo `REDUCIDA` los tres niveles se multiplican por 0,3.
@@ -58,7 +58,7 @@ Los valores están expresados en lux de referencia. Son presets educativos confi
 Los modos de operación son:
 
 - `ACTIVA` y `REDUCIDA`: según el horario de la actividad.
-- `CERRADA`: según `cierre_inicio` y `cierre_fin` del horario (cocina 23 → 5, recreación 0 → 7). Si una hora cae a la vez en la franja activa y en la de cierre, manda la activa. Los pasos cerrados no reciben energía, quedan como `DATOS_INSUFICIENTES` y no cuentan en el puntaje de habitabilidad.
+- `CERRADA`: según `cierre_inicio` y `cierre_fin` del horario (cocina 23 → 5, sala de juegos 0 → 7). Si una hora cae a la vez en la franja activa y en la de cierre, manda la activa. Los pasos cerrados no reciben energía, quedan como `DATOS_INSUFICIENTES` y no cuentan en el puntaje de habitabilidad.
 - `EMERGENCIA`: lo asigna el balance, no el horario. El nivel de emergencia es `parametros_evaluacion.emergencia.nivel_lux = 10` (supuesto cercano a 1 pie-candela, 10,8 lux, que pide NFPA 101 en rutas de evacuación). La zona abierta que no alcanza su mínimo porque el generador se agotó queda en `EMERGENCIA`, se clasifica contra el mínimo de su modo de horario y ese paso cuenta como déficit.
 
 ## 1.4 Vidrios, paredes y luminarias
@@ -87,7 +87,7 @@ Luminarias equivalentes:
 |---|---:|---:|---:|---:|
 | Habitación | 72 W | 100 lm/W | 0,70 | 0,80 |
 | Cocina | 200 W | 100 lm/W | 0,70 | 0,80 |
-| Recreación | 450 W | 100 lm/W | 0,70 | 0,80 |
+| Sala de juegos | 450 W | 100 lm/W | 0,70 | 0,80 |
 | Parqueadero | 720 W | 100 lm/W | 0,70 | 0,80 |
 
 Un recinto puede cambiar la potencia de su luminaria con `luminaria_w` en `zonas_personalizadas` (número ≥ 0; 0 representa una luminaria dañada). El valor se valida al cargar y solo se edita en el JSON, no desde la interfaz.
@@ -369,7 +369,7 @@ La construcción pide al Octree, para cada ventana, las fachadas en un radio de 
 | Pares fachada–ventana evaluados | 1.232 (8 × 154) | 68 (7.834 nodos del Octree visitados) |
 | Aristas recorridas por instante en la reflexión exterior | 154 × 46 | 46 |
 
-El grafo resultante tiene 46 aristas: `TP-F-ESTE` → 24 ventanas de TG, `TG-F-OESTE` → 16 ventanas de TP y `TP-F-NORTE` → 6 ventanas de recreaciones de TG. 40 ventanas tienen obstrucción. Las salidas son idénticas a las de la comparación ingenua; solo cambia el número de comparaciones.
+El grafo resultante tiene 46 aristas: `TP-F-ESTE` → 24 ventanas de TG, `TG-F-OESTE` → 16 ventanas de TP y `TP-F-NORTE` → 6 ventanas de salas de juegos de TG. 40 ventanas tienen obstrucción. Las salidas son idénticas a las de la comparación ingenua; solo cambia el número de comparaciones.
 
 ## 4.4 Árbol AVL: bolsa de habitaciones para la reasignación
 
@@ -399,10 +399,10 @@ Se eligió rojo-negro porque el índice tiene muchas inserciones (6.096) y pocas
 
 | Medida (escenario base, 6.096 resultados) | Rojo-negro | AVL |
 |---|---:|---:|
-| Rotaciones | 9.099 | 7.232 |
+| Rotaciones | 7.960 | 7.779 |
 | Altura | 22 | 14 |
 
-En este escenario el rojo-negro rota más. Los resultados llegan casi ordenados: hora ascendente y, dentro de cada hora, tramos largos de IDs ascendentes. Con esa entrada el AVL rota menos. Con 6.096 claves en orden aleatorio se cumple lo esperado: 3.511 rotaciones del rojo-negro contra 4.176 del AVL. Se verificó que el árbol cumple las propiedades de rojo-negro, así que la diferencia viene del orden de los datos y no de la implementación. El índice se mantiene por su papel en las consultas: la franja 18:00–22:00 visita 1.029 nodos, contra 6.096 resultados de recorrer la lista.
+En este escenario el rojo-negro rota más. Los resultados llegan casi ordenados: hora ascendente y, dentro de cada hora, tramos largos de IDs ascendentes. Con esa entrada el AVL rota menos. Con 6.096 claves en orden aleatorio se cumple lo esperado: 3.556 rotaciones del rojo-negro contra 4.312 del AVL (orden al azar con semilla 1). Se verificó que el árbol cumple las propiedades de rojo-negro, así que la diferencia viene del orden de los datos y no de la implementación. El índice se mantiene por su papel en las consultas: la franja 18:00–22:00 visita 1.030 nodos, contra 6.096 resultados de recorrer la lista.
 
 # 5. Algoritmos
 
@@ -523,7 +523,7 @@ Cada candidata se simula completa y solo se muestran las que suben el puntaje de
 | `deficit_severo` | Ampliar generador | +0,1118 | 127 habitables |
 | `apagon_generador` | Ampliar generador | +0,6149 | 127 habitables |
 
-La reestructuración busca, para las actividades con zonas casi habitables o no habitables, combinaciones de pared, vidrio, orientaciones de ventanas y horario de cocina y recreación. No cambia los objetivos de lux. Acepta un cambio solo si mejora el puntaje, luego la cantidad de no habitables y luego la energía. Usa como máximo 30 evaluaciones y 3 rondas. No cambia la geometría de las torres.
+La reestructuración busca, para las actividades con zonas casi habitables o no habitables, combinaciones de pared, vidrio, orientaciones de ventanas y horario de cocina y sala de juegos. No cambia los objetivos de lux. Acepta un cambio solo si mejora el puntaje, luego la cantidad de no habitables y luego la energía. Usa como máximo 30 evaluaciones y 3 rondas. No cambia la geometría de las torres.
 
 En `cielo_despejado` encuentra mejora (`MEJORA_ENCONTRADA`) en 7 evaluaciones: vidrio low-e, luego control solar y luego orientaciones `NORTE` y `SUR`. El puntaje pasa de 0,9236 a 0,9984, las zonas habitables/casi/no de 75/52/0 a 127/0/0 y la energía de 193.037,9 a 220.190,2 Wh. En `deficit_leve` hace 19 evaluaciones y el puntaje pasa de 0,9621 a 0,9903, pero quedan 11 zonas casi habitables: paredes y vidrios no corrigen luminarias débiles. Eso lo resuelven las mejoras.
 
@@ -568,7 +568,7 @@ Reasignación con AVL:          O(H log H) construcción, O(G × F × log H) con
 Reasignación lineal:           O(G × H)
 ```
 
-Valores medidos en el escenario base: 68 pares evaluados en el grafo contra 1.232 ingenuos; 1.029 nodos visitados en la franja 18:00–22:00 contra 6.096 resultados; en la prueba de carga de reasignación, 2.792 comparaciones del AVL contra 6.240 lineales.
+Valores medidos en el escenario base: 68 pares evaluados en el grafo contra 1.232 ingenuos; 1.030 nodos visitados en la franja 18:00–22:00 contra 6.096 resultados; en la prueba de carga de reasignación, 2.792 comparaciones del AVL contra 6.240 lineales.
 
 Los 10 casos de prueba están automatizados con `unittest` en `tests/test_casos_plan.py`. `tests/test_casos_json.py` ejecuta además el escenario base y los diez casos de `data/casos_prueba/`. Son 26 pruebas; se ejecutan desde la raíz con `python -m unittest` y todas pasan.
 

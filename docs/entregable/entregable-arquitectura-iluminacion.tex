@@ -46,7 +46,7 @@
     \vfill
     \begin{tabular}{rl}
         \textbf{Escenario:} & Hotel de dos torres en Bogotá\\
-        \textbf{Actividades:} & Habitaciones, cocina, recreación y parqueadero\\
+        \textbf{Actividades:} & Habitaciones, cocina, sala de juegos y parqueadero\\
         \textbf{Análisis:} & Modelo unificado de 24 horas\\
         \textbf{Implementación propuesta:} & Python\\
     \end{tabular}
@@ -101,13 +101,13 @@ $\longrightarrow$ \codigo{resultados.json} y reporte CSV}}
 \toprule
 \textbf{Torre} & \textbf{Referencia} & \textbf{Caja espacial (m)} & \textbf{Zonas y ocupación}\\
 \midrule
-\codigo{TP} (Torre Pequeña) & 4.013 m$^2$, 4 pisos & $x=0..32$, $y=0..31.35$, $z=0..12$ & 32 habitaciones, 4 cocinas, 4 recreaciones, 1 parqueadero; 24 ocupadas.\\
-\codigo{TG} (Torre Grande) & 11.346 m$^2$, 6 pisos & $x=45..89$, $y=0..43$, $z=0..18$ & 72 habitaciones, 6 cocinas, 6 recreaciones, 2 parqueaderos; 54 ocupadas.\\
+\codigo{TP} (Torre Pequeña) & 4.013 m$^2$, 4 pisos & $x=0..32$, $y=0..31.35$, $z=0..12$ & 32 habitaciones, 4 cocinas, 4 salas de juegos, 1 parqueadero; 24 ocupadas.\\
+\codigo{TG} (Torre Grande) & 11.346 m$^2$, 6 pisos & $x=45..89$, $y=0..43$, $z=0..18$ & 72 habitaciones, 6 cocinas, 6 salas de juegos, 2 parqueaderos; 54 ocupadas.\\
 \bottomrule
 \end{tabular}
 \end{center}
 
-Cada piso tiene 3 m de altura y la separación horizontal aproximada entre torres es de 13 m. Las habitaciones tienen 24 m$^2$ y capacidad para dos huéspedes. El escenario inicia con 78 huéspedes: 24 habitaciones ocupadas en la torre pequeña y 54 en la grande. Las torres se identifican como \codigo{TP} (Torre Pequeña) y \codigo{TG} (Torre Grande); el nombre completo se guarda como campo de presentación. Las zonas usan el prefijo de su torre, la actividad y un número: \codigo{TP-H-101} es una habitación de la torre pequeña y \codigo{TG-COC-01} una cocina de la torre grande (\codigo{H} habitación, \codigo{COC} cocina, \codigo{REC} recreación, \codigo{PAR} parqueadero). Los huéspedes son \codigo{H-001}--\codigo{H-078}; no representan personas reales. La geometría de las torres es fija: el sistema no mueve ni rediseña los edificios.
+Cada piso tiene 3 m de altura y la separación horizontal aproximada entre torres es de 13 m. Las habitaciones tienen 24 m$^2$ y capacidad para dos huéspedes. El escenario inicia con 78 huéspedes: 24 habitaciones ocupadas en la torre pequeña y 54 en la grande. Las torres se identifican como \codigo{TP} (Torre Pequeña) y \codigo{TG} (Torre Grande); el nombre completo se guarda como campo de presentación. Las zonas usan el prefijo de su torre, la actividad y un número: \codigo{TP-H-101} es una habitación de la torre pequeña y \codigo{TG-COC-01} una cocina de la torre grande (\codigo{H} habitación, \codigo{COC} cocina, \codigo{JUE} sala de juegos, \codigo{PAR} parqueadero). Los huéspedes son \codigo{H-001}--\codigo{H-078}; no representan personas reales. La geometría de las torres es fija: el sistema no mueve ni rediseña los edificios.
 
 \textbf{Zonas y actividades.} El sistema usa cuatro actividades para evitar clases innecesarias:
 
@@ -118,7 +118,7 @@ Cada piso tiene 3 m de altura y la separación horizontal aproximada entre torre
 \midrule
 Habitación & 24 m$^2$ & 32 & 72 & 1 de 2,0 m$^2$ & 06:00--22:00 activa; resto reducida. Nunca cierra.\\
 Cocina & 35 m$^2$ & 4 & 6 & 2 de 1,5 m$^2$ & 06:00--22:00 activa; 23:00--05:00 cerrada; resto reducida.\\
-Recreación & 80 m$^2$ & 4 & 6 & 3 de 2,0 m$^2$ & 08:00--23:00 activa; 00:00--07:00 cerrada; resto reducida.\\
+Sala de juegos & 80 m$^2$ & 4 & 6 & 3 de 2,0 m$^2$ & 08:00--23:00 activa; 00:00--07:00 cerrada; resto reducida.\\
 Parqueadero & 450 m$^2$ & 1 & 2 & Sin ventana interior & Activo las 24 horas. Nunca cierra.\\
 \bottomrule
 \end{tabular}
@@ -126,7 +126,7 @@ Parqueadero & 450 m$^2$ & 1 & 2 & Sin ventana interior & Activo las 24 horas. Nu
 
 Los horarios se guardan en \codigo{horarios} del JSON con los campos \codigo{inicio\_activa}, \codigo{fin\_activa}, \codigo{cierre\_inicio} y \codigo{cierre\_fin}. Si una hora cae a la vez en la franja activa y en la de cierre, manda la franja activa; así la reestructuración puede extender el horario de la cocina hasta las 24:00 sin editar el cierre.
 
-Las ventanas de habitaciones alternan fachadas norte, este, sur y oeste; las de cocinas y recreaciones miran hacia fachadas exteriores. Cada luminaria equivalente usa 100 lm/W, $CU=0,70$ y $MF=0,80$ como supuestos de cálculo.
+Las ventanas de habitaciones alternan fachadas norte, este, sur y oeste; las de cocinas y salas de juegos miran hacia fachadas exteriores. Cada luminaria equivalente usa 100 lm/W, $CU=0,70$ y $MF=0,80$ como supuestos de cálculo.
 
 \textbf{Perfiles de iluminación.} Los siguientes valores son presets educativos configurables, expresados como lux de referencia. No son una transcripción normativa del RETILAP:
 
@@ -137,7 +137,7 @@ Las ventanas de habitaciones alternan fachadas norte, este, sur y oeste; las de 
 \midrule
 Habitación activa & 100 & 200 & 300 & 3 & 72 W\\
 Cocina activa & 300 & 400 & 500 & 3 & 200 W\\
-Recreación activa & 200 & 300 & 500 & 2 & 450 W\\
+Sala de juegos activa & 200 & 300 & 500 & 2 & 450 W\\
 Parqueadero activo & 50 & 100 & 150 & 1 & 720 W\\
 \bottomrule
 \end{tabular}
@@ -263,7 +263,7 @@ No se crean clases separadas de día y noche.
 \midrule
 \estado{ACTIVA} & Dentro de la franja activa de la actividad. Usa el perfil normal. El parqueadero está siempre activo.\\
 \estado{REDUCIDA} & Fuera de la franja activa y fuera del cierre. Mínimo, objetivo y máximo se multiplican por 0,30.\\
-\estado{CERRADA} & Cocina de 23:00 a 05:00 y recreación de 00:00 a 07:00; habitaciones y parqueadero nunca cierran. La zona no recibe energía y sus pasos quedan como \estado{DATOS\_INSUFICIENTES}, así que no cuentan en el puntaje de habitabilidad.\\
+\estado{CERRADA} & Cocina de 23:00 a 05:00 y sala de juegos de 00:00 a 07:00; habitaciones y parqueadero nunca cierran. La zona no recibe energía y sus pasos quedan como \estado{DATOS\_INSUFICIENTES}, así que no cuentan en el puntaje de habitabilidad.\\
 \estado{EMERGENCIA} & La zona abierta no alcanzó su mínimo porque el generador se agotó. Conserva la potencia que alcanzó a recibir, empezando por la reserva del nivel de emergencia de 10 lux, no compite por objetivos, se clasifica contra el mínimo del modo que le tocaba por horario y ese paso cuenta como déficit.\\
 \bottomrule
 \end{tabular}
@@ -414,7 +414,7 @@ Los orígenes son las 8 fachadas (norte, sur, este y oeste de cada torre). Su re
 \end{equation}
 donde $\cos\theta_f$ y $\cos\theta_v$ miden cuánto se miran la fachada y la ventana, $A_f/(\pi d_{vf}^{2}+A_f)$ es un factor de vista aproximado para una superficie grande y solo se guardan aristas con $w_{fv}>0,0001$. La reflexión exterior es de primer orden: la luz reflejada por una fachada no vuelve a propagarse. La fachada usa la ecuación~\ref{eq:vertical} sin obstrucción. En el escenario base, \codigo{TG-F-OESTE} recibe 133,2 lux a las 9:00, 190,0 a las 12:00 y 370,0 a las 15:00, y su arista hacia \codigo{TP-H-101-V1} pesa 0,3559. Al construir el grafo también se acumula la obstrucción del cielo de cada ventana (ecuación~\ref{eq:obstruccion}).
 
-El grafo se construye con \codigo{Octree.consultar\_radio} desde cada ventana, en vez de comparar cada fachada con todas las ventanas. Las aristas se guardan en dos diccionarios, por origen y por destino; así, en cada instante, el cálculo de la luz exterior de una ventana solo recorre las aristas que llegan a ella. En el escenario base hay 8 fachadas y 154 ventanas: la versión ingenua evaluaría 1.232 pares y la versión con Octree evalúa 68 candidatos, visitando 7.834 nodos del Octree. El grafo tiene 46 aristas: \codigo{TP-F-ESTE} llega a 24 ventanas de TG, \codigo{TG-F-OESTE} a 16 ventanas de TP y \codigo{TP-F-NORTE} a 6 ventanas de recreaciones de TG. Los resultados de iluminación son idénticos a los de la construcción ingenua; solo cambia el número de comparaciones.
+El grafo se construye con \codigo{Octree.consultar\_radio} desde cada ventana, en vez de comparar cada fachada con todas las ventanas. Las aristas se guardan en dos diccionarios, por origen y por destino; así, en cada instante, el cálculo de la luz exterior de una ventana solo recorre las aristas que llegan a ella. En el escenario base hay 8 fachadas y 154 ventanas: la versión ingenua evaluaría 1.232 pares y la versión con Octree evalúa 68 candidatos, visitando 7.834 nodos del Octree. El grafo tiene 46 aristas: \codigo{TP-F-ESTE} llega a 24 ventanas de TG, \codigo{TG-F-OESTE} a 16 ventanas de TP y \codigo{TP-F-NORTE} a 6 ventanas de salas de juegos de TG. Los resultados de iluminación son idénticos a los de la construcción ingenua; solo cambia el número de comparaciones.
 
 \textbf{Árbol AVL para la reasignación.} La reasignación usa un \clase{IndiceAVL} como bolsa de habitaciones con veredicto \estado{HABITABLE} y al menos una cama libre. La clave es $(torre, piso, -calidad, id)$, con
 \begin{equation}
@@ -433,16 +433,16 @@ En el escenario base el AVL se construye con las 104 habitaciones habitables con
 \textbf{Medida} & \textbf{Escenario base}\\
  & 6.096 resultados\\
 \midrule
-Rotaciones rojo-negro / AVL & 9.099 / 7.232\\
+Rotaciones rojo-negro / AVL & 7.960 / 7.779\\
 Altura rojo-negro / AVL & 22 / 14\\
-Nodos visitados en la franja 18--22 / lista completa & 1.029 / 6.096\\
+Nodos visitados en la franja 18--22 / lista completa & 1.030 / 6.096\\
 \bottomrule
 \end{tabular}
 \end{center}
 
 Los casos de prueba usan el hotel completo y producen las mismas 6.096 claves, así que dan los mismos valores.
 
-En el escenario base el rojo-negro rota más que el AVL. Los resultados llegan casi ordenados (hora ascendente y, dentro de cada hora, tramos largos de identificadores ascendentes), y con esa entrada la ventaja teórica no aparece. Con 6.096 claves en orden aleatorio sí se cumple: 3.511 rotaciones del rojo-negro contra 4.176 del AVL. Se verificó que el árbol cumple las propiedades de rojo-negro, así que la diferencia no es un error de implementación. El índice cumple su papel en las consultas por franja, pero con estos datos el argumento de las rotaciones no se sostiene.
+En el escenario base el rojo-negro rota más que el AVL. Los resultados llegan casi ordenados (hora ascendente y, dentro de cada hora, tramos largos de identificadores ascendentes), y con esa entrada la ventaja teórica no aparece. Con 6.096 claves en orden aleatorio sí se cumple: 3.556 rotaciones del rojo-negro contra 4.312 del AVL (orden al azar con semilla 1). Se verificó que el árbol cumple las propiedades de rojo-negro, así que la diferencia no es un error de implementación. El índice cumple su papel en las consultas por franja, pero con estos datos el argumento de las rotaciones no se sostiene.
 
 % El diagrama fuente está en diagrama-clases-hotel.mmd (Mermaid, orientación vertical TB).
 % Exportarlo a PNG o PDF con ese mismo nombre. La imagen se rota 90 grados y ocupa la hoja completa.
@@ -515,7 +515,7 @@ La prioridad de una zona es
  Prioridad(z)=pesoActividad(z)\,(1+0,10(p-1))\,factorOcupacion(z),
  \label{eq:prioridad}
 \end{equation}
-con $pesoActividad$ igual a 3 para habitación y cocina, 2 para recreación y 1 para parqueadero, $p$ el número del piso y $factorOcupacion$ igual a 1,4 en una habitación ocupada y 1,0 en las demás zonas. La cola de prioridad es suficiente porque el balance solo inserta y extrae el máximo; un árbol de búsqueda no aporta nada en esta parte.
+con $pesoActividad$ igual a 3 para habitación y cocina, 2 para sala de juegos y 1 para parqueadero, $p$ el número del piso y $factorOcupacion$ igual a 1,4 en una habitación ocupada y 1,0 en las demás zonas. La cola de prioridad es suficiente porque el balance solo inserta y extrae el máximo; un árbol de búsqueda no aporta nada en esta parte.
 
 El peso decide prioridad, pero no altera el estado físico: una zona con iluminación real menor que su mínimo continúa en déficit. Cada entrega de potencia pasa por un objeto \clase{Reparto} (\codigo{balance.py}), que guarda en \codigo{usado} lo que el generador ya entregó en el instante. Así no se vuelve a sumar todo lo asignado: cada entrega cuesta $O(1)$ y el instante completo $O(Z\log Z)$.
 
@@ -565,7 +565,7 @@ exportar resultados por zona, torre, actividad y hotel
 
 \textbf{Mejoras medidas y reestructuración.} La geometría de las torres es fija, pero el sistema sí cambia variables de luz y mide el efecto de cada cambio con una simulación completa. Las mejoras candidatas (\codigo{medir\_mejoras}) salen de los problemas del escenario: para las zonas \estado{CASI\_HABITABLE} o \estado{NO\_HABITABLE} se elige un cambio según la causa. \codigo{VIDRIO\_CONTROL\_SOLAR} pone \clase{VIDRIO\_CONTROL\_SOLAR}, zona por zona en \codigo{zonas\_personalizadas}, en las zonas con causa \codigo{EXCESO\_SOLAR}. \codigo{REPONER\_LUMINARIAS} devuelve la potencia de su actividad a las zonas con déficit cuyo \codigo{luminaria\_w} está por debajo de ella. \codigo{AMPLIAR\_GENERADOR} solo se propone si alguna media hora quedó en \estado{EMERGENCIA}; la capacidad nueva es el mayor valor entre 1,2 veces la demanda objetivo máxima, redondeada hacia arriba a 0,1 kW, y 1,2 veces la capacidad actual. \codigo{VIDRIO\_CLARO} y \codigo{PAREDES\_BLANCAS} se aplican a las zonas con causa \codigo{DEFICIT\_DIURNO} que aún no los tienen. Cada candidata se simula completa y solo se muestran las que suben el puntaje del hotel; si no hay zonas con problemas, el resultado es \estado{TODO\_HABITABLE} y no hace falta ninguna mejora. En el escenario base el resultado es \estado{TODO\_HABITABLE}. En \codigo{cielo\_despejado} el control solar sube el puntaje 0,0366 y las 52 zonas casi habitables pasan a habitables; en \codigo{exceso\_severo} sube 0,0405; en \codigo{deficit\_leve} reponer luminarias sube 0,0097 y en \codigo{luminarias\_danadas} 0,0692; en \codigo{deficit\_severo} ampliar el generador sube 0,1118 y en \codigo{apagon\_generador} 0,6149. En todos esos casos se llega a 127 habitables.
 
-La reestructuración busca, dentro de los rangos de \codigo{parametros\_evaluacion.reestructuracion}, cambios por actividad en el color de pared, el vidrio, la orientación de las ventanas y los horarios de cocina y recreación; no cambia los objetivos de lux. Acepta un cambio solo si mejora el resultado y se detiene a las 30 evaluaciones o a las 3 rondas. En \codigo{cielo\_despejado} encuentra mejora en 7 evaluaciones (vidrio low-e, luego control solar y luego orientaciones norte y sur): el puntaje pasa de 0,9236 a 0,9984, las zonas de 75/52/0 a 127/0/0 y la energía de 193.037,9 a 220.190,2 Wh. En \codigo{deficit\_leve} hace 19 evaluaciones y el puntaje pasa de 0,9621 a 0,9903, pero quedan 11 zonas casi habitables: paredes y vidrios no corrigen luminarias débiles; eso lo resuelven las mejoras.
+La reestructuración busca, dentro de los rangos de \codigo{parametros\_evaluacion.reestructuracion}, cambios por actividad en el color de pared, el vidrio, la orientación de las ventanas y los horarios de cocina y sala de juegos; no cambia los objetivos de lux. Acepta un cambio solo si mejora el resultado y se detiene a las 30 evaluaciones o a las 3 rondas. En \codigo{cielo\_despejado} encuentra mejora en 7 evaluaciones (vidrio low-e, luego control solar y luego orientaciones norte y sur): el puntaje pasa de 0,9236 a 0,9984, las zonas de 75/52/0 a 127/0/0 y la energía de 193.037,9 a 220.190,2 Wh. En \codigo{deficit\_leve} hace 19 evaluaciones y el puntaje pasa de 0,9621 a 0,9903, pero quedan 11 zonas casi habitables: paredes y vidrios no corrigen luminarias débiles; eso lo resuelven las mejoras.
 
 \textbf{Interfaz web.} El servidor se inicia con \codigo{python -m src.api} y sirve la carpeta \codigo{web/}. La interfaz tiene formularios para editar las entradas, un plano por torre y piso, un selector de franja horaria que colorea cada zona con su estado en esa franja, los veredictos de habitabilidad, las sugerencias, las mejoras medidas, la reestructuración y tablas de estructuras de datos y comparaciones (grafo, AVL de reasignación y rotaciones del rojo-negro contra el AVL). El diagnóstico empieza con una sección plegable, «Cómo leer los resultados», que explica los estados en palabras simples, la escala 0,75 / 0,90, la regla del 5\% de oscuridad y la tabla de lux por actividad; reemplaza la sección de criterios fotométricos que estaba al final del detalle técnico. El veredicto no repite la lista de zonas casi habitables, que queda en las tarjetas de sugerencias. La sugerencia de zonas casi habitables cubre todas las zonas, no solo las habitaciones, y lista hasta 12 con su puntaje y su brecha; la sugerencia de reflectancia de pared ya no aparece cuando las paredes son blancas. Los identificadores de zona en sugerencias, mejoras y reasignaciones abren el plano con esa zona seleccionada. En el plano, las tres leyendas (separación de espacios, habitabilidad y confort lumínico) y las abreviaturas \codigo{TP} = Torre Pequeña y \codigo{TG} = Torre Grande están arriba y marcan la capa activa. El botón «Aplicar y simular» del detalle de una zona aplica el cambio a esa zona y vuelve a ejecutar la simulación y el balance. La gráfica del día muestra el puntaje de cada franja (madrugada, mañana, tarde, noche y cierre) y advierte que antes del balance la noche no se evalúa. Las pestañas de balance, mejoras y detalle técnico muestran el botón «Balancear energía ahora» mientras no se haya hecho el primer balance, y cada tabla del detalle técnico es plegable y tiene una explicación corta.
 

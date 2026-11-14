@@ -10,7 +10,7 @@ Este documento explica el proyecto como se presentaría al final del curso: qué
 
 ## 1. El problema
 
-Un hotel en Bogotá tiene dos torres: la Torre Pequeña (TP, 4 pisos) y la Torre Grande (TG, 6 pisos), separadas por 13 m. Tiene habitaciones, cocinas, zonas de recreación y parqueaderos, y un generador de 22 kW para la luz artificial. El sistema responde cuatro preguntas para un día completo:
+Un hotel en Bogotá tiene dos torres: la Torre Pequeña (TP, 4 pisos) y la Torre Grande (TG, 6 pisos), separadas por 13 m. Tiene habitaciones, cocinas, salas de juegos y parqueaderos, y un generador de 22 kW para la luz artificial. El sistema responde cuatro preguntas para un día completo:
 
 1. **¿Cuánta luz tiene cada zona en cada media hora?** La que entra del sol y del cielo, la que rebota en la otra torre y en las paredes, y la que pone la luminaria.
 2. **¿Alcanza el generador?** Si no alcanza para todo, ¿a quién le da primero?
@@ -108,7 +108,7 @@ Solo se mueve a quien quedó en una habitación no habitable. Las habitaciones h
 
 - **Sugerencias**: reglas que leen los veredictos y el generador y proponen acciones (controlar el sol, revisar luminarias, ampliar el generador, mover huéspedes).
 - **Mejoras medidas**: mira las zonas casi o no habitables y prueba un cambio por cada tipo de problema: vidrio de control solar donde sobra sol, reponer luminarias débiles o dañadas, un generador más grande si alguna zona quedó en emergencia, y vidrio claro o paredes blancas donde falta luz de día. Cada cambio es una simulación completa y solo se muestran los que suben el puntaje. Si todo es habitable, dice que no hace falta ninguna mejora.
-- **Reestructuración**: una búsqueda local (*hill climbing*) que prueba un cambio a la vez sobre las actividades con problemas (pared, vidrio, orientaciones y, en cocina y recreación, horarios), acepta el primero que mejora y repite, con un tope de 30 simulaciones. No toca los objetivos de lux.
+- **Reestructuración**: una búsqueda local (*hill climbing*) que prueba un cambio a la vez sobre las actividades con problemas (pared, vidrio, orientaciones y, en cocina y sala de juegos, horarios), acepta el primero que mejora y repite, con un tope de 30 simulaciones. No toca los objetivos de lux.
 - **API**: un servidor HTTP de la biblioteca estándar (`python3 -m src.api`) que entrega todo como JSON a la interfaz web.
 
 ---
@@ -120,10 +120,10 @@ Solo se mueve a quien quedó en una habitación no habitable. Las habitaciones h
 | **Octree** | Sombras (consulta de rayo) y fachadas cercanas (consulta de radio) | Descarta cajas completas del espacio sin mirar su contenido | 418 objetos, 4 niveles. Grafo: 68 candidatas en vez de 1.232 pares |
 | **Grafo de influencia** (listas de adyacencia en dos sentidos) | Reflexión entre torres y cielo tapado | Los pesos se calculan una vez y se reusan en las 48 medias horas | 46 aristas, 40 ventanas con cielo tapado |
 | **Cola de prioridad** (`heapq`) | Repartir los objetivos del generador por prioridad | Saca siempre la zona más prioritaria en O(log Z) | O(Z log Z) por media hora |
-| **Árbol rojo-negro** | Índice de los 6.096 resultados por hora para consultar franjas | Los resultados llegan casi ordenados; un árbol sin balancear degeneraría | Altura 22 (sin balancear sería 640); 112.587 comparaciones para insertar todo (sin balancear: 1.891.104); una media hora se consulta visitando 142 nodos en vez de 6.096 |
+| **Árbol rojo-negro** | Índice de los 6.096 resultados por hora para consultar franjas | Los resultados llegan casi ordenados; un árbol sin balancear degeneraría | Altura 22 (sin balancear sería 686); 111.161 comparaciones para insertar todo (sin balancear: 2.030.952); una media hora se consulta visitando 136 nodos en vez de 6.096 |
 | **Árbol AVL** | Bolsa de habitaciones libres para la reasignación | El trabajo es casi todo lectura (buscar la mejor de un piso) y el AVL es más bajo | 104 habitaciones, altura 8. En `reasignacion_restringida`: 752 comparaciones contra 2.496 de revisar todas |
 
-El AVL también se construye con los mismos 6.096 resultados para comparar con el rojo-negro: queda con altura 14 y 7.232 rotaciones, contra 22 y 9.099 del rojo-negro.
+El AVL también se construye con los mismos 6.096 resultados para comparar con el rojo-negro: queda con altura 14 y 7.779 rotaciones, contra 22 y 7.960 del rojo-negro.
 
 ---
 
@@ -142,6 +142,7 @@ El README tiene la tabla completa con referencias. En resumen:
 | Luz artificial | Fórmula publicada | Método de lúmenes (IES) |
 | Transmitancia de los vidrios | Dato real | Fichas de Cardinal Glass |
 | Niveles de lux por actividad | Supuesto contrastado | RETILAP |
+| Sala de juegos: 200 / 300 / 500 lux | Supuesto contrastado | 300 lux para zonas de juegos y salas deportivas (EN 12464-1); 200 lux para juegos recreativos como el tenis de mesa. No se pudo verificar el valor del RETILAP para este espacio |
 | 900 lux de referencia, umbrales 0,75 / 0,90, pesos, factor de vista | Supuestos del proyecto | — |
 
 ---
@@ -219,7 +220,7 @@ Cada campo tiene un ícono «!» con la explicación.
 | Vista | «Antes del balance (provisional)» o «Después del balance» |
 | Capa de color | **Habitabilidad** (veredicto del día), **Separación de espacios** (un color por actividad) o **Confort lumínico** (estado predominante: confortable, déficit o exceso) |
 
-**El dibujo** es un plano tipo CAD: grilla, ejes, cotas reales de la torre, pasillo, escaleras y ascensores, rótulo y rosa de los vientos. Cada habitación tiene cama, baño, puerta y una línea de ventana en la fachada, su identificador y una etiqueta de color con su luz promedio en lux. Las cocinas, recreaciones y parqueaderos tienen su propio mobiliario.
+**El dibujo** es un plano tipo CAD: grilla, ejes, cotas reales de la torre, pasillo, escaleras y ascensores, rótulo y rosa de los vientos. Cada habitación tiene cama, baño, puerta y una línea de ventana en la fachada, su identificador y una etiqueta de color con su luz promedio en lux. Las cocinas, salas de juegos y parqueaderos tienen su propio mobiliario.
 
 **Colores:**
 
@@ -263,7 +264,7 @@ Antes del primer balance esta pestaña (y también Mejoras y Detalle técnico) m
 **Qué quiere mostrar:** qué cambios ayudarían, medidos con simulaciones y no estimados.
 
 - **Mejoras medidas:** cambios que salen de los problemas del caso, cada uno medido con una simulación. Cada tarjeta dice qué cambia, el puntaje antes y después, cuántas zonas quedan habitables, casi y no habitables, y en qué zonas (enlaces al plano). En el escenario base dice «Todas las zonas son habitables: no hace falta ninguna mejora». Ejemplos: en `cielo_despejado`, vidrio de control solar en 52 zonas (92,4 % → 96,0 %, 127 habitables); en `deficit_leve`, reponer 12 luminarias (127 habitables); en `deficit_severo`, un generador más grande (+11,2 puntos, 127 habitables).
-- **Reestructuración:** un botón lanza la búsqueda (hasta 30 simulaciones) y el texto explica qué prueba: solo las actividades con zonas casi o no habitables, un cambio a la vez (pared, vidrio, orientaciones y, en cocina y recreación, horarios). Muestra puntaje, casi y no habitables, y energía, antes y después; la lista de cambios aceptados en orden; y un botón para cargar la propuesta en los formularios y balancear de nuevo. En `cielo_despejado` encuentra, en 7 simulaciones, vidrio de control solar para las habitaciones y ventanas solo al norte y al sur: las 52 casi habitables pasan a habitables (92,4 % → 99,8 %), aunque la energía sube de 193.038 a 220.190 Wh porque entra menos sol. En `deficit_leve` no alcanza a resolverlo (quedan 11 casi habitables): el problema son las luminarias, que la búsqueda no cambia; ahí la mejora medida sí lo resuelve.
+- **Reestructuración:** un botón lanza la búsqueda (hasta 30 simulaciones) y el texto explica qué prueba: solo las actividades con zonas casi o no habitables, un cambio a la vez (pared, vidrio, orientaciones y, en cocina y sala de juegos, horarios). Muestra puntaje, casi y no habitables, y energía, antes y después; la lista de cambios aceptados en orden; y un botón para cargar la propuesta en los formularios y balancear de nuevo. En `cielo_despejado` encuentra, en 7 simulaciones, vidrio de control solar para las habitaciones y ventanas solo al norte y al sur: las 52 casi habitables pasan a habitables (92,4 % → 99,8 %), aunque la energía sube de 193.038 a 220.190 Wh porque entra menos sol. En `deficit_leve` no alcanza a resolverlo (quedan 11 casi habitables): el problema son las luminarias, que la búsqueda no cambia; ahí la mejora medida sí lo resuelve.
 
 ### Pestaña 6. Detalle técnico
 
@@ -271,7 +272,7 @@ Antes del primer balance esta pestaña (y también Mejoras y Detalle técnico) m
 
 Las tablas están **plegadas**: cada una muestra un título y una frase, y al abrirla trae una explicación en palabras sencillas.
 
-- **Cuánto trabajo ahorran las estructuras de datos:** cuánto costaría sin cada estructura y cuánto contó el programa: Octree (1.232 pares contra 68), rojo-negro para traer la noche (6.096 contra 1.029 nodos) y AVL para la reasignación; y la altura del rojo-negro contra la del AVL con los mismos resultados.
+- **Cuánto trabajo ahorran las estructuras de datos:** cuánto costaría sin cada estructura y cuánto contó el programa: Octree (1.232 pares contra 68), rojo-negro para traer la noche (6.096 contra 1.030 nodos) y AVL para la reasignación; y la altura del rojo-negro contra la del AVL con los mismos resultados.
 - **Estados de todas las medias horas** y **resumen por zona** (luz promedio y máxima, medias horas en déficit y en confort, energía).
 - Los criterios de confort que antes estaban aquí pasaron a «Cómo leer los resultados», al inicio del Diagnóstico, escritos en lenguaje sencillo.
 

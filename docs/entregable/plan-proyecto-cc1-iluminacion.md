@@ -4,7 +4,7 @@
 
 ## 1. Resumen
 
-El proyecto propone diseñar e implementar un sistema educativo que estime la iluminación de un hotel de dos torres ubicado en Bogotá. El hotel se analiza durante 24 horas y contiene cuatro actividades: habitaciones, cocina, recreación y parqueadero.
+El proyecto propone diseñar e implementar un sistema educativo que estime la iluminación de un hotel de dos torres ubicado en Bogotá. El hotel se analiza durante 24 horas y contiene cuatro actividades: habitaciones, cocina, sala de juegos y parqueadero.
 
 El sistema combina un árbol jerárquico, un Octree, un grafo dirigido ponderado, un árbol AVL, un árbol rojo-negro, una cola de prioridad y recorridos de agregación. Durante el día calcula la posición real del sol en Bogotá y luz natural con la radiación real de NASA POWER, separada en directa y difusa con la correlación de Erbs, Klein y Duffie, transmisión por vidrio con refracción de Snell y transmitancia de Fresnel, reflexión interior de cada recinto, reflexión de primer orden entre las fachadas de las dos torres y luz artificial complementaria. Durante la noche toma la luz solar como cero y distribuye la potencia artificial disponible mediante un balance heurístico.
 
@@ -35,7 +35,7 @@ Diseñar e implementar un sistema de análisis lumínico y balance energético q
 
 - Representar `Hotel → Torre → Piso → ZonaHotel → Ventana` mediante composición.
 - Mantener exactamente dos torres fijas: `TP` (Torre Pequeña) y `TG` (Torre Grande).
-- Representar habitaciones, cocinas, recreaciones y parqueaderos con zonas reutilizables.
+- Representar habitaciones, cocinas, salas de juegos y parqueaderos con zonas reutilizables.
 - Usar un eje temporal único entre 00:00 y 24:00, sin clases diurnas/nocturnas duplicadas.
 - Calcular sombras con cajas espaciales y consultas de Octree.
 - Representar la reflexión entre torres mediante un grafo dirigido `fachada → ventana de la otra torre`, construido con consultas de radio del Octree.
@@ -68,7 +68,7 @@ Diseñar e implementar un sistema de análisis lumínico y balance energético q
 - Reasignación heurística de huéspedes con restricciones y candidatos descartados.
 - Reporte por franja horaria con el índice rojo-negro.
 - Mejoras medidas a partir de los problemas del escenario: para las zonas casi habitables o no habitables, según la causa, vidrio de control solar (`EXCESO_SOLAR`), reponer luminarias débiles, ampliar el generador (solo si hubo `EMERGENCIA`) y vidrio claro o paredes blancas (`DEFICIT_DIURNO`). Solo se muestran las que suben el puntaje del hotel; sin zonas con problemas, el resultado es `TODO_HABITABLE`.
-- Reestructuración de variables de luz: pared, vidrio, orientación de ventanas y horarios de cocina y recreación. No cambia los objetivos de lux.
+- Reestructuración de variables de luz: pared, vidrio, orientación de ventanas y horarios de cocina y sala de juegos. No cambia los objetivos de lux.
 - Interfaz web con formularios de entradas, plano por torre y piso, selector de franja horaria, veredictos, sugerencias, mejoras medidas, reestructuración y tablas de estructuras de datos. El diagnóstico abre con una guía plegable, «Cómo leer los resultados»; los IDs de zona en sugerencias, mejoras y reasignaciones abren el plano con esa zona seleccionada; y «Aplicar y simular», en el detalle de una zona, aplica el cambio y vuelve a ejecutar la simulación y el balance.
 - Los 10 casos de prueba de la sección 12 como pruebas automáticas.
 
@@ -93,9 +93,9 @@ Las áreas de referencia se inspiran en modelos comerciales del DOE, pero la geo
 | Pisos | 4 | 6 | 3 m por piso |
 | Habitaciones | 32 | 72 | 24 m², capacidad 2 |
 | Cocinas | 4 | 6 | 35 m² |
-| Recreaciones | 4 | 6 | 80 m² |
+| Salas de juegos | 4 | 6 | 80 m² |
 | Parqueaderos | 1 | 2 | 450 m² |
-| Ventanas | 52 | 102 | Habitación 1, cocina 2, recreación 3 |
+| Ventanas | 52 | 102 | Habitación 1, cocina 2, sala de juegos 3 |
 | Habitaciones ocupadas | 24 | 54 | 78 huéspedes en total |
 
 Cajas espaciales:
@@ -114,7 +114,7 @@ Luminarias equivalentes por zona:
 |---|---:|---:|---:|---:|
 | Habitación | 72 W | 100 lm/W | 0,70 | 0,80 |
 | Cocina | 200 W | 100 lm/W | 0,70 | 0,80 |
-| Recreación | 450 W | 100 lm/W | 0,70 | 0,80 |
+| Sala de juegos | 450 W | 100 lm/W | 0,70 | 0,80 |
 | Parqueadero | 720 W | 100 lm/W | 0,70 | 0,80 |
 
 Un recinto puede cambiar la potencia de su luminaria con `luminaria_w` en `zonas_personalizadas` (número ≥ 0; 0 representa una luminaria dañada). Se valida al cargar y solo se edita en el JSON, no desde la interfaz.
@@ -129,16 +129,16 @@ Los siguientes son presets educativos. El RETILAP vigente debe consultarse para 
 |---|---:|---:|---:|---:|
 | Habitación activa | 100 lux | 200 lux | 300 lux | 3 |
 | Cocina activa | 300 lux | 400 lux | 500 lux | 3 |
-| Recreación activa | 200 lux | 300 lux | 500 lux | 2 |
+| Sala de juegos activa | 200 lux | 300 lux | 500 lux | 2 |
 | Parqueadero activo | 50 lux | 100 lux | 150 lux | 1 |
 
 Horarios sintéticos:
 
 ```text
-Habitaciones: 06:00–22:00 ACTIVA; 22:00–06:00 REDUCIDA
-Cocinas:      06:00–22:00 ACTIVA; 23:00–05:00 CERRADA; resto REDUCIDA
-Recreación:   08:00–23:00 ACTIVA; 00:00–07:00 CERRADA; resto REDUCIDA
-Parqueaderos: 00:00–24:00 ACTIVA
+Habitaciones:    06:00–22:00 ACTIVA; 22:00–06:00 REDUCIDA
+Cocinas:         06:00–22:00 ACTIVA; 23:00–05:00 CERRADA; resto REDUCIDA
+Salas de juegos: 08:00–23:00 ACTIVA; 00:00–07:00 CERRADA; resto REDUCIDA
+Parqueaderos:    00:00–24:00 ACTIVA
 ```
 
 Las habitaciones y los parqueaderos nunca cierran. Los horarios de apertura y de cierre están en el JSON (`horarios`) y se pueden editar. Si las dos franjas se cruzan, la franja activa manda; así la reestructuración puede extender la cocina hasta las 24:00. Los pasos `CERRADA` no reciben energía, quedan como `DATOS_INSUFICIENTES` y no cuentan en el puntaje de habitabilidad.
@@ -414,8 +414,8 @@ Conteos medidos en el escenario base:
 | Medida | Versión ingenua | Con estructura |
 |---|---:|---:|
 | Pares fachada–ventana al construir el grafo (8 fachadas, 154 ventanas) | 1.232 | 68 (7.834 nodos del Octree visitados) |
-| Aristas del grafo | — | 46 (`TP-F-ESTE` → 24 ventanas de TG, `TG-F-OESTE` → 16 de TP, `TP-F-NORTE` → 6 de recreaciones de TG) |
-| Nodos visitados para la franja 18–22 (6.096 resultados) | 6.096 | 1.029 |
+| Aristas del grafo | — | 46 (`TP-F-ESTE` → 24 ventanas de TG, `TG-F-OESTE` → 16 de TP, `TP-F-NORTE` → 6 de salas de juegos de TG) |
+| Nodos visitados para la franja 18–22 (6.096 resultados) | 6.096 | 1.030 |
 | AVL de reasignación (104 habitaciones habitables libres) | — | altura 8, 80 rotaciones, 618 comparaciones de construcción |
 | Comparaciones de la reasignación en la prueba de carga (60 de 78 ocupadas marcadas `NO_HABITABLE`) | 6.240 | 2.792 (39 eliminaciones); 3.289 con restricciones mezcladas |
 
@@ -425,8 +425,8 @@ Rotaciones al insertar los mismos 6.096 resultados:
 
 | Datos | Rojo-negro | AVL |
 |---|---:|---:|
-| Escenario base, en el orden de la simulación | 9.099 (altura 22) | 7.232 (altura 14) |
-| 6.096 claves en orden aleatorio | 3.511 | 4.176 |
+| Escenario base, en el orden de la simulación | 7.960 (altura 22) | 7.779 (altura 14) |
+| 6.096 claves en orden aleatorio (semilla 1) | 3.556 | 4.312 |
 
 Con claves aleatorias el rojo-negro rota menos, como se esperaba. Con los resultados de la simulación rota más, porque llegan casi ordenados: hora ascendente y, dentro de cada hora, tramos largos de IDs ascendentes. Se verificó que el árbol cumple las propiedades de rojo-negro. El índice cumple su papel en las consultas por franja, pero el argumento de las rotaciones no se sostiene con estos datos.
 

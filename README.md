@@ -13,7 +13,7 @@ Los datos de clima vienen de NASA POWER (promedios 2001–2020 para Bogotá). El
 - **Luz reflejada.** Solo de día, y con dos partes que se suman:
   - **Reflexión interior.** Método de flujo dividido: `E_ri = Φ · ρ / (A_int · (1 − ρ))`. `Φ` es la suma, por ventana, de (luz natural + luz exterior reflejada) × área de la ventana; `ρ` es la reflectancia de la pared del recinto; `A_int = 2 · área + 4 · √área · 3 m` (una habitación de 24 m² da `A_int ≈ 106,8 m²`). Con pared blanca (`ρ = 0,80`) el factor `ρ / (1 − ρ)` vale 4. Promedia todos los rebotes dentro del recinto, así que el color de la pared cambia la luz de su propio cuarto.
   - **Reflexión exterior entre torres.** Sale del grafo de influencia `fachada → ventana de la otra torre`. Cada torre tiene 4 fachadas (N, S, E, O) con la reflectancia del campo `fachada` de la torre en el JSON (por defecto `GRIS_CLARO`, 0,60). Para cada ventana se toma su punto de salida en la fachada de su torre y `consultar_radio` (18 m) sobre el octree entrega las fachadas candidatas de la otra torre. Se exige que ventana y fachada se miren y que un rayo entre ellas no cruce otra torre. El peso es `ρ_fachada × cos_fachada × cos_ventana × A_f / (π · d² + A_f)`, con `d` la distancia al punto más cercano de la fachada. Cada fachada recibe la luz de una superficie vertical sin obstrucción: `directa horizontal · max(0, n · sol) / sen(altura) + 0,5 · difusa horizontal + 0,5 · ρ_suelo · G` (`TG-F-OESTE` recibe 133,2 lux a las 9:00, 190,0 a las 12:00 y 370,0 a las 15:00), y la luz exterior que entra por una ventana es `Σ luz_fachada × peso × VLT`. Esta parte es de primer orden: la luz reflejada por una fachada no vuelve a reflejarse en otra.
-- **Modos de operación.** Cada zona tiene un modo en cada paso: `ACTIVA` dentro de su horario, `REDUCIDA` fuera de él, `CERRADA` en su franja de cierre (cocina de 23:00 a 05:00 y recreación de 00:00 a 07:00; si las dos franjas se cruzan, manda la activa) y `EMERGENCIA` cuando el generador no alcanza para cubrir su mínimo. Habitaciones y parqueadero nunca cierran.
+- **Modos de operación.** Cada zona tiene un modo en cada paso: `ACTIVA` dentro de su horario, `REDUCIDA` fuera de él, `CERRADA` en su franja de cierre (cocina de 23:00 a 05:00 y sala de juegos de 00:00 a 07:00; si las dos franjas se cruzan, manda la activa) y `EMERGENCIA` cuando el generador no alcanza para cubrir su mínimo. Habitaciones y parqueadero nunca cierran.
 - **Balance energético.** Asigna la potencia del generador en cada paso de 30 minutos, en este orden: primero un nivel de emergencia de 10 lux para todas las zonas abiertas, luego los mínimos (parqueadero como seguridad, después habitaciones ocupadas y después el resto) y al final los objetivos por prioridad. El orden se resuelve con una cola de prioridad (`heapq`). Las zonas cerradas no consumen. Lo que el generador ya entregó en el instante lo lleva la clase `Reparto` (`src/balance.py`) en un contador `usado`, así que cada entrega cuesta O(1) y el instante completo O(Z log Z), con Z zonas.
 - **Habitabilidad por zona.** Cada zona recibe un veredicto: `HABITABLE`, `CASI_HABITABLE`, `NO_HABITABLE` o `DATOS_INSUFICIENTES`. Las zonas casi habitables reciben una recomendación según la causa principal de su déficit o exceso.
 - **Reasignación de huéspedes.** Si la habitación de un huésped queda `NO_HABITABLE`, se busca otra habitación habitable con cama libre en un árbol AVL. Ver la sección [Reasignación de huéspedes](#reasignación-de-huéspedes).
@@ -106,7 +106,7 @@ Los resultados de los casos se dan como habitables / casi habitables / no habita
 | `mayo_nublado` | 15 de mayo, cielo nublado; el sol del mediodía pasa por el norte (75,9° de altura) | 127/0/0; se invierte febrero: las habitaciones con ventana al sur gastan más energía (24.950 Wh en el día, contra 19.753 de las del norte); a las 12:00 `TP-H-102` (norte) no usa luz artificial y `TP-H-104` (sur) usa 14,2 W. |
 | `generador_alta_demanda` | Generador de 17 kW | 127/0/0, los mismos veredictos del escenario base, pero el generador queda en `ALTA_DEMANDA`. |
 | `deficit_leve` | Las 12 habitaciones ocupadas del piso 2 de TG (`TG-H-113` a `TG-H-124`) con luminarias viejas de 30 W (`luminaria_w = 30`) | 115/12/0; con 30 W dan como máximo 70 lux, entre la mitad del mínimo y el mínimo de 100, así que las 12 quedan casi habitables por `DEFICIT_NOCTURNO`; ningún paso es `DEFICIT_SEVERO`, nadie entra en `EMERGENCIA` y nadie se reasigna. |
-| `deficit_severo` | Generador de 4 kW | 59/0/68; el generador alcanza para los parqueaderos y las habitaciones ocupadas de los pisos 2 en adelante; las del piso 1, las vacías, cocinas y recreaciones pasan 660 pasos en `EMERGENCIA`; los 22 huéspedes de habitaciones no habitables reciben la cama libre de una habitación habitable. |
+| `deficit_severo` | Generador de 4 kW | 59/0/68; el generador alcanza para los parqueaderos y las habitaciones ocupadas de los pisos 2 en adelante; las del piso 1, las vacías, cocinas y salas de juegos pasan 660 pasos en `EMERGENCIA`; los 22 huéspedes de habitaciones no habitables reciben la cama libre de una habitación habitable. |
 | `apagon_generador` | Generador de 0 kW | 0/0/127; los 78 huéspedes sin alternativa. |
 | `cielo_despejado` | Febrero con cielo despejado | 75/52/0; las 52 casi habitables son habitaciones con ventana al este o al oeste, con causa `EXCESO_SOLAR` por el sol bajo de la mañana o de la tarde; nadie se reasigna. |
 | `exceso_severo` | Cielo despejado y las 24 habitaciones ocupadas de TP con vidrio claro y ventana al este | 69/58/0; 18 de esas 24 quedan casi habitables, con `EXCESO_SEVERO` entre las 6:30 y las 10:00; las otras 6 siguen habitables porque TG les hace sombra en la mañana; nadie se reasigna. |
@@ -139,10 +139,10 @@ En `/api/balancear` los mismos resultados se insertan también en un AVL para co
 
 | Medida | Escenario base (6.096 resultados) |
 |---|---|
-| Rotaciones rojo-negro / AVL | 9.099 / 7.232 |
+| Rotaciones rojo-negro / AVL | 7.960 / 7.779 |
 | Altura rojo-negro / AVL | 22 / 14 |
 
-En este escenario el rojo-negro rota más que el AVL, porque los resultados llegan casi ordenados (hora ascendente y tramos largos de IDs ascendentes). Con 6.096 claves aleatorias el rojo-negro rota menos: 3.511 contra 4.176.
+En este escenario el rojo-negro rota más que el AVL, porque los resultados llegan casi ordenados (hora ascendente y tramos largos de IDs ascendentes). Con 6.096 claves aleatorias el rojo-negro rota menos: 3.556 contra 4.312 (orden al azar con semilla 1).
 
 ## Mejoras medidas
 
@@ -186,7 +186,7 @@ Los rangos están en `parametros_evaluacion.reestructuracion` de `data/datos_hot
 | Pared | `BLANCO`, `CREMA`, `GRIS_CLARO` | Se excluyen `GRIS_MEDIO` y `OSCURO` porque reducen la luz reflejada. |
 | Vidrio | `VIDRIO_CLARO`, `VIDRIO_LOW_E`, `VIDRIO_CONTROL_SOLAR` | Los tres presets del proyecto. Solo aplica a actividades con ventanas. |
 | Orientaciones | Tres conjuntos de la lista de orientaciones | Cambia la exposición solar de las ventanas. |
-| Horario de cocina y recreación | Inicio 6–10 h, fin 22–24 h | Fuera de horario la zona pasa a modo `REDUCIDA`, o a `CERRADA` dentro de su franja de cierre. La franja activa manda sobre la de cierre. |
+| Horario de cocina y sala de juegos | Inicio 6–10 h, fin 22–24 h | Fuera de horario la zona pasa a modo `REDUCIDA`, o a `CERRADA` dentro de su franja de cierre. La franja activa manda sobre la de cierre. |
 
 Habitaciones no cambian de horario, porque son de uso continuo.
 
@@ -220,7 +220,7 @@ Cualquier error al procesar una solicitud devuelve HTTP 400 con un campo `error`
 
 | Campo | Contenido | Escenario base |
 |---|---|---|
-| `grafo` | `fachadas`, `ventanas`, `pares_ingenuos`, `pares_evaluados`, `nodos_octree_visitados`, `aristas` | 8 fachadas, 154 ventanas, 1.232 pares ingenuos (8 × 154), 68 evaluados, 7.834 nodos visitados, 46 aristas (`TP-F-ESTE` → 24 ventanas de TG; `TG-F-OESTE` → 16 ventanas de TP; `TP-F-NORTE` → 6 ventanas de recreaciones de TG) |
+| `grafo` | `fachadas`, `ventanas`, `pares_ingenuos`, `pares_evaluados`, `nodos_octree_visitados`, `aristas` | 8 fachadas, 154 ventanas, 1.232 pares ingenuos (8 × 154), 68 evaluados, 7.834 nodos visitados, 46 aristas (`TP-F-ESTE` → 24 ventanas de TG; `TG-F-OESTE` → 16 ventanas de TP; `TP-F-NORTE` → 6 ventanas de salas de juegos de TG) |
 | `reasignacion` | `huespedes_a_mover`, `habitaciones`, `comparaciones_lineales` (`G · H`), `comparaciones_avl`, `comparaciones_construccion` y `avl` (`tamano_inicial`, `altura_inicial`, `tamano_final`, `eliminaciones`, `rotaciones`) | 0 huéspedes a mover; AVL de 104 habitaciones, altura 8, 80 rotaciones, 618 comparaciones de construcción |
 | `temporal` | `rojo_negro` (`tamano`, `altura`, `rotaciones`) y, solo en `/api/balancear`, `avl` con los mismos campos | Ver [Índice temporal](#índice-temporal) |
 

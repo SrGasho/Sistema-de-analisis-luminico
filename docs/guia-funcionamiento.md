@@ -74,7 +74,7 @@ Cada habitación (`_zona_habitacion`) recibe:
 
 Cada torre recibe además sus **4 fachadas** (`_fachadas`): las caras norte, sur, este y oeste de su caja, cada una con su área, su dirección hacia afuera y la reflectancia del color indicado en el campo `fachada` de la torre (por defecto `GRIS_CLARO`, 0,60). Se usan para la reflexión entre torres (paso 2).
 
-Las cocinas y recreaciones (`_zona_comun`) se construyen igual, pero con varias ventanas. `_common_center` las ubica en fila, en una franja libre del piso 1, sin encimarlas.
+Las cocinas y salas de juegos (`_zona_comun`) se construyen igual, pero con varias ventanas. `_common_center` las ubica en fila, en una franja libre del piso 1, sin encimarlas.
 
 `_acabado` decide la pared, el vidrio y la orientación de cada zona. Primero usa lo que se haya personalizado para ese recinto (lo que se edita desde el plano) y, si no hay nada, el acabado de su actividad.
 
@@ -281,7 +281,7 @@ En el escenario base hay 46 aristas:
 |---|---|---|
 | `TP-F-ESTE` (cara este de TP) | 24 ventanas de TG que miran al oeste | 0,249 |
 | `TG-F-OESTE` (cara oeste de TG) | 16 ventanas de TP que miran al este | 0,356 |
-| `TP-F-NORTE` (cara norte de TP) | 6 ventanas de recreaciones de TG | 0,073 |
+| `TP-F-NORTE` (cara norte de TP) | 6 ventanas de salas de juegos de TG | 0,073 |
 
 Las demás fachadas no tienen ventanas de la otra torre de frente. La fachada oeste de TG es más grande que la este de TP (774 m² contra 376 m²), por eso sus aristas pesan más.
 
@@ -650,17 +650,17 @@ Ejemplo del orden: `(0,0, "TG-COC-01") < (0,0, "TP-H-101") < (0,5, "TG-COC-01")`
 
 ### 4.2 Por qué hace falta un árbol balanceado
 
-El paso 3 inserta los resultados en el orden en que los calcula: hora por hora y, dentro de cada hora, primero las 41 zonas de TP y luego las 86 de TG. Ese orden está casi ordenado: en 5.759 de los 6.095 pares seguidos, la clave nueva es mayor que la anterior.
+El paso 3 inserta los resultados en el orden en que los calcula: hora por hora y, dentro de cada hora, primero las 41 zonas de TP y luego las 86 de TG. Ese orden está casi ordenado: en 5.855 de los 6.095 pares seguidos, la clave nueva es mayor que la anterior.
 
 Un árbol binario de búsqueda sin balancear se deforma con datos así. Cada clave nueva va casi siempre a la derecha de la anterior y el árbol se vuelve una cadena larga. Medido con las mismas 6.096 claves:
 
 | Árbol | Altura | Comparaciones para insertar todo | Rotaciones |
 |---|---|---|---|
-| Búsqueda sin balancear | 640 | 1.891.104 | 0 |
-| Rojo-negro | 22 | 112.587 | 9.099 |
-| AVL (solo para comparar) | 14 | — | 7.232 |
+| Búsqueda sin balancear | 686 | 2.030.952 | 0 |
+| Rojo-negro | 22 | 111.161 | 7.960 |
+| AVL (solo para comparar) | 14 | — | 7.779 |
 
-La altura es el número de nodos del camino más largo de la raíz a una hoja, y marca lo que cuesta llegar a cualquier resultado. El árbol sin balancear no llega a 6.096 de altura porque cada hora trae claves de TG menores que las de TP de la misma hora; aun así, cada inserción recorre en promedio unos 310 nodos. El rojo-negro recorre en promedio unos 18.
+La altura es el número de nodos del camino más largo de la raíz a una hoja, y marca lo que cuesta llegar a cualquier resultado. El árbol sin balancear no llega a 6.096 de altura porque cada hora trae claves de TG menores que las de TP de la misma hora; aun así, cada inserción recorre en promedio unos 333 nodos. El rojo-negro recorre en promedio unos 18.
 
 El rojo-negro garantiza una altura de como máximo 2 × log₂(n + 1), que con n = 6.096 da 25,1. La medida, 22, está dentro del límite.
 
@@ -695,23 +695,23 @@ Al final la raíz se pinta de negro.
 
 Sin la rotación del tercer paso, las tres claves quedarían en una línea, que es justo lo que le pasa al árbol sin balancear.
 
-**Cómo queda el árbol completo** en el escenario base: 6.096 nodos, altura 22, altura negra 11 y 780 nodos rojos.
+**Cómo queda el árbol completo** en el escenario base: 6.096 nodos, altura 22, altura negra 11 y 864 nodos rojos.
 
-**La raíz** es el nodo con clave `(5,0, "TP-H-108")`: el resultado de la habitación `TP-H-108` a las 5:00 (modo REDUCIDA, 0 lux naturales, 60 lux artificiales con 25,7 W, CONFORTABLE). No tiene nada especial como dato; está arriba porque las rotaciones la subieron hasta ahí.
+**La raíz** es el nodo con clave `(5,5, "TP-H-101")`: el resultado de la habitación `TP-H-101` a las 5:30 (modo REDUCIDA, 0 lux naturales, 60 lux artificiales con 25,7 W, CONFORTABLE). No tiene nada especial como dato; está arriba porque las rotaciones la subieron hasta ahí.
 
-- Fue el resultado número 1.278 en insertarse, no el primero. La primera raíz fue `(0,0, "TP-H-101")`, y la raíz cambió 10 veces durante el día: `TP-H-102`, `TP-H-104` y `TP-H-108` de las 0:00, luego `(0,5, "TG-H-140")`, `(1,0, "TP-H-108")`, `(2,5, "TG-H-140")` y, desde la inserción 3.396, `(5,0, "TP-H-108")`, que ya no cambió hasta la 6.096.
+- Fue el resultado número 1.398 en insertarse, no el primero. La primera raíz fue `(0,0, "TP-H-101")`, y la raíz cambió 9 veces durante el día: `TP-H-102`, `TP-H-104`, `TP-H-108` y `TG-H-132` de las 0:00, otra vez `(0,0, "TP-H-108")`, luego `(0,5, "TG-H-137")`, `(1,0, "TP-H-120")`, `(2,5, "TP-H-121")` y, desde la inserción 3.674, `(5,5, "TP-H-101")`, que ya no cambió hasta la 6.096.
 - Cada cambio pasa cuando una rotación cerca de la raíz sube a otro nodo para que ningún camino quede demasiado largo.
-- A su izquierda quedan los 1.367 resultados de antes de las 5:00 y a su derecha los 4.728 de después. Sus hijos directos son `(2,5, "TG-H-140")` y `(10,5, "TG-H-140")`.
+- A su izquierda quedan los 1.487 resultados anteriores a ella y a su derecha los 4.608 posteriores. Sus hijos directos son `(2,5, "TP-H-121")` y `(11,5, "TG-H-117")`.
 - **Nadie la elige.** No hay ninguna línea del código que diga cuál debe ser la raíz. Sale de dos cosas: el orden en que llegan las claves y las reglas de reparación. Con los mismos datos en el mismo orden la raíz siempre es la misma; si cambia el orden, cambia la raíz. Medido con las mismas 6.096 claves:
 
   | Orden de inserción | Raíz | Altura |
   |---|---|---|
-  | El del paso 3 | `(5,0, "TP-H-108")` | 22 |
+  | El del paso 3 | `(5,5, "TP-H-101")` | 22 |
   | Ordenado de menor a mayor | `(8,0, "TG-H-110")` | 22 |
   | Al azar (semilla 1) | `(11,0, "TP-H-113")` | 15 |
-  | Al azar (semilla 2) | `(9,0, "TG-H-139")` | 15 |
+  | Al azar (semilla 2) | `(9,0, "TG-H-139")` | 16 |
 
-- **El último cambio de raíz** pasó al insertar `(13,0, "TG-H-139")`, el resultado número 3.396. Esa inserción dejó dos rojos seguidos, la reparación cambió colores subiendo por el árbol hasta llegar junto a la raíz, y ahí hizo una rotación: la raíz anterior, `(2,5, "TG-H-140")`, bajó a la izquierda y su hijo derecho, `(5,0, "TP-H-108")`, subió. Las 2.700 inserciones que siguieron se arreglaron más abajo, sin tocar la raíz.
+- **El último cambio de raíz** pasó al insertar `(14,0, "TG-H-163")`, el resultado número 3.674. Esa inserción dejó dos rojos seguidos, la reparación cambió colores subiendo por el árbol hasta llegar junto a la raíz, y ahí hizo una rotación: la raíz anterior, `(2,5, "TP-H-121")`, bajó a la izquierda y su hijo derecho, `(5,5, "TP-H-101")`, subió. Las 2.422 inserciones que siguieron se arreglaron más abajo, sin tocar la raíz.
 - La raíz no queda en la mitad del día (la mitad exacta sería `(12,0, "TG-COC-01")`) porque el rojo-negro no reparte el mismo número de nodos a cada lado. Lo que asegura es que ningún camino sea más del doble de largo que otro, y con eso basta para que la altura se quede en 22.
 
 ### 4.4 La consulta por rango
@@ -733,28 +733,28 @@ Como recorre en orden (izquierda, nodo, derecha), los resultados salen ordenados
 
 | Consulta | Resultados (k) | Nodos visitados | Recorrer la lista completa |
 |---|---|---|---|
-| Solo las 12:00 | 127 | 142 | 6.096 |
-| Noche 18:00–22:00 | 1.016 | 1.029 | 6.096 |
-| Madrugada 00:00–06:00 | 1.524 | 1.532 | 6.096 |
+| Solo las 12:00 | 127 | 136 | 6.096 |
+| Noche 18:00–22:00 | 1.016 | 1.030 | 6.096 |
+| Madrugada 00:00–06:00 | 1.524 | 1.535 | 6.096 |
 | Día completo | 6.096 | 6.096 | 6.096 |
 
 **Recorrido real de la consulta de las 12:00** (rango de `(12,0, "")` a `(12,5, "")`, medido con el código). En cada nodo el árbol hace las tres preguntas de arriba:
 
 | Profundidad | Nodo | ¿Está en el rango? | Hacia dónde sigue |
 |---|---|---|---|
-| 0 (raíz) | `(5,0, "TP-H-108")` | No, es antes | Solo a la derecha: a la izquierda todo es aún más temprano |
-| 1 | `(10,5, "TG-H-140")` | No, es antes | Solo a la derecha |
-| 2 | `(16,0, "TG-H-108")` | No, es después | Solo a la izquierda: a la derecha todo es aún más tarde |
-| 3 | `(13,0, "TP-H-108")` | No, es después | Solo a la izquierda |
-| 4 | `(12,0, "TG-H-108")` | **Sí**, primer nodo de las 12:00 | A los dos lados |
+| 0 (raíz) | `(5,5, "TP-H-101")` | No, es antes | Solo a la derecha: a la izquierda todo es aún más temprano |
+| 1 | `(11,5, "TG-H-117")` | No, es antes | Solo a la derecha |
+| 2 | `(14,5, "TG-H-105")` | No, es después | Solo a la izquierda: a la derecha todo es aún más tarde |
+| 3 | `(13,0, "TG-H-120")` | No, es después | Solo a la izquierda |
+| 4 | `(12,0, "TP-H-108")` | **Sí**, primer nodo de las 12:00 | A los dos lados |
 
-En 4 pasos el árbol descartó la raíz y tres ramas enteras: todo lo de antes de las 5:00, todo lo de 5:00 a 10:30 y todo lo de después de las 16:00. Desde el nodo de la profundidad 4 hacia abajo están mezclados los 127 resultados de las 12:00 con algunos de las 11:00, 11:30 y 12:30 en los bordes. La consulta visita 142 nodos: guarda los 127 de las 12:00 y descarta 15 (los 4 del camino de arriba, 5 de las 11:00 y 11:30 y 6 de las 12:30).
+En 4 pasos el árbol descartó la raíz y tres ramas enteras: todo lo de antes de las 5:30, todo lo de 5:30 a 11:30 y todo lo de después de las 14:30. Desde el nodo de la profundidad 4 hacia abajo están mezclados los 127 resultados de las 12:00 con algunos de las 11:30 y 12:30 en los bordes. La consulta visita 136 nodos: guarda los 127 de las 12:00 y descarta 9 (los 4 del camino de arriba, 1 de las 11:30 y 4 de las 12:30).
 
 Los resultados de una misma hora no quedan uno al lado del otro en el dibujo del árbol; quedan repartidos en una rama y entre distintas profundidades. Lo que sí garantiza el árbol es que, leído en orden (izquierda, nodo, derecha), salen seguidos.
 
-**Cómo llegan al análisis.** `rango` va metiendo en una lista de Python cada nodo que está dentro del rango, en el orden en que los visita. Como visita en orden, la lista sale ordenada: `TG-COC-01`, `TG-COC-02`, … hasta `TP-REC-04`, todos de las 12:00. `IndiceTemporal.franja` devuelve esa lista, y `reporte_franja` la recorre una sola vez con un `for`: por cada resultado suma sus vatios a la energía, a su actividad, a su torre y a su hora, cuenta su estado y, si está en déficit, suma lo que le faltó. Al terminar el `for`, el reporte está listo. El árbol solo se usa para encontrar los resultados; el análisis trabaja con la lista.
+**Cómo llegan al análisis.** `rango` va metiendo en una lista de Python cada nodo que está dentro del rango, en el orden en que los visita. Como visita en orden, la lista sale ordenada: `TG-COC-01`, `TG-COC-02`, … hasta `TP-PAR-01`, todos de las 12:00. `IndiceTemporal.franja` devuelve esa lista, y `reporte_franja` la recorre una sola vez con un `for`: por cada resultado suma sus vatios a la energía, a su actividad, a su torre y a su hora, cuenta su estado y, si está en déficit, suma lo que le faltó. Al terminar el `for`, el reporte está listo. El árbol solo se usa para encontrar los resultados; el análisis trabaja con la lista.
 
-Los nodos visitados de más (15 en las 12:00) son los del camino hasta el borde del rango. En «Día completo» no hay ganancia, porque hay que devolver todo. El contador de nodos visitados (`comparaciones`) es el mismo que usa la inserción; `reporte_franja` lo lee antes y después de la consulta y reporta la diferencia.
+Los nodos visitados de más (9 en las 12:00) son los del camino hasta el borde del rango. En «Día completo» no hay ganancia, porque hay que devolver todo. El contador de nodos visitados (`comparaciones`) es el mismo que usa la inserción; `reporte_franja` lo lee antes y después de la consulta y reporta la diferencia.
 
 ### 4.5 Qué calcula cada franja
 
@@ -804,7 +804,7 @@ Dos detalles:
 - En la madrugada solo 117 zonas tienen estado. Las otras 10 están CERRADA durante toda la franja y solo tienen resultados `DATOS_INSUFICIENTES`, que no se cuentan. En el plano se pintan como `DATOS_INSUFICIENTES`.
 - En el día completo las 52 habitaciones con exceso leve aparecen como CONFORTABLE, porque el exceso dura a lo sumo 7 de sus 48 medias horas. Las franjas de mañana y tarde sí lo muestran: 18 habitaciones al este en la mañana y 8 al oeste en la tarde.
 - La noche es la franja que más gasta (63,74 kWh en 4 horas): no hay sol y casi todo está en modo ACTIVA.
-- Energía del día por actividad: habitaciones 81,96 kWh, parqueaderos 51,84, recreación 44,97 y cocinas 29,30. Por torre: TG 136,18 kWh y TP 71,90.
+- Energía del día por actividad: habitaciones 81,96 kWh, parqueaderos 51,84, sala de juegos 44,97 y cocinas 29,30. Por torre: TG 136,18 kWh y TP 71,90.
 
 **Un caso con déficit: `luminarias_danadas`** (16 habitaciones de TP sin luminaria). En la franja de noche:
 
@@ -824,7 +824,7 @@ En el día completo, las zonas más críticas son `TP-H-102`, `TP-H-106`, `TP-H-
 
 Si el simulador se crea con `comparar_arboles=True`, `IndiceTemporal` inserta cada resultado también en un árbol AVL (el mismo tipo de árbol del paso 6). La API lo pide siempre que devuelve resultados completos ([`src/api.py` línea 155](../src/api.py#L155)). El AVL no se usa para ningún reporte: solo se miden su altura y sus rotaciones, y la pestaña «6. Detalle técnico» muestra las dos medidas lado a lado.
 
-Con estos datos el AVL queda más bajo (altura 14 contra 22) y hace menos rotaciones (7.232 contra 9.099). Queda más bajo porque su regla es más estricta: las dos ramas de cada nodo difieren en altura a lo sumo en 1. El rojo-negro admite ramas más desiguales, y muchas de sus reparaciones solo cambian colores sin rotar. Al insertar, los dos hacen como máximo dos rotaciones por clave. Los dos responden la consulta en O(log R + k) y devuelven los mismos resultados.
+Con estos datos el AVL queda más bajo (altura 14 contra 22) y hace menos rotaciones (7.779 contra 7.960). Queda más bajo porque su regla es más estricta: las dos ramas de cada nodo difieren en altura a lo sumo en 1. El rojo-negro admite ramas más desiguales, y muchas de sus reparaciones solo cambian colores sin rotar. Al insertar, los dos hacen como máximo dos rotaciones por clave. Los dos responden la consulta en O(log R + k) y devuelven los mismos resultados.
 
 ### 4.7 Dónde se ve en la interfaz
 
@@ -836,8 +836,8 @@ Con estos datos el AVL queda más bajo (altura 14 contra 22) y hace menos rotaci
 | Operación | Costo | Escenario base |
 |---|---|---|
 | Insertar un resultado | O(log R) | 18 nodos en promedio |
-| Insertar los R resultados del día | O(R log R) | 112.587 comparaciones, 9.099 rotaciones, 0,01 s |
-| Consultar una franja | O(log R + k) | Entre 142 y 6.096 nodos |
+| Insertar los R resultados del día | O(R log R) | 111.161 comparaciones, 7.960 rotaciones, 0,01 s |
+| Consultar una franja | O(log R + k) | Entre 136 y 6.096 nodos |
 | Armar el reporte de la franja | O(k) | Una pasada por los k resultados |
 | Memoria | O(R) | 6.096 nodos que apuntan a los resultados, sin copiarlos |
 
@@ -846,7 +846,7 @@ R = 6.096 resultados (127 zonas × 48 medias horas). El árbol se construye dura
 ### Ideas clave del paso
 
 - **El árbol ordena por tiempo, no por zona.** La clave `(hora, zona_id)` hace que todos los resultados de una hora queden juntos y en orden, y así una franja es un trozo seguido del árbol.
-- **El balanceo importa porque los datos llegan casi ordenados.** Sin él, el árbol de búsqueda tendría altura 640 y costaría 17 veces más comparaciones insertar el día completo.
+- **El balanceo importa porque los datos llegan casi ordenados.** Sin él, el árbol de búsqueda tendría altura 686 y costaría 18 veces más comparaciones insertar el día completo.
 - **Las rotaciones no cambian el orden.** Solo cambian quién está arriba, para que ningún camino sea demasiado largo.
 - **La consulta por rango poda.** Se salta las ramas que quedan completas antes del inicio o después del fin, y la ganancia crece cuanto más corta es la franja.
 - **El reporte es una suma sencilla** sobre lo que devolvió la consulta: energía, pico, déficit y estado predominante.
@@ -943,7 +943,7 @@ De los 48 resultados de una zona solo cuentan los **evaluables**: se descartan l
 |---|---|---|---|
 | `TP-H-101` (habitación) | 48 | 0 | 48 |
 | `TP-COC-01` (cocina) | 48 | 12 | 36 |
-| `TP-REC-01` (recreación) | 48 | 14 | 34 |
+| `TP-JUE-01` (sala de juegos) | 48 | 14 | 34 |
 | `TP-PAR-01` (parqueadero) | 48 | 0 | 48 |
 
 Si una zona no tiene ningún resultado evaluable, su veredicto es `DATOS_INSUFICIENTES`.
@@ -1054,7 +1054,7 @@ peso = prioridad de la actividad × (1 + 0,10 × (piso − 1))
 puntaje del hotel = suma de (peso × puntaje) / suma de pesos
 ```
 
-Las prioridades son 3 para habitaciones y cocinas, 2 para recreaciones y 1 para parqueaderos. Una habitación del piso 1 pesa 3,0 y una del piso 6, 4,5. Este peso no tiene el factor 1,4 de habitación ocupada que usa el balance (paso 3.4).
+Las prioridades son 3 para habitaciones y cocinas, 2 para salas de juegos y 1 para parqueaderos. Una habitación del piso 1 pesa 3,0 y una del piso 6, 4,5. Este peso no tiene el factor 1,4 de habitación ocupada que usa el balance (paso 3.4).
 
 En el escenario base:
 
